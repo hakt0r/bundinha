@@ -41,9 +41,9 @@ client.init = ->
 client.SomeFunction = (args)->
   # a client side function
 ```
-## API
+## Module-API
 ```CoffeeScript
-APP.client ( optional object ofFunctions ) -> object ofFunctions
+APP.client ( optional object ofFunctions ) return object ofFunctions
   # Add client side functions
 
 APP.plugin ( string moduleName, object ofFunctions )
@@ -72,6 +72,12 @@ APP.shared ( object ofConstants )
 
 APP.tpl ( optional boolean isglobal, object ofTemplates )
   # Add client side template
+```
+
+## Client-API
+```CoffeeScript
+window.ajax ( object ofJsonQueries ) return promise
+  # Add client side functions
 ```
 
 ## Copyrights
