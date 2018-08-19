@@ -65,7 +65,7 @@ api.ModalWindow = (opts)->
     false
   opts.closeBtn.onclick = close if opts.closeBtn?
   document.addEventListener 'keyup', keyClose = (e)->
-    return unless e.key is 'Escape'
+    return false unless e.key is 'Escape'
     close e
   html
 
