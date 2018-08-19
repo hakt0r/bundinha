@@ -10,7 +10,7 @@
     "bundinha": "./index.js"
   },
   "author": "anx@hakt0r.de",
-  "license": "GPL-3.0+",
+  "license": "GPL-3.0",
   "dependencies": {
     "body-parser": "^1.18.3",
     "colors": "^1.3.1",
