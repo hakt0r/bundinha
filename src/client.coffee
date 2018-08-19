@@ -83,14 +83,12 @@ api.EditProperty = (opts)-> new Promise (resolve)->
   { item,title,key,value } = opts
   ModalWindow
     body:"""
-    <div class="window modal" id="propertyEditor">
-      <form id="login">
-        <input  type="text" name="key"   placeholder="#{I18.Key}"   autocomplete="off" autofocus="true" />
-        <input  type="text" name="value" placeholder="#{I18.Value}" autocomplete="off" />
-        <button type="reset" class="fa fa-times-circle">#{I18.Cancel}</button>
-        <button type="submit" class="fa fa-check-circle">#{I18.Save}</button>
-      </form>
-    </div>"""
+    <form id="propertyEditor">
+      <input  type="text" name="key"   placeholder="#{I18.Key}"   autocomplete="off" autofocus="true" />
+      <input  type="text" name="value" placeholder="#{I18.Value}" autocomplete="off" />
+      <button type="reset" class="fa fa-times-circle">#{I18.Cancel}</button>
+      <button type="submit" class="fa fa-check-circle">#{I18.Save}</button>
+    </form>"""
   form$  = document.getElementById 'propertyEditor'
   key$   = document.querySelector '[name=key]'
   value$ = document.querySelector '[name=value]'
