@@ -77,7 +77,7 @@ APP.tpl ( optional boolean isglobal, object ofTemplates )
 ## Client-API
 ```CoffeeScript
 window.ajax ( object ofJsonQueries ) return promise
-  # Add client side functions
+  # Default api-access
 ```
 
 ## Copyrights
