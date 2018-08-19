@@ -8,14 +8,6 @@
 
 api = APP.client()
 
-api.toHTML = (str)->
-  String(str)
-  .replace /&/g, '&amp;'
-  .replace /</g, '&lt;'
-  .replace />/g, '&gt;'
-  .replace /"/g, '&#039;'
-  .replace /'/g, '&quot;'
-
 api.LoadOffscreen = (html)->
   o = document.createElement 'div'
   o.innerHTML = html

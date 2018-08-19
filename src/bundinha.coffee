@@ -170,7 +170,6 @@ APP.start = -> APP.server.listen APP.port, APP.addr, ->
   console.log 'init','database'.green; APP.initDB()
   null
 
-
 # ██████  ███████ ██
 # ██   ██ ██      ██
 # ██   ██ ███████ ██
@@ -242,6 +241,14 @@ APP.plugin = (module,obj)->
   plug
 APP.plugin.$ = {}
 
+APP.global toHTML: (str)->
+  String(str)
+  .replace /&/g, '&amp;'
+  .replace /</g, '&lt;'
+  .replace />/g, '&gt;'
+  .replace /"/g, '&#039;'
+  .replace /'/g, '&quot;'
+
 # ██████  ██    ██ ██ ██      ██████  ██      ██ ██████
 # ██   ██ ██    ██ ██ ██      ██   ██ ██      ██ ██   ██
 # ██████  ██    ██ ██ ██      ██   ██ ██      ██ ██████
@@ -287,34 +294,24 @@ APP.initLicense = ->
     console.log 'exists'.green, licenseFile.bold
     return
   console.log 'create'.green, licenseFile.bold
-  npms = cp.spawnSync path.join(BunDir, 'node_modules', '.bin', 'legally'), ['-p','--width','200']
-  npms = npms.output.toString().split(/\n/)
-    .filter (i)-> i.match(/^│ [^M]/)
-    .filter (i)-> not i.match(/Packages/)
-    .map (i)->
-      i = i.split (/│/)
-        .map (i)-> i.trim()
-        .filter (value, index, self)->
-          value isnt '' and value isnt '-'
-        .unique()
-    .filter (i)-> i.length > 0
-    .map (i)->
-      i[0] = i[0].replace /^@/,''
-      i.shift().split(/@/).concat i
-    .sort (a,b)-> a[0].localeCompare b[0]
-    .map (i)-> """<tr><td class="package">#{i.shift()}</td><td class="version">#{i.shift()}</td><td><span class="license">#{i.join('</span><br/><span class="license">')}</span></td>"""
-    .join "\n"
+  npms = ( for name, pkg of await require 'legally'
+    [match,link,version] = name.match /(.*)@([^@]+)/
+    shortName = link.split('/').pop()
+    licenses = pkg.package.concat(pkg.license).unique()
+    """<tr>
+    <td class="package"><a href="https://www.npmjs.com/package/#{encodeURI link}">#{toHTML shortName}</td>
+    <td class="version">#{version}</td>
+    <td><span class="license">#{licenses.map(toHTML).join('</span><br/><span class="license">')}</span></td>
+    </tr>"""
+  ).join '\n'
   html = """
     <h1>Licenses</h1>
     <h2>npm packages</h2>
-    <table class="npms">
-      #{npms}
-    </table>
+    <table class="npms">#{npms}</table>
     <h2>nodejs and dependencies</h2>
   """
-
   nodeLicenseURL = "https://raw.githubusercontent.com/nodejs/node/master/LICENSE"
-  await new Promise (resolve)->
+  return new Promise (resolve)->
     require 'https'
     .get nodeLicenseURL, (resp) =>
       data = '';
@@ -322,8 +319,19 @@ APP.initLicense = ->
       resp.on 'end', ->
         data = data.replace /</g, '&lt;'
         data = data.replace />/g, '&gt;'
-        html += data
-        console.log html
+        toks = data
+        .split /"""/
+        out  = toks.shift(); mode = off
+        while ( segment = do toks.shift )
+          unless mode
+            out += '<span class=license_text>'
+            out += segment
+            mode = on
+          else
+            out += '</span>'
+            out += segment
+            mode = off
+        html += out
         fs.writeFileSync licenseFile, html
         do resolve
     .on "error", (err) ->
