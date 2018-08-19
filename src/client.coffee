@@ -78,8 +78,7 @@ api.ModalWindow = (opts)->
 api.EditProperty = (opts)-> new Promise (resolve)->
   resolved = ->
     resolve [key,value]
-    form$.remove()
-
+    ModalWindow.closeActive()
   { item,title,key,value } = opts
   ModalWindow
     body:"""
