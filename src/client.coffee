@@ -8,6 +8,13 @@
 
 api = APP.client()
 
+String::toHTML = ->
+  @replace /&/g, '&amp;'
+  .replace /</g, '&lt;'
+  .replace />/g, '&gt;'
+  .replace /"/g, '&#039;'
+  .replace /'/g, '&quot;'
+
 api.LoadOffscreen = (html)->
   o = document.createElement 'div'
   o.innerHTML = html
@@ -117,6 +124,7 @@ api.EditValue = (opts)-> new Promise (resolve)->
   html = ModalWindow opts
   form$ = document.getElementById 'propertyEditor'
   value$ = document.querySelector '[name=value]'
+  value$.value = value if value?
   form$.onsubmit = (e) ->
     e.preventDefault()
     value = value$.value
