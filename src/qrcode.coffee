@@ -2,11 +2,11 @@
 APP.script 'node_modules', 'qrcode', 'build', 'qrcode.min.js'
 # Used in service worker now
 # APP.script 'node_modules', 'jsqr', 'dist', 'jsQR.js'
-symlink(
+APP.symlink(
   path.join BunDir, 'node_modules', 'jsqr', 'dist', 'jsQR.js'
   path.join WebRootDir, 'jsqr.js' )
 
-compile path.join(BunDir,'src','scanner.coffee'), 'scanner.js'
+APP.compile path.join(BunDir,'src','scanner.coffee'), 'scanner.js'
 
 APP.headers (req,res)->
   res.append 'Content-Security-Policy',

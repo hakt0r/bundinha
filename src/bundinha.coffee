@@ -52,7 +52,7 @@ $$.APP = module.exports =
 # ██ ██   ████ ██    ██
 
 setImmediate APP.init = ->
-  reqdir WebRootDir
+  APP.reqdir WebRootDir
   console.log '------------------------------------'
   console.log ' ', AppPackage.name.green  + '/'.gray + AppPackage.version.gray,
               '['+ BunPackage.name.yellow + '/'.gray + BunPackage.version.gray+
@@ -77,8 +77,8 @@ setImmediate APP.init = ->
 # ██████  ██████
 
 APP.initDB = ->
-  console.log 'initDB'
-  APP.user    = level path.join ConfigDir, 'user.db'
+  for name in APP.db.$
+    APP[name] = level path.join ConfigDir, name + '.db'
   APP.session = level path.join ConfigDir, 'session.db'
   APP.item    = level path.join ConfigDir, 'item.db'
 
@@ -190,6 +190,10 @@ APP.postPrivate = (path,callback)->
     callback req,res,next
 APP.postPrivate.$ = {}
 
+APP.db = (name)->
+  APP.db.name = true
+APP.db.$ = user:on, session:on
+
 APP.headers = (fnHeaderGenerator)->
   APP.headers.$.push fnHeaderGenerator
 APP.headers.$ = []
@@ -244,27 +248,27 @@ APP.plugin.$ = {}
 # ██   ██ ██    ██ ██ ██      ██   ██ ██      ██ ██   ██
 # ██████   ██████  ██ ███████ ██████  ███████ ██ ██████
 
-$$.touch = require 'touch'
+APP.touch = require 'touch'
 
-$$.compile = (src,dst)->
+APP.compile = (src,dst)->
   dst = path.join WebRootDir, dst
   return null unless src.match /\.coffee$/
   return null if ( stat = fs.statSync src ).isDirectory()
   dstat = fs.statSync dst if fs.existsSync dst
   return null if stat.mtime.toString().trim() is dstat.mtime.toString().trim() if dstat
   fs.writeFileSync dst, code = coffee.compile fs.readFileSync src, 'utf8'
-  touch.sync dst, ref:src
+  APP.touch.sync dst, ref:src
   dstat = fs.statSync dst if fs.existsSync dst
   console.log 'compiled'.green, src.yellow, stat.mtime, ( dstat || mtime:'0' ).mtime
   null
 
-$$.symlink = (src,dst)->
+APP.symlink = (src,dst)->
   console.log 'link'.yellow, path.basename(src).yellow, '->'.yellow, dst.bold
   return if fs.existsSync dst
   fs.symlinkSync src, dst
   console.log 'link'.green, path.basename(src).yellow, '->'.yellow, dst.bold
 
-$$.reqdir = (dst) ->
+APP.reqdir = (dst) ->
   return if fs.existsSync dst
   fs.mkdirSync dst
 
