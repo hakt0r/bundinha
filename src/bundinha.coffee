@@ -298,7 +298,9 @@ APP.initLicense = ->
           value isnt '' and value isnt '-'
         .unique()
     .filter (i)-> i.length > 0
-    .map (i)-> i.shift().split(/@/).concat i
+    .map (i)->
+      i[0] = i[0].replace /^@/,''
+      i.shift().split(/@/).concat i
     .sort (a,b)-> a[0].localeCompare b[0]
     .map (i)-> """<tr><td class="package">#{i.shift()}</td><td class="version">#{i.shift()}</td><td><span class="license">#{i.join('</span><br/><span class="license">')}</span></td>"""
     .join "\n"

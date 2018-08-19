@@ -17,7 +17,6 @@
     "compression": "^1.7.3",
     "cookie-parser": "^1.4.3",
     "express": "^4.16.3",
-    "express-json": "^1.0.0",
     "jsqr": "^1.1.1",
     "legally": "^2.10.0",
     "level": "^4.0.0",
