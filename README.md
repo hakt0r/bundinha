@@ -43,8 +43,7 @@ client.SomeFunction = (args)->
 ```
 ## Module-API
 ```CoffeeScript
-APP.script ( string name, string path )
-  #  name: destination i.e. 'jquery.js'
+APP.script ( string path )
   #  path: source i.e. '/path/to/jquery.js'
   #             or URL 'https://cdn.for/jquery.js'
   # Add javascript library to the client/webapp
