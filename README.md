@@ -43,34 +43,34 @@ client.SomeFunction = (args)->
 ```
 ## API
 ```CoffeeScript
-APP.client( optional api-object ) returns api-object
+APP.client ( optional object ofFunctions ) -> object ofFunctions
   # Add client side functions
 
-APP.config( fnConfigHandler )
+APP.plugin ( string moduleName, object ofFunctions )
+  # Add plugins to a function defined with APP.client
+
+APP.config ( function configurationReader )
   # Add config handler
 
-APP.global
+APP.global ( object ofFunctions )
   # Add global constant
 
-APP.headers
+APP.headers ( function headerGenerator )
   # Add headers
 
-APP.plugin
-  # Add plugin to a fucntion defined with APP.client
-
-APP.postPrivate( path, callback )
+APP.postPrivate ( string path, function callback )
   # Add private (authenticated) post handler
 
-APP.postPublic( path, callback )
+APP.postPublic ( string path, function callback )
   # Add public post handler
 
-APP.script
+APP.script ( string path )
   # Add javascript library to the client/webapp
 
-APP.shared
-  # Add add shared function
+APP.shared ( object ofConstants )
+  # Add add shared constant (global)
 
-APP.tpl
+APP.tpl ( optional boolean isglobal, object ofTemplates )
   # Add client side template
 ```
 
