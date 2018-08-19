@@ -10,16 +10,17 @@ First begin a regular NodeJS project :) Yes, ATM you're forced to use CoffeeScri
 
   - myApp/
     - package.json
-    - index.js : **require("bundinha")**
+    - index.js
+      - *require("bundinha")*
     - src/
-      - myApp.coffee : **entry Point**
+       - myApp.coffee : **entry Point**
 
 The reason is the packaging process in which code and assets
 are being bundled into the *build/* directory.
 
 Your entry Point could look like this.
 
-"""
+```CoffeeScript
 require 'bundinha/auth_invite'
 # this will give you basic SHA512 / challenge-response
 # with seed, server and transaction salts
@@ -39,30 +40,35 @@ client.init = ->
 
 client.SomeFunction = (args)->
   # a client side function
-"""
 
-## The BUNDINHA API
+#  █████  ██████  ██
+# ██   ██ ██   ██ ██
+# ███████ ██████  ██
+# ██   ██ ██      ██
+# ██   ██ ██      ██
 
-  - APP.client
-    Add client side function
-  - APP.config
-    Add config handler
-  - APP.global
-    Add global constant
-  - APP.headers
-    Add headers
-  - APP.plugin
-    Add plugin to a fucntion defined with APP.client
-  - APP.postPrivate
-    Add private (authenticated) post handler
-  - APP.postPublic
-    Add public post handler
-  - APP.script
-    Add javascript library to the client/webapp
-  - APP.shared
-    Add add shared function
-  - APP.tpl
-    Add client side template
+APP.client( optional api-object ) returns api-object
+  # Add client side functions
+APP.config( fnConfigHandler )
+  # Add config handler
+APP.global
+# Add global constant
+APP.headers
+# Add headers
+APP.plugin
+# Add plugin to a fucntion defined with APP.client
+APP.postPrivate
+# Add private (authenticated) post handler
+APP.postPublic
+# Add public post handler
+APP.script
+# Add javascript library to the client/webapp
+APP.shared
+# Add add shared function
+APP.tpl
+# Add client side template
+
+```
 
 ## Copyrights
 
