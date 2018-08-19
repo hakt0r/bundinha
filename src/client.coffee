@@ -80,7 +80,7 @@ api.EditProperty = (opts)-> new Promise (resolve)->
     resolve [key,value]
     form$.remove()
 
-  { item,title,value } = opts
+  { item,title,key,value } = opts
   ModalWindow
     body:"""
     <div class="window modal" id="propertyEditor">
