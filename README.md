@@ -40,34 +40,38 @@ client.init = ->
 
 client.SomeFunction = (args)->
   # a client side function
-
-#  █████  ██████  ██
-# ██   ██ ██   ██ ██
-# ███████ ██████  ██
-# ██   ██ ██      ██
-# ██   ██ ██      ██
-
+```
+## API
+```CoffeeScript
 APP.client( optional api-object ) returns api-object
   # Add client side functions
+
 APP.config( fnConfigHandler )
   # Add config handler
-APP.global
-# Add global constant
-APP.headers
-# Add headers
-APP.plugin
-# Add plugin to a fucntion defined with APP.client
-APP.postPrivate
-# Add private (authenticated) post handler
-APP.postPublic
-# Add public post handler
-APP.script
-# Add javascript library to the client/webapp
-APP.shared
-# Add add shared function
-APP.tpl
-# Add client side template
 
+APP.global
+  # Add global constant
+
+APP.headers
+  # Add headers
+
+APP.plugin
+  # Add plugin to a fucntion defined with APP.client
+
+APP.postPrivate( path, callback )
+  # Add private (authenticated) post handler
+
+APP.postPublic( path, callback )
+  # Add public post handler
+
+APP.script
+  # Add javascript library to the client/webapp
+
+APP.shared
+  # Add add shared function
+
+APP.tpl
+  # Add client side template
 ```
 
 ## Copyrights
