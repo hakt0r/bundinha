@@ -80,8 +80,7 @@ APP.initDB = ->
   for name, opts of APP.db.$
     console.log 'db', name.green
     APP[name] = level path.join ConfigDir, name + '.db'
-  APP.session = level path.join ConfigDir, 'session.db'
-  APP.item    = level path.join ConfigDir, 'item.db'
+  null
 
 # ██     ██ ███████ ██████
 # ██     ██ ██      ██   ██
@@ -192,7 +191,7 @@ APP.postPrivate = (path,callback)->
 APP.postPrivate.$ = {}
 
 APP.db = (name)->
-  APP.db[name] = true
+  APP.db.$[name] = true
 APP.db.$ = user:on, session:on
 
 APP.headers = (fnHeaderGenerator)->
