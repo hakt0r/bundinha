@@ -8,8 +8,9 @@
 
 api = APP.client()
 
-String::toHTML = ->
-  @replace /&/g, '&amp;'
+api.toHTML = (str)->
+  String(str)
+  .replace /&/g, '&amp;'
   .replace /</g, '&lt;'
   .replace />/g, '&gt;'
   .replace /"/g, '&#039;'
