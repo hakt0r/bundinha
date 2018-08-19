@@ -134,6 +134,7 @@ api.EditValue = (opts)-> new Promise (resolve)->
 notifyApi = APP.client()
 
 notifyApi.init = ->
+  console.log 'init-notify'
   showToastNotification.list = []
 
 notifyApi.showToastNotification = (timeout,text)->
@@ -149,13 +150,13 @@ notifyApi.updateToastNotification = ->
     @$ = document.querySelector '.toastNotifications'
   now = Date.now()
   nextEvent = Infinity
-  @list = @list.filter (item)->
+  showToastNotification.list = list = showToastNotification.list.filter (item)->
     time = item[0]
     nextEvent = time if time < nextEvent and time > now
     time > now
-  if @list.length > 0 then requestAnimationFrame =>
+  if list.length > 0 then requestAnimationFrame =>
     @$.innerHTML = '<div class="notification">' +
-      @list.map((i)-> i[1]).join('</div>\n<div class="notification">') +
+      list.map((i)-> i[1]).join('</div>\n<div class="notification">') +
       '</div>'
     @$.classList.add 'active'
     nextEvent = if nextEvent is Infinity then now + 100 else nextEvent
