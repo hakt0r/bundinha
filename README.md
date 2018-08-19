@@ -43,6 +43,12 @@ client.SomeFunction = (args)->
 ```
 ## Module-API
 ```CoffeeScript
+APP.script ( string name, string path )
+  #  name: destination i.e. 'jquery.js'
+  #  path: source i.e. '/path/to/jquery.js'
+  #             or URL 'https://cdn.for/jquery.js'
+  # Add javascript library to the client/webapp
+
 APP.client ( optional object ofFunctions ) return object ofFunctions
   # Add client side functions
 
@@ -63,9 +69,6 @@ APP.postPrivate ( string path, function callback )
 
 APP.postPublic ( string path, function callback )
   # Add public post handler
-
-APP.script ( string path )
-  # Add javascript library to the client/webapp
 
 APP.shared ( object ofConstants )
   # Add add shared constant (global)
