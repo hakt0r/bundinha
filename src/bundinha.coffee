@@ -90,13 +90,15 @@ APP.initDB = ->
 
 APP.initWeb = ->
   APP.web = ( require 'express' )()
-  APP.web.use '/build', require('serve-static') WebRootDir, etag:yes
   APP.web.use do require 'compression'
-  APP.web.use do require 'cookie-parser'
+  APP.web.use '/', require('serve-static') WebRootDir,
+    etag:no
+    cacheControl:yes
+    maxAge: 15552000
   APP.web.use do require('body-parser').json
+  APP.web.use do require 'cookie-parser'
   APP.web.use (req,res,next)->
     return next() unless cookie = req.cookies.SESSION
-    # return next() if cookie is 'j:null' #
     APP.session.get cookie, (error,id)->
       return next() if error
       APP.user.get id, (error,value)->
@@ -104,9 +106,6 @@ APP.initWeb = ->
         req.USER = value
         next()
 
-  APP.web.get '/', (req,res)->
-    APP.headers.$.map (i)-> i req, res
-    res.send fs.readFileSync (path.join WebRootDir,'index.html'), 'utf8'
   APP.web.post url, handler for url, handler of APP.postPublic.$
   APP.web.post url, handler for url, handler of APP.postPrivate.$
 
@@ -192,6 +191,12 @@ APP.postPrivate.$ = {}
 APP.db = (name)->
   APP.db.$[name] = true
 APP.db.$ = user:on, session:on
+
+APP.css = (argsForPath...)->
+  p = path.join.apply path, argsForPath
+  console.log 'css'.yellow, p
+  APP.css.$[p] = true
+APP.css.$ = {}
 
 APP.headers = (fnHeaderGenerator)->
   APP.headers.$.push fnHeaderGenerator

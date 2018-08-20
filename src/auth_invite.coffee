@@ -104,7 +104,7 @@ api.LoginForm = (abortable=yes,onlogin='/')->
   document.body.innerHTML = """
   <div id="navigation" class="navigation"></div>
   <div class="window modal#{if abortable then '' else ' monolithic'}" id="loginWindow">
-    <center><img width=640 src="/build/cinv.png" /></center>
+    <center><img width=640 src="/cinv.png" /></center>
     <form id="login">
       <input  type="email"    name="id"                   placeholder="#{I18.Username}" autocomplete="username" autofocus="true" />
       <input  type="password" name="pass" pattern=".{6,}" placeholder="#{I18.Password}" autocomplete="password" />

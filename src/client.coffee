@@ -35,7 +35,7 @@ api.IconButton = (key,xclass='',fn)->
     fn = xclass
     xclass = ''
   btn = """<button id="#{key}" class="#{key} #{xclass}">#{I18[key]}</button>"""
-  btn = """<button id="#{key}" class="#{key} #{ICON[key]}#{xclass}"></button>""" if ICON[key]?
+  btn = """<button id="#{key}" class="#{key} faw fa-#{ICON[key]}#{xclass}"></button>""" if ICON[key]?
   btn = LoadOffscreen btn
   btn.onclick = fn if fn?
   btn.onclick = fn

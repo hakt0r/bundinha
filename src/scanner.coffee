@@ -13,7 +13,7 @@
 #         .catch resolve
 #   else
 
-importScripts '/build/jsqr.js'
+importScripts '/jsqr.js'
 
 self.onmessage = (msg)->
   msg = msg.data.data

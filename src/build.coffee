@@ -43,17 +43,19 @@ for module, plugs of APP.plugin.$
       client.init += "\n#{module}.plugin.#{name} = #{plug.client.toString()};"
     if plug.worker?
       setInterval plug.worker, plug.interval || 1000 * 60 * 60
-      setTimeout plug.worker
+      # setTimeout plug.worker # TODO: oninit
   console.log 'api:plugin', module, list.join ' '
 
 init = client.init; delete client.init
 
-apis = ''
+apis = ''; apilist = []
 for name, api of client
   apis += "\n$$.#{name} = #{api.toString()};"
-  console.log 'api', name
+  apilist.push name
 $script.push apis
 $script.push init
+
+console.log 'client-api'.green, apilist.join(' ').gray
 
 $script = $script.join '\n'
 
@@ -65,6 +67,10 @@ fs.writeFileSync path.join(RootDir,'build','app.js'), $script
 # ██   ██ ██      ██
 # ██   ██ ██      ██
 
+styles = ( for filePath, opts of APP.css.$
+  console.log 'css'.green, filePath
+  fs.readFileSync filePath, 'utf8' ).join '\n'
+
 fs.writeFileSync path.join(RootDir,'build','index.html'), $body = """
   <!DOCTYPE html>
   <html>
@@ -73,8 +79,8 @@ fs.writeFileSync path.join(RootDir,'build','index.html'), $body = """
     <title>#{APP.title}</title>
     <meta name="description" content="#{APP.description}"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <link rel="stylesheet" href="/build/css/fontawesome.css"/>
-    <link rel="stylesheet" href="/build/plan.css"/>
-  </head><body></body>
-  <script src="/build/app.js"></script>
-  </html>"""
+  <style>
+  #{styles}
+  </style></head><body></body><script>
+  #{$script}
+  </script></html>"""
