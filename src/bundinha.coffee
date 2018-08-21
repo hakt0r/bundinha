@@ -246,6 +246,44 @@ APP.plugin = (module,obj)->
   plug
 APP.plugin.$ = {}
 
+APP.compileSources = (sources)->
+  out = ''
+  for source in sources
+    if typeof source is 'function'
+      source = source.toString().split '\n'
+      source.shift(); source.pop(); source.pop()
+      source = source.join '\n'
+      out += source
+    else if Array.isArray source
+      source = path.join.apply path, source if Array.isArray source
+      if source.match /.coffee$/
+           out += coffee.compile ( fs.readFileSync source, 'utf8' ), bare:on
+      else out += fs.readFileSync source, 'utf8'
+    else throw new Error 'source of unhandled type', typeof source
+  out
+
+APP.webWorker = (name,sources...)->
+  APP.client init:->
+    loadWorker = (name)->
+      src = document.getElementById(name).textContent
+      blob = new Blob [src], type: 'text/javascript'
+      $$[name] = new Worker window.URL.createObjectURL blob
+    loadWorker name for name in BunWebWorker
+    null
+  APP.webWorker.$[name] = APP.compileSources sources
+APP.webWorker.$ = {}
+
+APP.serviceWorker = (sources...)->
+  APP.client init:-> if 'serviceWorker' of navigator
+    await navigator.serviceWorker.register '/service.js'
+    .then (registration) ->
+      console.log 'ServiceWorker registration successful with scope: ', registration.scope
+    .catch (err) ->
+      console.log 'ServiceWorker registration failed: ', err
+    null
+  fs.writeFileSync path.join(WebRootDir,'service.js'), APP.compileSources sources
+APP.webWorker.$ = {}
+
 APP.global toHTML: (str)->
   String(str)
   .replace /&/g, '&amp;'

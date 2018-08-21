@@ -1,23 +1,12 @@
 
-APP.script 'node_modules', 'qrcode', 'build', 'qrcode.min.js'
-# Used in service worker now
-# APP.script 'node_modules', 'jsqr', 'dist', 'jsQR.js'
-APP.symlink(
-  path.join BunDir, 'node_modules', 'jsqr', 'dist', 'jsQR.js'
-  path.join WebRootDir, 'jsqr.js' )
-
-APP.compile path.join(BunDir,'src','scanner.coffee'), 'scanner.js'
-
-APP.headers (req,res)->
-  res.append 'Content-Security-Policy',
-             "worker-src https://#{req.headers.host}/;"
-
 #  ██████  ██████  ██      ██ ██████
 # ██    ██ ██   ██ ██      ██ ██   ██
 # ██    ██ ██████  ██      ██ ██████
 # ██ ▄▄ ██ ██   ██ ██      ██ ██   ██
 #  ██████  ██   ██ ███████ ██ ██████
 #     ▀▀
+
+APP.script 'node_modules', 'qrcode', 'build', 'qrcode.min.js'
 
 api = APP.client()
 
@@ -75,8 +64,7 @@ api.init = -> $$.QR =
     canvas.width  = width  = video.videoWidth
     canvas.height = height = video.videoHeight
     ctx = canvas.getContext '2d'
-    # ctx.drawImage video, 0, 0
-    ctx.clearRect 0,0,width,height
+    ctx.drawImage video, 0, 0
     img = ctx.getImageData 0, 0, width, height
     CodeScanner.postMessage data:img, width:width, height:height
     CodeScanner.onmessage = QR.processWorkerResult ctx
@@ -84,6 +72,7 @@ api.init = -> $$.QR =
   processWorkerResult: (ctx)-> (msg)->
     result = msg.data
     return do QR.scanNextImage unless result.data and result.data.trim() isnt ''
+    ctx.clearRect 0,0, canvas.width, canvas.height
     ctx.strokeStyle = "red"
     ctx.lineWidth = 3
     ctx.beginPath()
@@ -94,3 +83,22 @@ api.init = -> $$.QR =
     ctx.lineTo.apply ctx, Object.values(result.location.topLeftCorner)
     ctx.stroke()
     QR.stopScan result.data
+
+# WebWorker does the processing using jsQR
+APP.webWorker 'CodeScanner', ( ->
+  self.onmessage = (msg)->
+    msg = msg.data.data
+    result = jsQR msg.data, msg.width, msg.height
+    self.postMessage (
+      if result then result else error:false )
+    null
+  null
+), [BunDir,'node_modules','jsqr','dist','jsQR.js']
+
+# READ_QR = if navigator.BarcodeDetector
+#     barcodeDetector = new BarcodeDetector();
+#     (image)-> new Promise (resolve)->
+#       barcodeDetector.detect(image)
+#         .then resolve
+#         .catch resolve
+#   else

@@ -35,7 +35,7 @@ api.IconButton = (key,xclass='',fn)->
     fn = xclass
     xclass = ''
   btn = """<button id="#{key}" class="#{key} #{xclass}">#{I18[key]}</button>"""
-  btn = """<button id="#{key}" class="#{key} faw fa-#{ICON[key]}#{xclass}"></button>""" if ICON[key]?
+  btn = """<button id="#{key}" class="#{key} faw fa-#{ICON[key]}#{xclass}"><span>#{I18[key]}</span></button>""" if ICON[key]?
   btn = LoadOffscreen btn
   btn.onclick = fn if fn?
   btn.onclick = fn
@@ -145,26 +145,27 @@ notifyApi.showToastNotification = (timeout,text)->
   showToastNotification.list.push [Date.now() + timeout, text]
   updateToastNotification()
 
-notifyApi.updateToastNotification = ->
-  unless @$
+notifyApi.updateToastNotification = -> requestAnimationFrame ->
+  unless e = document.querySelector '.toastNotifications'
+    console.log 'updatos'
     document.body.append LoadOffscreen '<div class="toastNotifications"></div>'
-    @$ = document.querySelector '.toastNotifications'
+    e = document.querySelector '.toastNotifications'
   now = Date.now()
   nextEvent = Infinity
   showToastNotification.list = list = showToastNotification.list.filter (item)->
     time = item[0]
     nextEvent = time if time < nextEvent and time > now
     time > now
-  if list.length > 0 then requestAnimationFrame =>
-    @$.innerHTML = '<div class="notification">' +
+  if list.length > 0
+    e.innerHTML = '<div class="notification">' +
       list.map((i)-> i[1]).join('</div>\n<div class="notification">') +
       '</div>'
-    @$.classList.add 'active'
+    e.classList.add 'active'
     nextEvent = if nextEvent is Infinity then now + 100 else nextEvent
     setTimeout ( -> updateToastNotification() ), nextEvent - now
-  else requestAnimationFrame =>
-    @$.innerHTML = ''
-    @$.classList.remove 'active'
+  else
+    e.innerHTML = ''
+    e.classList.remove 'active'
   null
 
 notifyApi.showModalConfirm = (text)->

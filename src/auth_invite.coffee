@@ -15,6 +15,9 @@ APP.config ->
 APP.global SHA512: (value)->
   forge.md.sha512.create().update( value ).digest().toHex()
 
+APP.postPublic "/authenticated", (req,res)->
+  res.json error: not req.USER
+
 APP.postPublic "/login", (req,res)->
   APP.user.get ( q = req.body ).id, (error,rec)->
     try rec = JSON.parse rec catch e
@@ -71,9 +74,13 @@ APP.script 'node_modules','node-forge','dist','forge.min.js'
 api = APP.client()
 
 api.CheckLoginCookie = ->
-  new Promise (resolve)->
-    resolve true  if document.cookie.match(/SESSION=/)
-    resolve false
+  if document.cookie.match /SESSION=/
+    ajax '/authenticated', {}
+    .then (result)-> not result.error
+    .catch (error)->
+      showToastNotification 'offline mode' if error is 'offline'
+      false
+  else Promise.resolve false
 
 api.ButtonLogout = ->
   btn = IconButton 'Logout'
@@ -104,13 +111,16 @@ api.LoginForm = (abortable=yes,onlogin='/')->
   document.body.innerHTML = """
   <div id="navigation" class="navigation"></div>
   <div class="window modal#{if abortable then '' else ' monolithic'}" id="loginWindow">
-    <center><img width=640 src="/cinv.png" /></center>
     <form id="login">
-      <input  type="email"    name="id"                   placeholder="#{I18.Username}" autocomplete="username" autofocus="true" />
-      <input  type="password" name="pass" pattern=".{6,}" placeholder="#{I18.Password}" autocomplete="password" />
+      <input type="email"    name="id"                   placeholder="#{I18.Username}" autocomplete="username" autofocus="true" />
+      <input type="password" name="pass" pattern=".{6,}" placeholder="#{I18.Password}" autocomplete="password" />
     </form>
   </div>
   """
+  if AppLogo?
+    i = new Image
+    i.src = URL.createObjectURL new Blob [AppLogo], filename:'AppLogo', type:'image/svg+xml'
+    document.getElementById('loginWindow').prepend i
   form$ = document.getElementById 'login'
   navigation$ = document.getElementById 'navigation'
   navigation$.append IconButton 'Register', RegisterForm
