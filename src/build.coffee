@@ -100,6 +100,24 @@ workers = ( for name, src of APP.webWorker.$
   </script>"""
 ).join '\n'
 
+mainfesto = """
+<link rel=manifest href='data:application/manifest+json,
+{ "name": "#{AppName}",
+  "short_name": "#{title}",
+  "start_url": "http://localhost:9999",
+  "display": "standalone",
+  "icons": [
+    { "src": "data:image/png;base64,#{AppIconPNG}",
+      "density": "1",
+      "sizes": "256x256",
+      "type": "image/png" },
+    { "src": "data:image/svg+xml;base64,#{AppIcon}",
+      "density": "1",
+      "sizes": "any",
+      "type": "image/svg+xml" }
+  ]
+}'>"""
+
 fs.writeFileSync path.join(RootDir,'build','index.html'), $body = """
   <!DOCTYPE html>
   <html>
@@ -108,22 +126,7 @@ fs.writeFileSync path.join(RootDir,'build','index.html'), $body = """
     <title>#{title}</title>
     <meta name="description" content="#{APP.description}"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <link rel=manifest href='data:application/manifest+json,
-    { "name": "#{AppName}",
-      "short_name": "#{title}",
-      "start_url": "http://localhost:9999",
-      "display": "standalone",
-      "icons": [
-        { "src": "data:image/png;base64,#{AppIconPNG}",
-          "density": "1",
-          "sizes": "256x256",
-          "type": "image/png" },
-        { "src": "data:image/svg+xml;base64,#{AppIcon}",
-          "density": "1",
-          "sizes": "any",
-          "type": "image/svg+xml" }
-      ]
-    }'>
+    #{manifesto}
     </script>
     <style>
     #{styles}
