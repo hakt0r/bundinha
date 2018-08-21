@@ -92,7 +92,7 @@ APP.initWeb = ->
   APP.web = ( require 'express' )()
   APP.web.use do require 'compression'
   APP.web.use '/', require('serve-static') WebRootDir,
-    etag:no
+    etag:yes
     cacheControl:yes
     maxAge: 15552000
   APP.web.use do require('body-parser').json

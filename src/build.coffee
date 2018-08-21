@@ -104,7 +104,7 @@ manifesto = """
 <link rel=manifest href='data:application/manifest+json,
 { "name": "#{AppName}",
   "short_name": "#{title}",
-  "start_url": "http://localhost:9999",
+  "start_url": "https://localhost",
   "display": "fullscreen",
   "theme_color": "red",
   "background_color": "%23231f27",
