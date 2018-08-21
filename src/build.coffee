@@ -100,7 +100,7 @@ workers = ( for name, src of APP.webWorker.$
   </script>"""
 ).join '\n'
 
-mainfesto = """
+manifesto = """
 <link rel=manifest href='data:application/manifest+json,
 { "name": "#{AppName}",
   "short_name": "#{title}",
