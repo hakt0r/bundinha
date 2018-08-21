@@ -105,11 +105,13 @@ manifesto = """
 { "name": "#{AppName}",
   "short_name": "#{title}",
   "start_url": "http://localhost:9999",
-  "display": "standalone",
+  "display": "fullscreen",
+  "theme_color": "red",
+  "background_color": "%23231f27",
   "icons": [
     { "src": "data:image/png;base64,#{AppIconPNG}",
       "density": "1",
-      "sizes": "256x256",
+      "sizes": "512x512",
       "type": "image/png" },
     { "src": "data:image/svg+xml;base64,#{AppIcon}",
       "density": "1",
@@ -126,13 +128,17 @@ fs.writeFileSync path.join(RootDir,'build','index.html'), $body = """
     <title>#{title}</title>
     <meta name="description" content="#{APP.description}"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="theme-color" content="red"/>
     #{manifesto}
     </script>
     <style>
     #{styles}
-  </style></head><body></body>
+  </style></head><body>
+  <center>JavaScript is required.</center>
+  </body>
   #{workers}
   <script>
+  document.querySelector('center').innerHTML = 'loading...';
   #{scripts}
   </script>
   </html>"""

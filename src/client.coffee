@@ -135,7 +135,6 @@ api.EditValue = (opts)-> new Promise (resolve)->
 notifyApi = APP.client()
 
 notifyApi.init = ->
-  console.log 'init-notify'
   showToastNotification.list = []
 
 notifyApi.showToastNotification = (timeout,text)->
@@ -147,7 +146,6 @@ notifyApi.showToastNotification = (timeout,text)->
 
 notifyApi.updateToastNotification = -> requestAnimationFrame ->
   unless e = document.querySelector '.toastNotifications'
-    console.log 'updatos'
     document.body.append LoadOffscreen '<div class="toastNotifications"></div>'
     e = document.querySelector '.toastNotifications'
   now = Date.now()

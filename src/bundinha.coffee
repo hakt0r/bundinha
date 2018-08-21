@@ -273,24 +273,36 @@ APP.webWorker = (name,sources...)->
   APP.webWorker.$[name] = APP.compileSources sources
 APP.webWorker.$ = {}
 
-APP.serviceWorker = (sources...)->
-  APP.client init:-> if 'serviceWorker' of navigator
-    await navigator.serviceWorker.register '/service.js'
-    .then (registration) ->
-      console.log 'ServiceWorker registration successful with scope: ', registration.scope
-    .catch (err) ->
-      console.log 'ServiceWorker registration failed: ', err
+APP.serviceWorker = (args...)->
+  fs.writeFileSync path.join(WebRootDir,'service.js'), APP.compileSources args
+  APP.client init:->
+    window.addEventListener 'beforeinstallprompt', -> console.log 'install-prompt'
+    return Promise.resolve() unless 'serviceWorker' of navigator
+    navigator.serviceWorker
+    .getRegistrations()
+    .then (data)->
+      return Promise.resolve scope:'installed' if data and data.length is 1
+      navigator.serviceWorker.register '/service.js'
+    .then (registration) -> console.log 'ServiceWorker:', registration.scope
+    .catch (err) -> console.log 'ServiceWorker registration failed: ', err
     null
-  fs.writeFileSync path.join(WebRootDir,'service.js'), APP.compileSources sources
 APP.webWorker.$ = {}
 
-APP.global toHTML: (str)->
-  String(str)
-  .replace /&/g, '&amp;'
-  .replace /</g, '&lt;'
-  .replace />/g, '&gt;'
-  .replace /"/g, '&#039;'
-  .replace /'/g, '&quot;'
+APP.global
+  escapeHTML: (str)->
+    String(str)
+    .replace /&/g,  '&amp;'
+    .replace /</g,  '&lt;'
+    .replace />/g,  '&gt;'
+    .replace /"/g,  '&#039;'
+    .replace /'/g,  '&x27;'
+    .replace /\//g, '&x2F;'
+  toAttr: (str)->
+    alphanumeric = /[a-zA-Z0-9]/
+    ( for char in str
+        if char.match alphanumeric then char
+        else '&#' + char.charCodeAt(0).toString(16) + ';'
+    ).join ''
 
 # ██████  ██    ██ ██ ██      ██████  ██      ██ ██████
 # ██   ██ ██    ██ ██ ██      ██   ██ ██      ██ ██   ██
@@ -342,9 +354,9 @@ APP.initLicense = ->
     shortName = link.split('/').pop()
     licenses = pkg.package.concat(pkg.license).unique()
     """<tr>
-    <td class="package"><a href="https://www.npmjs.com/package/#{encodeURI link}">#{toHTML shortName}</td>
+    <td class="package"><a href="https://www.npmjs.com/package/#{encodeURI link}">#{escapeHTML shortName}</td>
     <td class="version">#{version}</td>
-    <td><span class="license">#{licenses.map(toHTML).join('</span><br/><span class="license">')}</span></td>
+    <td><span class="license">#{licenses.map(escapeHTML).join('</span><br/><span class="license">')}</span></td>
     </tr>"""
   ).join '\n'
   html = """
