@@ -105,7 +105,6 @@ APP.initWeb = ->
         req.ID = id
         req.USER = value
         next()
-
   APP.web.post url, handler for url, handler of APP.postPublic.$
   APP.web.post url, handler for url, handler of APP.postPrivate.$
 
@@ -175,18 +174,18 @@ APP.start = -> APP.server.listen APP.port, APP.addr, ->
 # ██   ██      ██ ██
 # ██████  ███████ ███████
 
-APP.postPublic = (path,callback)->
-  APP.postPublic.$[path] = (req,res,next)->
-    return res.json error:'Request without data' unless req.body
-    callback req,res,next
-APP.postPublic.$ = {}
+APP.public = (path,callback,fallback)->
+  APP.public[path] = callback
+  APP.fallback[path] = fallback if fallback
+  APP
 
-APP.postPrivate = (path,callback)->
-  APP.postPrivate.$[path] = (req,res,next)->
-    return res.json error:'Access denied'        unless req.USER
-    return res.json error:'Request without data' unless req.body
-    callback req,res,next
-APP.postPrivate.$ = {}
+APP.private = (path,callback,fallback)->
+  APP.public[path] = callback
+  APP.fallback[path] = fallback if fallback
+
+APP.public   = {}
+APP.private  = {}
+APP.fallback = {}
 
 APP.db = (name)->
   APP.db.$[name] = true
@@ -197,10 +196,6 @@ APP.css = (argsForPath...)->
   console.log 'css'.yellow, p
   APP.css.$[p] = true
 APP.css.$ = {}
-
-APP.headers = (fnHeaderGenerator)->
-  APP.headers.$.push fnHeaderGenerator
-APP.headers.$ = []
 
 APP.config = (fnConfigurationReader)->
   APP.config.$.push fnConfigurationReader
