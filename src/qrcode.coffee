@@ -6,9 +6,9 @@
 #  ██████  ██   ██ ███████ ██ ██████
 #     ▀▀
 
-APP.script 'node_modules', 'qrcode', 'build', 'qrcode.min.js'
+APP.script 'node_modules', 'qrious', 'dist', 'qrious.min.js'
 
-api = APP.client()
+api = APP.clientApi()
 
 api.Sleep = (ms)-> new Promise (resolve)->
   setTimeout resolve, ms
@@ -27,7 +27,7 @@ api.PreferBackCamera = (devices)-> new Promise (resolve,reject)->
   reject new Error "No video devices"
 
 api.init = -> $$.QR =
-  write: QRCode
+  write: QRious
   init: ->
     return new Error 'getUserMedia() is not supported by your browser' unless HasMediaQueries()
     $$.video  = document.querySelector 'video'

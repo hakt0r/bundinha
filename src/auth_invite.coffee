@@ -12,14 +12,14 @@ APP.config ->
     APP.InviteKey = fs.readFileSync(p).toString()
   else fs.writeFileSync p, APP.InviteKey = 'secretKey!'
 
-APP.global SHA512: (value)->
+APP.sharedApi SHA512: (value)->
   forge.md.sha512.create().update( value ).digest().toHex()
 
-APP.postPublic "/authenticated", (req,res)->
-  res.json error: not req.USER
+APP.private "/authenticated", (q,req,res)->
+  res.json error:false
 
-APP.postPublic "/login", (req,res)->
-  APP.user.get ( q = req.body ).id, (error,rec)->
+APP.public "/login", (q,req,res)->
+  APP.user.get q.id, (error,rec)->
     try rec = JSON.parse rec catch e
       return res.json id:q.id, error:e.message
     if error
@@ -38,8 +38,8 @@ APP.postPublic "/login", (req,res)->
     null
   null
 
-APP.postPublic "/register", (req,res)->
-  APP.user.get ( q = req.body ).id, (error,rec)->
+APP.public "/register", (q,req,res)->
+  APP.user.get q.id, (error,rec)->
     hashedInviteKey = SHA512 [ APP.InviteKey, q.inviteSalt ].join ':'
     return res.json error:'Invalid InviteKey' unless q.inviteKey is hashedInviteKey
     return res.json error:'User exists'       unless error
@@ -58,7 +58,7 @@ APP.postPublic "/register", (req,res)->
     null
   null
 
-APP.postPrivate '/logout', (req,res)->
+APP.private '/logout', (q,req,res)->
   res.clearCookie 'SESSION'
   res.json {}
   true
@@ -71,7 +71,7 @@ APP.postPrivate '/logout', (req,res)->
 
 APP.script 'node_modules','node-forge','dist','forge.min.js'
 
-api = APP.client()
+api = APP.clientApi()
 
 api.CheckLoginCookie = ->
   if document.cookie.match /SESSION=/

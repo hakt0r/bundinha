@@ -50,7 +50,7 @@ scripts.push tpls
 
 client = init:''
 
-for funcs in APP.client.$
+for funcs in APP.clientApi.$
   if ( init = funcs.init )?
     delete funcs.init
     client.init += "\n(#{init.toString()}());"

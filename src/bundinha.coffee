@@ -29,10 +29,10 @@ $$.coffee = require 'coffeescript'
 # ███████ ██   ████   ████
 
 $$.RootDir    = process.env.APP  || path.dirname module.parent.parent.filename
-$$.WebRootDir = process.env.BASE || path.join RootDir, 'build'
+$$.BuildDir   = process.env.BASE || path.join RootDir, 'build'
 $$.ConfigDir  = process.env.CONF || path.join RootDir, 'config'
 
-$$.BunDir = path.dirname __dirname # in build mode
+$$.BunDir     = path.dirname __dirname # in build mode
 $$.BunPackage = JSON.parse fs.readFileSync (path.join BunDir,  'package.json'), 'utf8'
 $$.AppPackage = JSON.parse fs.readFileSync (path.join RootDir, 'package.json'), 'utf8'
 
@@ -52,23 +52,25 @@ $$.APP = module.exports =
 # ██ ██   ████ ██    ██
 
 setImmediate APP.init = ->
-  APP.reqdir WebRootDir
+  do APP.initConfig
+  await do APP.start
+  console.log 'init','database'.green;
+  APP.reqdir BuildDir
   console.log '------------------------------------'
   console.log ' ', AppPackage.name.green  + '/'.gray + AppPackage.version.gray,
               '['+ BunPackage.name.yellow + '/'.gray + BunPackage.version.gray+
               ( if APP.fromSource then '/dev'.red else '/rel'.green ) + ']'
   # console.log module.parent
   console.log '------------------------------------'
-  await do APP.initLicense
   if APP.fromSource
-       require './client'
-       require path.join RootDir, 'src',   AppPackage.name + '.coffee'
-       require './build'
+    await do APP.initLicense
+    require './client'
+    require path.join RootDir, 'src',   AppPackage.name + '.coffee'
+    require './build'
   else require path.join RootDir, 'build', AppPackage.name + '.js'
-  # do APP.initDB
   do APP.initWeb
-  do APP.initConfig
-  do APP.start
+  do APP.initDB
+  null
 
 # ██████  ██████
 # ██   ██ ██   ██
@@ -82,31 +84,96 @@ APP.initDB = ->
     APP[name] = level path.join ConfigDir, name + '.db'
   null
 
-# ██     ██ ███████ ██████
-# ██     ██ ██      ██   ██
-# ██  █  ██ █████   ██████
-# ██ ███ ██ ██      ██   ██
-#  ███ ███  ███████ ██████
+# ██     ██ ███████ ██████  ███████ ██████  ██    ██
+# ██     ██ ██      ██   ██ ██      ██   ██ ██    ██
+# ██  █  ██ █████   ██████  ███████ ██████  ██    ██
+# ██ ███ ██ ██      ██   ██      ██ ██   ██  ██  ██
+#  ███ ███  ███████ ██████  ███████ ██   ██   ████
+
+APP.start = -> new Promise (resolve)-> APP.server.listen APP.port, APP.addr, ->
+  console.log APP.protocol, 'online'.green, APP.addr.red + ':' + APP.port.toString().magenta
+  return resolve() unless APP.chgid
+  console.log 'server','dropping privileges'.green, APP.chgid.toString().yellow
+  process.setgid APP.chgid
+  process.setuid APP.chgid
+  return resolve()
+
+APP.readStream = (stream)-> new Promise (resolve,reject)->
+  body = []
+  stream.on 'data', (chunk)-> body.push chunk
+  stream.on 'end', -> resolve Buffer.concat(body).toString('utf8')
 
 APP.initWeb = ->
-  APP.web = ( require 'express' )()
-  APP.web.use do require 'compression'
-  APP.web.use '/', require('serve-static') WebRootDir,
-    etag:yes
-    cacheControl:yes
-    maxAge: 15552000
-  APP.web.use do require('body-parser').json
-  APP.web.use do require 'cookie-parser'
-  APP.web.use (req,res,next)->
-    return next() unless cookie = req.cookies.SESSION
-    APP.session.get cookie, (error,id)->
-      return next() if error
-      APP.user.get id, (error,value)->
-        req.ID = id
-        req.USER = value
-        next()
-  APP.web.post url, handler for url, handler of APP.postPublic.$
-  APP.web.post url, handler for url, handler of APP.postPrivate.$
+
+APP.web = (req,res)->
+  if req.method is 'POST' and req.url is '/api'
+    res.json = APP.apiResponse
+    return APP.apiRequest req, res
+  if APP.web.pages.includes req.url
+    return APP.fileRequest req, res
+  res.statusCode = 404
+  res.end '404 - Not found'
+
+APP.web.pages = ['/','/app','/service.js']
+
+APP.fileRequest = (req,res)->
+  file = req.url
+  file = 'index.html' if file is '/'
+  file = 'index.html' if file is '/app'
+  console.log 'static-get'.cyan, file
+  mime = if file.match /js$/ then 'text/javascript' else 'text/html'
+  file = path.join BuildDir, file
+  errorResponse = (e)->
+    console.log 'http'.red, file.yellow, e.message
+    res.writeHead 500
+    res.end 'Internal Server Error'
+  fs.stat file, (error,stat)->
+    return errorResponse error if error
+    stream = fs.createReadStream file
+    stream.on 'error', errorResponse
+    res.setHeader 'Content-Type',   mime
+    res.setHeader 'Content-Length', stat.size
+    res.writeHead 200
+    stream.pipe res
+  null
+
+APP.apiRequest = (req,res)->
+  stream = undefined
+  switch (req.headers['content-encoding'] or 'raw').toLowerCase()
+    when 'deflate' then req.pipe stream = zlib.createInflate()
+    when 'gzip'    then req.pipe stream = zlib.createGunzip()
+    when 'raw'     then stream = req; stream.length = req.headers['content-length']
+    else return res.json error:'Request without data'
+  APP.readStream stream
+  .then (body)->
+    # parse body
+    try body = JSON.parse body
+    catch e then return res.json error:'Request is invalid json', message:e.message
+    return              res.json error:'Request not an array' unless Array.isArray body
+    [ call, args ] = body
+    # reply to public api-requests
+    console.log "call".red, call, args
+    return fn args, req, res if fn = APP.public.$[call]
+    # a cookie is required to continue
+    console.log "headers", req.headers
+    return res.json error:'Access denied' unless cookies = req.headers.cookie
+    CookieReg = /SESSION=([^-A-Za-z0-9+/=]|=[^=]|={3,});/
+    return res.json error:'Access denied' unless match = cookies.match CookieReg
+    cookie = match[1]
+    APP.session.get cookie
+    .then (id)-> APP.user.get id
+    .then (value)->
+      req.ID = id
+      req.USER = value
+      if fn = APP.private.$[call] and req.USER
+        fn args, req, res
+      else res.json error:'Access denied'
+  .catch (error)-> return res.json error:'Access denied', message: error.message
+
+APP.apiResponse = (data)->
+  @setHeader 'Content-Type', 'text/json'
+  @statusCode = 200
+  @end JSON.stringify data
 
 #  ██████  ██████  ███    ██ ███████ ██  ██████
 # ██      ██    ██ ████   ██ ██      ██ ██
@@ -151,49 +218,32 @@ APP.initConfig = ->
     cert: fs.readFileSync 'config/server.crt'
   APP.server = ( require 'https' ).createServer(options,APP.web)
 
-# ███████ ████████  █████  ██████  ████████
-# ██         ██    ██   ██ ██   ██    ██
-# ███████    ██    ███████ ██████     ██
-#      ██    ██    ██   ██ ██   ██    ██
-# ███████    ██    ██   ██ ██   ██    ██
-
-APP.start = -> APP.server.listen APP.port, APP.addr, ->
-  console.log APP.protocol, 'online'.green, APP.addr.red + ':' + APP.port.toString().magenta
-  unless APP.chgid
-    console.log 'init','database'.green; APP.initDB()
-    return
-  console.log 'server','dropping privileges'.green, APP.chgid.toString().yellow
-  process.setgid APP.chgid
-  process.setuid APP.chgid
-  console.log 'init','database'.green; APP.initDB()
-  null
-
-# ██████  ███████ ██
-# ██   ██ ██      ██
-# ██   ██ ███████ ██
-# ██   ██      ██ ██
-# ██████  ███████ ███████
+# ██████   ██████  ███████ ██████  ██       █████
+# ██   ██ ██    ██ ██      ██   ██ ██      ██   ██
+# ██   ██ ██    ██ ███████ ██████  ██      ███████
+# ██   ██ ██    ██      ██ ██      ██      ██   ██
+# ██████   ██████  ███████ ██      ███████ ██   ██
 
 APP.public = (path,callback,fallback)->
-  APP.public[path] = callback
-  APP.fallback[path] = fallback if fallback
-  APP
+  APP.public.$[path] = callback
+  APP.fallback.$[path] = fallback if fallback
 
 APP.private = (path,callback,fallback)->
-  APP.public[path] = callback
-  APP.fallback[path] = fallback if fallback
+  APP.public.$[path] = callback
+  APP.fallback.$[path] = fallback if fallback
 
-APP.public   = {}
-APP.private  = {}
-APP.fallback = {}
+APP.fallback = (path,fallback)->
+  APP.fallback.$[path] = fallback
 
-APP.db = (name)->
-  APP.db.$[name] = true
+APP.public.$   = {}
+APP.private.$  = {}
+APP.fallback.$ = {}
+
+APP.db = (name)-> APP.db.$[name] = true
 APP.db.$ = user:on, session:on
 
 APP.css = (argsForPath...)->
   p = path.join.apply path, argsForPath
-  console.log 'css'.yellow, p
   APP.css.$[p] = true
 APP.css.$ = {}
 
@@ -208,28 +258,26 @@ APP.shared.$ = {}
 
 APP.script = (args...)->
   p = path.join.apply path, [BunDir].concat args
-  console.log 'script', p
   APP.script.$.push p
 APP.script.$ = []
 
 APP.tpl = (isglobal,objOfTemplates)->
-  if true is isglobal
-    Object.assign $$, objOfTemplates
+  if true is isglobal then Object.assign $$, objOfTemplates
   else objOfTemplates = isglobal
   objOfTemplates = {} unless objOfTemplates?
   APP.tpl.$.push objOfTemplates
   objOfTemplates
 APP.tpl.$ = []
 
-APP.global = (objOfFunctions)->
+APP.sharedApi = (objOfFunctions)->
   Object.assign $$, objOfFunctions
-  APP.client objOfFunctions
+  APP.clientApi objOfFunctions
 
-APP.client = (objOfClientSideFunctions)->
+APP.clientApi = (objOfClientSideFunctions)->
   objOfClientSideFunctions = {} unless objOfClientSideFunctions?
-  APP.client.$.push objOfClientSideFunctions
+  APP.clientApi.$.push objOfClientSideFunctions
   objOfClientSideFunctions
-APP.client.$ = []
+APP.clientApi.$ = []
 
 APP.plugin = (module,obj)->
   if typeof obj is 'string'
@@ -241,24 +289,8 @@ APP.plugin = (module,obj)->
   plug
 APP.plugin.$ = {}
 
-APP.compileSources = (sources)->
-  out = ''
-  for source in sources
-    if typeof source is 'function'
-      source = source.toString().split '\n'
-      source.shift(); source.pop(); source.pop()
-      source = source.join '\n'
-      out += source
-    else if Array.isArray source
-      source = path.join.apply path, source if Array.isArray source
-      if source.match /.coffee$/
-           out += coffee.compile ( fs.readFileSync source, 'utf8' ), bare:on
-      else out += fs.readFileSync source, 'utf8'
-    else throw new Error 'source of unhandled type', typeof source
-  out
-
 APP.webWorker = (name,sources...)->
-  APP.client init:->
+  APP.clientApi init:->
     loadWorker = (name)->
       src = document.getElementById(name).textContent
       blob = new Blob [src], type: 'text/javascript'
@@ -269,8 +301,8 @@ APP.webWorker = (name,sources...)->
 APP.webWorker.$ = {}
 
 APP.serviceWorker = (args...)->
-  fs.writeFileSync path.join(WebRootDir,'service.js'), APP.compileSources args
-  APP.client init:->
+  fs.writeFileSync path.join(BuildDir,'service.js'), APP.compileSources args
+  APP.clientApi init:->
     window.addEventListener 'beforeinstallprompt', -> console.log 'install-prompt'
     return Promise.resolve() unless 'serviceWorker' of navigator
     navigator.serviceWorker
@@ -283,7 +315,7 @@ APP.serviceWorker = (args...)->
     null
 APP.webWorker.$ = {}
 
-APP.global
+APP.sharedApi
   escapeHTML: (str)->
     String(str)
     .replace /&/g,  '&amp;'
@@ -305,33 +337,36 @@ APP.global
 # ██   ██ ██    ██ ██ ██      ██   ██ ██      ██ ██   ██
 # ██████   ██████  ██ ███████ ██████  ███████ ██ ██████
 
+Array::unique = ->
+  @filter (value, index, self) -> self.indexOf(value) == index
+
 APP.touch = require 'touch'
 
-APP.compile = (src,dst)->
-  dst = path.join WebRootDir, dst
-  return null unless src.match /\.coffee$/
-  return null if ( stat = fs.statSync src ).isDirectory()
-  dstat = fs.statSync dst if fs.existsSync dst
-  return null if stat.mtime.toString().trim() is dstat.mtime.toString().trim() if dstat
-  fs.writeFileSync dst, code = coffee.compile fs.readFileSync src, 'utf8'
-  APP.touch.sync dst, ref:src
-  dstat = fs.statSync dst if fs.existsSync dst
-  console.log 'compiled'.green, src.yellow, stat.mtime, ( dstat || mtime:'0' ).mtime
-  null
-
 APP.symlink = (src,dst)->
-  console.log 'link'.yellow, path.basename(src).yellow, '->'.yellow, dst.bold
-  return if fs.existsSync dst
-  fs.symlinkSync src, dst
-  console.log 'link'.green, path.basename(src).yellow, '->'.yellow, dst.bold
+  ok = -> console.log 'link'.green, path.basename(src).yellow, '->'.yellow, dst.bold
+  return do ok if fs.existsSync dst
+  return do ok if fs.symlinkSync src, dst
 
 APP.reqdir = (dst) ->
-  return if fs.existsSync dst
-  fs.mkdirSync dst
+  ok = -> console.log 'dir'.green, path.basename(dst).yellow
+  return do ok if fs.existsSync dst
+  return do ok if fs.mkdirSync dst
 
-Array::unique = ->
-  @filter (value, index, self) ->
-    self.indexOf(value) == index
+APP.compileSources = (sources)->
+  out = ''
+  for source in sources
+    if typeof source is 'function'
+      source = source.toString().split '\n'
+      source.shift(); source.pop(); source.pop()
+      source = source.join '\n'
+      out += source
+    else if Array.isArray source
+      source = path.join.apply path, source if Array.isArray source
+      if source.match /.coffee$/
+           out += coffee.compile ( fs.readFileSync source, 'utf8' ), bare:on
+      else out += fs.readFileSync source, 'utf8'
+    else throw new Error 'source of unhandled type', typeof source
+  out
 
 # ██      ██  ██████ ███████ ███    ██ ███████ ███████
 # ██      ██ ██      ██      ████   ██ ██      ██
@@ -340,7 +375,7 @@ Array::unique = ->
 # ███████ ██  ██████ ███████ ██   ████ ███████ ███████
 
 APP.initLicense = ->
-  if fs.existsSync ( licenseFile = path.join WebRootDir, 'licenses.html' )
+  if fs.existsSync ( licenseFile = path.join BuildDir, 'licenses.html' )
     console.log 'exists'.green, licenseFile.bold
     return
   console.log 'create'.green, licenseFile.bold

@@ -6,21 +6,21 @@
 
 # document.addEventListener 'DOMContentLoaded', -> return
 
-api = APP.client()
+api = APP.clientApi()
 
 api.LoadOffscreen = (html)->
   o = document.createElement 'div'
   o.innerHTML = html
   o.firstChild
 
-api.ajax = (url,data)-> new Promise (resolve,reject)->
+api.ajax = (call,data)-> new Promise (resolve,reject)->
   method = 'POST'
   method = 'GET' unless data
   xhr = new XMLHttpRequest
-  xhr.open method, url
+  xhr.open method, '/api'
   if data
     xhr.setRequestHeader("Content-Type", "application/json");
-    xhr.send JSON.stringify data
+    xhr.send JSON.stringify [call,data]
   else xhr.send()
   xhr.onload = ->
     try result = JSON.parse @response
@@ -132,7 +132,7 @@ api.EditValue = (opts)-> new Promise (resolve)->
 # ██  ██ ██ ██    ██    ██    ██ ██      ██ ██      ██   ██    ██    ██ ██    ██ ██  ██ ██      ██
 # ██   ████  ██████     ██    ██ ██      ██  ██████ ██   ██    ██    ██  ██████  ██   ████ ███████
 
-notifyApi = APP.client()
+notifyApi = APP.clientApi()
 
 notifyApi.init = ->
   showToastNotification.list = []
