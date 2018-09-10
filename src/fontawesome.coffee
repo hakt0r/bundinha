@@ -7,7 +7,7 @@ return if fs.existsSync dest
 repo = path.join BunDir,'node_modules','@fortawesome','fontawesome-free','svgs'
 
 css = """
-.fa,.faw { position: relative; }
+.fa,.faw { position: relative; min-width:2em; }
 .fa span, .faw span { display:none; }
 .fa:before,.faw:before {
   content: '';

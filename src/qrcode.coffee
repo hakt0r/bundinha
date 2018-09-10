@@ -18,51 +18,54 @@ api.HasMediaQueries = ->
   b = navigator.mediaDevices? and navigator.mediaDevices.enumerateDevices?
   a and b
 
-api.PreferBackCamera = (devices)-> new Promise (resolve,reject)->
-  anydevice = null
-  for device in devices when device.kind is 'videoinput'
-    anydevice = device
-    break if device.label.match(/back/)
-  return resolve anydevice if anydevice?
-  reject new Error "No video devices"
-
 api.init = -> $$.QR =
+  facingMode:'environment'
   write: QRious
+  onDetect:->
+
   init: ->
     return new Error 'getUserMedia() is not supported by your browser' unless HasMediaQueries()
     $$.video  = document.querySelector 'video'
-    $$.canvas = document.querySelector 'canvas'
     $$.ctx    = null
-    navigator.mediaDevices.enumerateDevices()
-      .then PreferBackCamera
-      .then (device)->
-        constraints = facingMode:"environment", audio:no, video:{}
-        constraints.video.deviceId = device.deviceId if device.deviceId?
-        navigator.mediaDevices.getUserMedia constraints
-      .then (stream) ->
-        video.srcObject = stream
-        while not ( 0 < video.videoWidth )
-          await Sleep 100
-        null
+    do QR.startVideo
+
+  startVideo:->
+    constraints = audio:no, video:facingMode:QR.facingMode, frameRate:30
+    navigator.mediaDevices.getUserMedia constraints
+    .then (stream) -> new Promise (resolve,reject)->
+      video.srcObject = stream
+      while video.videoWidth is 0
+        await Sleep 100
+      width  = video.videoWidth
+      height = video.videoHeight
+      $$.canvas = new OffscreenCanvas width, height
+      document.body.classList.add 'recording'
+
+  stopVideo: (data)->
+    video.srcObject.getTracks()[0].stop()
+    document.body.classList.remove 'recording'
 
   scan: -> new Promise (resolve,reject)->
     document.body.classList.add 'recording'
-    QR.Scanner = new BarcodeDetector if BarcodeDetector?
+    QR.Scanner = new BarcodeDetector unless QR.Scanner
     QR.stopScan.resolve = resolve
     QR.stopScan.reject  = reject
     do QR.scanNextImage
 
+  toggleVideo: (data)->
+    state = not video.srcObject.getTracks()[0].enabled
+    video.srcObject.getTracks()[0].enabled = state
+    document.body.classList[if state then 'add' else 'remove'] 'recording'
+
   stopScan: (data)->
-    if QR.stopScan.resolve?
-      if data then QR.stopScan.resolve data
-      else         QR.stopScan.reject  null
-    document.body.classList.remove 'recording'
-    clearInterval QR.timer
+    document.body.classList.toggle 'recording'
+    QR.stopScan.reject  null
     QR.stopScan.resolve = QR.stopScan.reject = null
 
   scanNextImage: ->
-    canvas.width  = width  = video.videoWidth
-    canvas.height = height = video.videoHeight
+    return unless document.body.classList.contains 'recording'
+    width  = canvas.width
+    height = canvas.height
     ctx = canvas.getContext '2d'
     ctx.drawImage video, 0, 0
     img = ctx.getImageData 0, 0, width, height

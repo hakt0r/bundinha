@@ -11,7 +11,10 @@ api = APP.clientApi()
 api.LoadOffscreen = (html)->
   o = document.createElement 'div'
   o.innerHTML = html
-  o.firstChild
+  if o.children.length is 1 then o.firstChild else o.content
+
+api.LoadOffscreenFragment = (html)->
+  document.createRange().createContextualFragment html
 
 api.ajax = (call,data)-> new Promise (resolve,reject)->
   method = 'POST'
@@ -50,8 +53,13 @@ api.ModalWindow = (opts)->
   document.body.append html = LoadOffscreen """
   <div #{id}class="window modal#{extraClass}">
     #{head}
-    #{opts.body}
   </div>"""
+  if opts.body
+    if Array.isArray opts.body
+      html.append e for e in opts.body
+    else if 'string' is typeof opts.body
+      html.append LoadOffscreen opts.body
+    else html.append opts.body
   opts.closeBtn.classList.add 'deleting' if opts.closeBtn?
   ModalWindow.closeActive = close = (e)->
     ModalWindow.closeActive = null
@@ -135,36 +143,33 @@ api.EditValue = (opts)-> new Promise (resolve)->
 notifyApi = APP.clientApi()
 
 notifyApi.init = ->
-  showToastNotification.list = []
+  new PersistentToast
+  new NotificationToast
 
-notifyApi.showToastNotification = (timeout,text)->
-  unless text?
-    text = timeout
-    timeout = 1000
-  showToastNotification.list.push [Date.now() + timeout, text]
-  updateToastNotification()
+notifyApi.ToastController = class ToastController
+  constructor:(id)->
+    @count = 0
+    @$ = LoadOffscreen "<div id=#{id} class=toasts></div>"
+  push: -> if ++@count is 1 then @$.classList.add    'active'
+  pop:  -> if --@count is 0 then @$.classList.remove 'active'
 
-notifyApi.updateToastNotification = -> requestAnimationFrame ->
-  unless e = document.querySelector '.toastNotifications'
-    document.body.append LoadOffscreen '<div class="toastNotifications"></div>'
-    e = document.querySelector '.toastNotifications'
-  now = Date.now()
-  nextEvent = Infinity
-  showToastNotification.list = list = showToastNotification.list.filter (item)->
-    time = item[0]
-    nextEvent = time if time < nextEvent and time > now
-    time > now
-  if list.length > 0
-    e.innerHTML = '<div class="notification">' +
-      list.map((i)-> i[1]).join('</div>\n<div class="notification">') +
-      '</div>'
-    e.classList.add 'active'
-    nextEvent = if nextEvent is Infinity then now + 100 else nextEvent
-    setTimeout ( -> updateToastNotification() ), nextEvent - now
-  else
-    e.innerHTML = ''
-    e.classList.remove 'active'
-  null
+notifyApi.PersistentToast = class PersistentToast extends ToastController
+  constructor:-> super 'info'; PersistentToast.show = @show.bind @
+  show: (text,ok,cancel)-> new Promise (resolve,reject)=>
+    document.body.append @$
+    @$.append n = LoadOffscreen "<div class=notification>#{text}</div>"
+    n.append IconButton ok    , ( => @pop n.remove(); do resolve ) if ok
+    n.append IconButton cancel, ( => @pop n.remove(); do reject  ) if cancel
+    do @push
+
+notifyApi.NotificationToast = class NotificationToast extends ToastController
+  constructor:-> super 'notify'; NotificationToast.show = @show.bind @
+  show: (timeout,text)->
+    document.body.append @$
+    unless text? then ( text = timeout; timeout = 1000 )
+    @$.append html = LoadOffscreen "<div class=notification>#{text}</div>"
+    setTimeout ( => html.remove(); @pop() ), timeout
+    do @push
 
 notifyApi.showModalConfirm = (text)->
   { text, body, ok, cancel } = text if typeof text is 'object'

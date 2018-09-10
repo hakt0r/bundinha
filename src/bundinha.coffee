@@ -129,6 +129,7 @@ APP.fileRequest = (req,res)->
     res.end 'Internal Server Error'
   fs.stat file, (error,stat)->
     return errorResponse error if error
+    console.log 'http'.green, file.yellow
     stream = fs.createReadStream file
     stream.on 'error', errorResponse
     res.setHeader 'Content-Type',   mime
@@ -182,8 +183,8 @@ APP.apiResponse = (data)->
 #  ██████  ██████  ██   ████ ██      ██  ██████
 
 APP.initConfig = ->
-  unless fs.existsSync confDir = path.join RootDir, 'config'
-    try fs.mkdirSync path.join RootDir, 'config'
+  unless fs.existsSync confDir = path.join ConfigDir
+    try fs.mkdirSync path.join ConfigDir
     catch e
       console.log 'config', ConfigDir.red, e.message
       process.exit 1
@@ -192,30 +193,20 @@ APP.initConfig = ->
 
   fn() for fn in APP.config.$
 
-  hasKey = fs.existsSync keyPath = path.join RootDir, 'config', 'server.key'
-  hasCrt = fs.existsSync crtPath = path.join RootDir, 'config', 'server.crt'
+  hasKey = fs.existsSync keyPath = path.join ConfigDir, 'host.key'
+  hasCrt = fs.existsSync crtPath = path.join ConfigDir, 'host.crt'
 
   if 'http' is APP.protocol
     APP.server = ( require 'http' ).createServer(APP.web)
     return
   unless hasKey and hasCrt
-    selfsigned = require 'selfsigned'
-    attrs = [ { name: 'commonName', value: os.hostname() + '.local' } ]
-    opts = extensions: [
-      { name: 'basicConstraints', cA: true }
-      { name: 'subjectAltName', altNames: [
-        { type: 2, value: os.hostname() + '.local' }
-        { type: 2, value: os.hostname() }
-        { type: 2, value: 'localhost' } ] } ]
-    for network, ips of os.networkInterfaces()
-      for key, ip of ips when ip.family is 'IPv4'
-        opts.extensions[1].altNames.push { type: 7, ip: ip.address }
-    pems = selfsigned.generate attrs, opts
-    fs.writeFileSync keyPath, pems.private
-    fs.writeFileSync crtPath, pems.cert
+    selfsigned = require './selfsigned'
+    selfsigned APP.publicDNS, APP.publicIP
+    console.log 'SSL'.red, 'CA certificate can be found in:', path.join ConfigDir, 'ca.crt'
   options =
-    key:  fs.readFileSync 'config/server.key'
-    cert: fs.readFileSync 'config/server.crt'
+    key:  fs.readFileSync 'config/host.key'
+    cert: fs.readFileSync 'config/host.crt'
+    ca:   fs.readFileSync 'config/ca.crt'
   APP.server = ( require 'https' ).createServer(options,APP.web)
 
 # ██████   ██████  ███████ ██████  ██       █████
@@ -300,21 +291,6 @@ APP.webWorker = (name,sources...)->
   APP.webWorker.$[name] = APP.compileSources sources
 APP.webWorker.$ = {}
 
-APP.serviceWorker = (args...)->
-  fs.writeFileSync path.join(BuildDir,'service.js'), APP.compileSources args
-  APP.clientApi init:->
-    window.addEventListener 'beforeinstallprompt', -> console.log 'install-prompt'
-    return Promise.resolve() unless 'serviceWorker' of navigator
-    navigator.serviceWorker
-    .getRegistrations()
-    .then (data)->
-      return Promise.resolve scope:'installed' if data and data.length is 1
-      navigator.serviceWorker.register '/service.js'
-    .then (registration) -> console.log 'ServiceWorker:', registration.scope
-    .catch (err) -> console.log 'ServiceWorker registration failed: ', err
-    null
-APP.webWorker.$ = {}
-
 APP.sharedApi
   escapeHTML: (str)->
     String(str)
@@ -365,6 +341,8 @@ APP.compileSources = (sources)->
       if source.match /.coffee$/
            out += coffee.compile ( fs.readFileSync source, 'utf8' ), bare:on
       else out += fs.readFileSync source, 'utf8'
+    else if typeof source is 'string'
+      out += source;
     else throw new Error 'source of unhandled type', typeof source
   out
 
@@ -383,11 +361,12 @@ APP.initLicense = ->
     [match,link,version] = name.match /(.*)@([^@]+)/
     shortName = link.split('/').pop()
     licenses = pkg.package.concat(pkg.license).unique()
-    """<tr>
-    <td class="package"><a href="https://www.npmjs.com/package/#{encodeURI link}">#{escapeHTML shortName}</td>
-    <td class="version">#{version}</td>
-    <td><span class="license">#{licenses.map(escapeHTML).join('</span><br/><span class="license">')}</span></td>
-    </tr>"""
+    licenses = licenses.filter (i)-> i isnt '? verify'
+    """<div class=npm-package>
+    <span class=version>#{version}</span>
+    <span class=name><a href="https://www.npmjs.com/package/#{encodeURI link}">#{escapeHTML shortName}</a></span>
+    <span class="license-list"><span class="license">#{licenses.map(escapeHTML).join('</span><span class="license">')}</span></span>
+    </div>"""
   ).join '\n'
   html = """
     <h1>Licenses</h1>
@@ -404,17 +383,21 @@ APP.initLicense = ->
       resp.on 'end', ->
         data = data.replace /</g, '&lt;'
         data = data.replace />/g, '&gt;'
-        toks = data
-        .split /"""/
+        data = data.replace /, is licensed as follows/g, ''
+        toks = data.split /"""/
         out  = toks.shift(); mode = off
         while ( segment = do toks.shift )
           unless mode
-            out += '<span class=license_text>'
-            out += segment
+            out += '<pre class=license_text>'
+            segment = segment.replace /\n *\/\/ /g, ''
+            segment = segment.replace /\n *# /g, '\n'
+            segment = segment.replace /\n *#\n/g, '\n\n'
+            segment = segment.replace /\n *\=+ *\n*/g, '<span class=hr></span>'
+            segment = segment.replace /\n *\-+ *\n*/g, '<span class=hr></span>'
+            out += segment.trim() + '</pre>'
             mode = on
           else
-            out += '</span>'
-            out += segment
+            out += segment.trim().replace(/^ *- */,'')
             mode = off
         html += out
         fs.writeFileSync licenseFile, html

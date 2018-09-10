@@ -33,7 +33,7 @@ APP.public "/login", (q,req,res)->
       return res.json id:q.id, error:I18.NXUser
     cookie = Buffer.from(forge.random.getBytesSync 128).toString('base64')
     await APP.session.put cookie, q.id
-    res.cookie 'SESSION', cookie, expire: 360000 + Date.now()
+    res.setHeader 'Set-Cookie', "SESSION=#{cookie}; expires=#{new Date(new Date().getTime()+86409000).toUTCString()}; path=/"
     res.json error:false
     null
   null
@@ -53,14 +53,15 @@ APP.public "/register", (q,req,res)->
     await Promise.all [
       APP.user.put q.id, JSON.stringify userRecord
       APP.session.put cookie, q.id ]
-    res.cookie 'SESSION', cookie, expire: 360000 + Date.now()
+    res.setHeader 'Set-Cookie', "SESSION=#{cookie}; expires=#{new Date(new Date().getTime()+86409000).toUTCString()}; path=/"
     res.json error:false
     null
   null
 
 APP.private '/logout', (q,req,res)->
-  res.clearCookie 'SESSION'
-  res.json {}
+  res.setHeader 'Set-Cookie', "SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"
+  APP.session.delete cookie
+  APP.apiResponse {}
   true
 
 #  ██████ ██      ██ ███████ ███    ██ ████████
@@ -78,7 +79,7 @@ api.CheckLoginCookie = ->
     ajax '/authenticated', {}
     .then (result)-> not result.error
     .catch (error)->
-      showToastNotification 'offline mode' if error is 'offline'
+      NotificationToast.show 'offline mode' if error is 'offline'
       false
   else Promise.resolve false
 
@@ -107,10 +108,10 @@ api.RequestLogin = (user,pass,response)->
 # ██      ██    ██ ██    ██ ██ ██  ██ ██
 # ███████  ██████   ██████  ██ ██   ████
 
-api.LoginForm = (abortable=yes,onlogin='/')->
+api.LoginForm = (onlogin)->
   document.body.innerHTML = """
   <div id="navigation" class="navigation"></div>
-  <div class="window modal#{if abortable then '' else ' monolithic'}" id="loginWindow">
+  <div class="window modal monolithic" id="loginWindow">
     <form id="login">
       <input type="email"    name="id"                   placeholder="#{I18.Username}" autocomplete="username" autofocus="true" />
       <input type="password" name="pass" pattern=".{6,}" placeholder="#{I18.Password}" autocomplete="password" />
@@ -131,7 +132,7 @@ api.LoginForm = (abortable=yes,onlogin='/')->
     window.UserID = user
     RequestChallenge( user, pass )
       .then  ( challenge ) -> RequestLogin user, pass, challenge
-      .then  (  response ) -> window.location = onlogin
+      .then  (  response ) -> onlogin response
       .catch (     error ) ->
         user$.setCustomValidity error
         setTimeout ( -> user$.setCustomValidity '' ), 3000
@@ -145,10 +146,10 @@ api.LoginForm = (abortable=yes,onlogin='/')->
 # ██   ██ ██      ██    ██ ██      ██    ██    ██      ██   ██
 # ██   ██ ███████  ██████  ██ ███████    ██    ███████ ██   ██
 
-api.RegisterForm = (abortable=yes,onlogin='/')->
+api.RegisterForm = (onlogin='/')->
   document.body.innerHTML = """
   <div id="navigation" class="navigation"></div>
-  <div class="window modal#{if abortable then '' else ' monolithic'}" id="registerWindow">
+  <div class="window modal monolithic" id="registerWindow">
     <form id="register" action="/register" method="post">
       <input type="email"    name="user"      placeholder="#{I18.Username}"        autocomplete="username"         autofocus="true"/>
       <input type="password" name="pass"      placeholder="#{I18.Password}"        autocomplete="new-password"     pattern=".{6,}" />
