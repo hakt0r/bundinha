@@ -1,10 +1,12 @@
 
-
-APP.css BuildDir, 'fontawesome.css'
-dest = path.join(BuildDir,'fontawesome.css')
-return if fs.existsSync dest
-
 repo = path.join BunDir,'node_modules','@fortawesome','fontawesome-free','svgs'
+dest = path.join BuildDir, 'fontawesome.css'
+
+APP.css dest
+
+if fs.existsSync dest
+  console.log 'exists'.green, dest
+  return
 
 css = """
 .fa,.faw { position: relative; min-width:2em; }
@@ -24,7 +26,6 @@ css = """
   unless icon
     console.log '404'.red, name
     continue
-  console.log name.green
   icon = ".fa-#{name}:before{
     background-image:url('data:image/svg+xml;utf8," + Buffer.from(
     icon
@@ -34,3 +35,5 @@ css = """
 ).join '\n'
 
 fs.writeFileSync dest, css
+
+console.log ':icons'.green, Object.keys(ICON).join(' ').gray

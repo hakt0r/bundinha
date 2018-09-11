@@ -5,15 +5,11 @@
 # ██   ██ ██    ██    ██    ██   ██
 # ██   ██  ██████     ██    ██   ██
 
-$$.forge = require 'node-forge'
-
-APP.config ->
+APP.config "inviteKey.txt": ->
   if fs.existsSync p = path.join RootDir, 'config', 'inviteKey.txt'
     APP.InviteKey = fs.readFileSync(p).toString()
   else fs.writeFileSync p, APP.InviteKey = 'secretKey!'
-
-APP.sharedApi SHA512: (value)->
-  forge.md.sha512.create().update( value ).digest().toHex()
+  console.log "InviteKey", APP.InviteKey.red
 
 APP.private "/authenticated", (q,req,res)->
   res.json error:false
@@ -40,6 +36,7 @@ APP.public "/login", (q,req,res)->
 
 APP.public "/register", (q,req,res)->
   APP.user.get q.id, (error,rec)->
+    console.log APP.InviteKey
     hashedInviteKey = SHA512 [ APP.InviteKey, q.inviteSalt ].join ':'
     return res.json error:'Invalid InviteKey' unless q.inviteKey is hashedInviteKey
     return res.json error:'User exists'       unless error
