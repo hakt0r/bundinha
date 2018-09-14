@@ -9,7 +9,7 @@ if fs.existsSync dest
   return
 
 css = """
-.fa,.faw { position: relative; min-width:2em; }
+.fa,.faw { position: relative; min-width:2.5em; }
 .fa span, .faw span { display:none; }
 .fa:before,.faw:before {
   content: '';

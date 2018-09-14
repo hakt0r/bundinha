@@ -155,7 +155,7 @@ for name, tpl of template
   if typeof tpl is 'function'
        tpls += "\n$tpl.#{name} = #{tpl.toString()};"
   else tpls += "\n$tpl.#{name} = #{JSON.stringify tpl};"
-tpls += "\n$$.#{name} = #{JSON.stringify tpl};" for name, tpl of APP.shared.$
+tpls += "\n$$.#{name} = #{JSON.stringify tpl};" for name, tpl of APP.sharedConstant
 tpls += "\n$$.BunWebWorker = #{JSON.stringify Object.keys(APP.webWorker.$)};"
 
 scripts.push tpls
@@ -261,9 +261,89 @@ fs.writeFileSync path.join(RootDir,'build','index.html'), $body = """
     img-src     'self' blob: data: #{APP.BaseUrl}/;
     style-src   '#{stylesHash}';
     script-src  '#{scriptHash}';
-    worker-src  #{workerHash} blob: https:;
+    worker-src  #{workerHash} blob: #{APP.BaseUrl}/;
   "/>
   #{manifesto}
 <style>#{styles}</style></head>
-<body><center>JavaScript is required.</center></body>
+<body>
+  <navigation></navigation>
+  <content>
+    <center>JavaScript is required.</center>
+  </content>
+</body>
 #{workers}<script>#{scripts}</script></html>"""
+
+# ██████   █████   ██████ ██   ██ ███████ ███    ██ ██████
+# ██   ██ ██   ██ ██      ██  ██  ██      ████   ██ ██   ██
+# ██████  ███████ ██      █████   █████   ██ ██  ██ ██   ██
+# ██   ██ ██   ██ ██      ██  ██  ██      ██  ██ ██ ██   ██
+# ██████  ██   ██  ██████ ██   ██ ███████ ██   ████ ██████
+
+out = '(' + ( APP.serverHeader ).toString() + ')()\n'
+
+server = init:''
+scripts = []
+
+for funcs in APP.serverApi.$
+  if ( init = funcs.init )?
+    delete funcs.init
+    server.init += "#{init.toString()}\n"
+  Object.assign server, funcs
+
+scope = 'require'
+scripts.push "\nAPP.require.$ = #{JSON.stringify APP.require.$};\n"
+console.log 'require'.green, (APP.require.$).join(' ').gray
+
+for scope in ['config','db','public','private']
+  add = ''
+  for name, func of APP[scope].$
+    add +="\nAPP.#{scope}.$[#{JSON.stringify name}] = #{func.toString()};"
+  scripts.push add
+  console.log scope.green, Object.keys(APP[scope].$).join(' ').gray
+
+# for module, plugs of APP.plugin.$
+#   list = []
+#   server.init += "\n#{module}.plugin = {};"
+#   for name, plug of plugs
+#     if plug.server?
+#       server.init += "\n#{module}.plugin[#{JSON.stringify name}] = #{plug.server.toString()};"
+#     if plug.worker?
+#       setInterval plug.worker, plug.interval || 1000 * 60 * 60
+#       # setTimeout plug.worker # TODO: oninit
+#   console.log 'plugin'.green, module, list.join ' '
+
+# init = '(function(){\n' +  server.init + ')'
+# delete server.init
+
+apis = ''; apilist = []
+
+for name, api of APP.sharedFunction
+  apis += "\n$$.#{name} = #{api.toString()};"
+  apilist.push name
+
+for name, api of server
+  apis += "\nAPP.#{name} = #{api.toString()};"
+  apilist.push name
+
+scripts.push apis
+
+console.log 'server'.green, apilist.join(' ').gray
+
+{ minify } = require 'uglify-es'
+
+out += scripts.join '\n'
+out += 'setImmediate(APP.init);\n'
+
+# out = minify(out).code
+
+p = AppPackage
+delete p.devDependencies
+p.dependencies = {} unless p.dependencies
+p.dependencies[k] = v for k,v of BunPackage.dependencies when not p.dependencies[k]?
+p.bundinha = BunPackage.version
+
+fs.writeFileSync path.join(RootDir,'build','backend.js'), out
+fs.writeFileSync path.join(RootDir,'build','package.json'), JSON.stringify AppPackage
+
+unless fs.existsSync path.join BuildDir, 'node_modules'
+  cp.execSync 'cd build; npm i'

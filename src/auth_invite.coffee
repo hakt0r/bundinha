@@ -6,10 +6,9 @@
 # ██   ██  ██████     ██    ██   ██
 
 APP.config "inviteKey.txt": ->
-  if fs.existsSync p = path.join RootDir, 'config', 'inviteKey.txt'
+  if fs.existsSync p = path.join ConfigDir, 'inviteKey.txt'
     APP.InviteKey = fs.readFileSync(p).toString()
   else fs.writeFileSync p, APP.InviteKey = 'secretKey!'
-  console.log "InviteKey", APP.InviteKey.red
 
 APP.private "/authenticated", (q,req,res)->
   res.json error:false
@@ -83,6 +82,7 @@ api.CheckLoginCookie = ->
 api.ButtonLogout = ->
   btn = IconButton 'Logout'
   btn.onclick = ->
+    window.dispatchEvent new Event 'logout'
     ajax '/logout', {}
     .then LoginForm
     .catch LoginForm
@@ -105,9 +105,14 @@ api.RequestLogin = (user,pass,response)->
 # ██      ██    ██ ██    ██ ██ ██  ██ ██
 # ███████  ██████   ██████  ██ ██   ████
 
-api.LoginForm = (onlogin)->
-  document.body.innerHTML = """
-  <div id="navigation" class="navigation"></div>
+api.GetAppLogo = ->
+  return null unless AppLogo?
+  i = new Image
+  i.src = URL.createObjectURL new Blob [AppLogo], filename:'AppLogo', type:'image/svg+xml'
+  i
+
+api.LoginForm = -> requestAnimationFrame ->
+  document.querySelector('content').innerHTML = """
   <div class="window modal monolithic" id="loginWindow">
     <form id="login">
       <input type="email"    name="id"                   placeholder="#{I18.Username}" autocomplete="username" autofocus="true" />
@@ -115,12 +120,10 @@ api.LoginForm = (onlogin)->
     </form>
   </div>
   """
-  if AppLogo?
-    i = new Image
-    i.src = URL.createObjectURL new Blob [AppLogo], filename:'AppLogo', type:'image/svg+xml'
-    document.getElementById('loginWindow').prepend i
+  document.getElementById('loginWindow').prepend GetAppLogo()
   form$ = document.getElementById 'login'
-  navigation$ = document.getElementById 'navigation'
+  navigation$ = document.querySelector('navigation')
+  navigation$.innerHTML = ''
   navigation$.append IconButton 'Register', RegisterForm
   navigation$.append IconButton 'Login', ' default', form$.onsubmit = (e) ->
     e.preventDefault()
@@ -128,13 +131,14 @@ api.LoginForm = (onlogin)->
     pass = ( pass$ = document.querySelector '[name=pass]' ).value
     window.UserID = user
     RequestChallenge( user, pass )
-      .then  ( challenge ) -> RequestLogin user, pass, challenge
-      .then  (  response ) -> onlogin response
-      .catch (     error ) ->
-        user$.setCustomValidity error
-        setTimeout ( -> user$.setCustomValidity '' ), 3000
+    .then  (challenge)-> RequestLogin user, pass, challenge
+    .then  (response)-> window.dispatchEvent new Event 'login'
+    .catch (error)->
+      NotificationToast.show error
+      user$.setCustomValidity error
+      setTimeout ( -> user$.setCustomValidity '' ), 3000
     null
-  navigation$.append ButtonAbout() if ButtonAbout?
+  window.dispatchEvent new Event 'loginform'
   null
 
 # ██████  ███████  ██████  ██ ███████ ████████ ███████ ██████
@@ -143,9 +147,8 @@ api.LoginForm = (onlogin)->
 # ██   ██ ██      ██    ██ ██      ██    ██    ██      ██   ██
 # ██   ██ ███████  ██████  ██ ███████    ██    ███████ ██   ██
 
-api.RegisterForm = (onlogin='/')->
-  document.body.innerHTML = """
-  <div id="navigation" class="navigation"></div>
+api.RegisterForm = -> requestAnimationFrame ->
+  document.querySelector('content').innerHTML = """
   <div class="window modal monolithic" id="registerWindow">
     <form id="register" action="/register" method="post">
       <input type="email"    name="user"      placeholder="#{I18.Username}"        autocomplete="username"         autofocus="true"/>
@@ -154,10 +157,12 @@ api.RegisterForm = (onlogin='/')->
       <input type="password" name="inviteKey" placeholder="#{I18.InviteKey}"       autocomplete="password"         pattern=".{6,}" />
     </form>
   </div>"""
+  document.getElementById('registerWindow').prepend GetAppLogo()
   form$      = document.getElementById 'register'
   pass$      = document.querySelector '[name=pass]'
   confirm$   = document.querySelector '[name=confirm]'
-  navigation$ = document.getElementById 'navigation'
+  navigation$ = document.querySelector('navigation')
+  navigation$.innerHTML = ''
   navigation$.append IconButton 'Login', LoginForm
   navigation$.append IconButton 'Register', ' default', form$.onsubmit = (e) ->
     form$      = document.getElementById 'register'
@@ -178,11 +183,15 @@ api.RegisterForm = (onlogin='/')->
     hashedInviteKey = SHA512 [ inviteKey, inviteSalt ].join ':'
     window.UserID = user
     ajax '/register', id:user, pass:hashedPass, salt:seedSalt, inviteKey:hashedInviteKey, inviteSalt:inviteSalt
-      .then  (  response ) -> window.location = '/'
-      .catch (     error ) -> user$.setCustomValidity error
+    .then ->
+      window.dispatchEvent new Event 'register'
+      window.dispatchEvent new Event 'login'
+    .catch (error) ->
+      user$.setCustomValidity error
+      NotificationToast.show error
     null
   pass$.onchange = confirm$.onkeyup = ->
     state = if pass$.value is confirm$.value then '' else I18.PasswordNoMatch
     confirm$.setCustomValidity state
-  navigation$.append ButtonAbout() if ButtonAbout?
+  window.dispatchEvent new Event 'registerform'
   null

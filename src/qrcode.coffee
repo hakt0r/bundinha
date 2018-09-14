@@ -45,11 +45,8 @@ api.init = -> $$.QR =
     video.srcObject.getTracks()[0].stop()
     document.body.classList.remove 'recording'
 
-  scan: -> new Promise (resolve,reject)->
+  scan: ->
     document.body.classList.add 'recording'
-    QR.Scanner = new BarcodeDetector unless QR.Scanner
-    QR.stopScan.resolve = resolve
-    QR.stopScan.reject  = reject
     do QR.scanNextImage
 
   toggleVideo: (data)->
@@ -74,7 +71,12 @@ api.init = -> $$.QR =
 
   processWorkerResult: (ctx)-> (msg)->
     result = msg.data
-    return do QR.scanNextImage unless result.data and result.data.trim() isnt ''
+    unless result.data and result.data.trim() isnt ''
+      console.log 'publish null result'
+      return do QR.scanNextImage
+    console.log 'result', result.data
+    QR.onDetect result.data if QR.onDetect
+    return
     ctx.clearRect 0,0, canvas.width, canvas.height
     ctx.strokeStyle = "red"
     ctx.lineWidth = 3
@@ -97,11 +99,3 @@ APP.webWorker 'CodeScanner', ( ->
     null
   null
 ), [BunDir,'node_modules','jsqr','dist','jsQR.js']
-
-# READ_QR = if navigator.BarcodeDetector
-#     barcodeDetector = new BarcodeDetector();
-#     (image)-> new Promise (resolve)->
-#       barcodeDetector.detect(image)
-#         .then resolve
-#         .catch resolve
-#   else
