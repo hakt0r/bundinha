@@ -85,23 +85,22 @@ API.startServer = ->
     APP.Protocol = '::http'
     APP.server = require('http')
     .createServer APP.web
-    return
+  else
+    hasKey = fs.existsSync keyPath = path.join ConfigDir, 'host.key'
+    hasCrt = fs.existsSync crtPath = path.join ConfigDir, 'host.crt'
 
-  hasKey = fs.existsSync keyPath = path.join ConfigDir, 'host.key'
-  hasCrt = fs.existsSync crtPath = path.join ConfigDir, 'host.crt'
+    unless hasKey and hasCrt
+      console.log 'SSL'.red, 'HOST crt missing:', crtPath
+      console.log 'SSL'.red, 'HOST key missing:', keyPath
+      process.exit 1
 
-  unless hasKey and hasCrt
-    console.log 'SSL'.red, 'HOST crt missing:', crtPath
-    console.log 'SSL'.red, 'HOST key missing:', keyPath
-    process.exit 1
+    APP.Protocol = ':https'
+    options =
+      key:  fs.readFileSync keyPath
+      cert: fs.readFileSync crtPath
 
-  APP.Protocol = ':https'
-  options =
-    key:  fs.readFileSync keyPath
-    cert: fs.readFileSync crtPath
-
-  APP.server = require('https')
-  .createServer options, APP.web
+    APP.server = require('https')
+    .createServer options, APP.web
 
   new Promise (resolve)-> APP.server.listen APP.port, APP.addr, ->
     console.log APP.Protocol, 'online'.green, APP.addr.red + ':' + APP.port.toString().magenta

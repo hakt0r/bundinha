@@ -25,8 +25,8 @@ api.init = -> $$.QR =
 
   init: ->
     return new Error 'getUserMedia() is not supported by your browser' unless HasMediaQueries()
-    $$.video  = document.querySelector 'video'
-    $$.ctx    = null
+    $$.video = document.querySelector 'video'
+    $$.ctx   = null
     do QR.startVideo
 
   startVideo:->
@@ -40,6 +40,7 @@ api.init = -> $$.QR =
       height = video.videoHeight
       $$.canvas = new OffscreenCanvas width, height
       document.body.classList.add 'recording'
+      resolve true
 
   stopVideo: (data)->
     video.srcObject.getTracks()[0].stop()
@@ -72,7 +73,6 @@ api.init = -> $$.QR =
   processWorkerResult: (ctx)-> (msg)->
     result = msg.data
     unless result.data and result.data.trim() isnt ''
-      console.log 'publish null result'
       return do QR.scanNextImage
     console.log 'result', result.data
     QR.onDetect result.data if QR.onDetect
