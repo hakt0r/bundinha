@@ -25,8 +25,11 @@ APP.db = (name)-> APP.db.$[name] = true
 APP.db.$ = user:on, session:on
 
 APP.css = (argsForPath...)->
-  p = path.join.apply path, argsForPath
-  APP.css.$[p] = true
+  if argsForPath[0] is true
+    APP.css.$[argsForPath[1]] = argsForPath[2]
+  else
+    p = path.join.apply path, argsForPath
+    APP.css.$[p] = true
 APP.css.$ = {}
 
 APP.config = (objectOfConfigFunctions)->

@@ -1,12 +1,6 @@
 
 repo = path.join BunDir,'node_modules','@fortawesome','fontawesome-free','svgs'
-dest = path.join BuildDir, 'fontawesome.css'
-
-APP.css dest
-
-if fs.existsSync dest
-  console.log 'exists'.green, dest
-  return
+dest = path.join BuildDir,'fontawesome.css'
 
 css = """
 .fa,.faw { position: relative; min-width:2.5em; }
@@ -34,6 +28,6 @@ css = """
   ).toString('utf8') + '\'); }'
 ).join '\n'
 
-fs.writeFileSync dest, css
+APP.css true, 'fontawesome', css
 
 console.log ':icons'.green, Object.keys(ICON).join(' ').gray

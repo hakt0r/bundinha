@@ -24,6 +24,7 @@ $$.BunDir    = path.dirname __dirname # in build mode
 
 $$.BunPackage = JSON.parse fs.readFileSync (path.join BunDir,  'package.json'), 'utf8'
 $$.AppPackage = JSON.parse fs.readFileSync (path.join RootDir, 'package.json'), 'utf8'
+$$.AppPackageName = AppPackage.name.replace(/-devel$/,'')
 
 setImmediate APP.buildPackage = ->
   do APP.loadDependencies

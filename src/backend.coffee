@@ -12,6 +12,7 @@ APP.serverHeader = ->
   $$.isClient = not ( $$.isServer = yes )
   $$.debug = no
   $$.RootDir   = process.env.APP  || __dirname
+  $$.WebDir    = process.env.HTML || path.join RootDir, 'html'
   $$.ConfigDir = process.env.CONF || path.join path.dirname(RootDir), 'config'
   $$.AppPackage = JSON.parse fs.readFileSync (path.join RootDir, 'package.json' ), 'utf8'
   $$.APP =
@@ -130,7 +131,7 @@ API.fileRequest = (req,res)->
   file = 'index.html' if file is '/app'
   # console.log 'static-get'.cyan, file
   mime = if file.match /js$/ then 'text/javascript' else 'text/html'
-  file = path.join RootDir, file
+  file = path.join WebDir, file
   errorResponse = (e)->
     console.log APP.Protocol.red, file.yellow, e.message
     res.writeHead 500

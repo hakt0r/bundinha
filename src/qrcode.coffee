@@ -6,7 +6,7 @@
 #  ██████  ██   ██ ███████ ██ ██████
 #     ▀▀
 
-APP.script 'node_modules', 'qrious', 'dist', 'qrious.min.js'
+APP.script 'node_modules', 'qrcodejs', 'qrcode.min.js'
 
 api = APP.clientApi()
 
@@ -20,7 +20,7 @@ api.HasMediaQueries = ->
 
 api.init = -> $$.QR =
   facingMode:'environment'
-  write: QRious
+  write: QRCode
   onDetect:->
 
   init: ->

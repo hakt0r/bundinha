@@ -8,8 +8,9 @@
 console.log ':build'.green, ( BuildId = SHA512 new Date ).yellow
 
 APP.reqdir BuildDir
+APP.reqdir path.join BuildDir, 'html'
 require './client'
-require path.join RootDir, 'src', AppPackage.name + '.coffee'
+require path.join RootDir, 'src', AppPackageName + '.coffee'
 
 # ██      ██  ██████ ███████ ███    ██ ███████ ███████
 # ██      ██ ██      ██      ████   ██ ██      ██
@@ -104,7 +105,7 @@ ServiceWorker = ->
 
 if APP.HasServiceWorker
   APP.serviceWorkerSource = APP.compileSources [ ServiceHeader, ServiceWorker ]
-  fs.writeFileSync path.join(BuildDir,'service.js'), APP.serviceWorkerSource
+  fs.writeFileSync path.join(BuildDir,'html','service.js'), APP.serviceWorkerSource
   APP.clientApi init:->
     window.addEventListener 'beforeinstallprompt', ->
       console.log 'install-prompt'
@@ -193,7 +194,7 @@ console.log 'client'.green, apilist.join(' ').gray
 { minify } = require 'uglify-es'
 scripts = scripts.join '\n'
 # scripts = minify(scripts).code
-fs.writeFileSync path.join(RootDir,'build','app.js'), scripts
+# fs.writeFileSync path.join(RootDir,'build','app.js'), scripts
 
 #  █████  ██████  ██████
 # ██   ██ ██   ██ ██   ██
@@ -201,9 +202,12 @@ fs.writeFileSync path.join(RootDir,'build','app.js'), scripts
 # ██   ██ ██      ██
 # ██   ██ ██      ██
 
-styles = ( for filePath, opts of APP.css.$
-  console.log ':::css'.green, filePath
-  fs.readFileSync filePath, 'utf8' ).join '\n'
+styles = ( for css, opts of APP.css.$
+  if opts is true
+    console.log ':::css'.green, css
+    fs.readFileSync css, 'utf8'
+  else opts
+).join '\n'
 
 workers = ( for name, src of APP.webWorker.$
   # src = minify(src).code
@@ -245,7 +249,7 @@ workerHash   = ''
 workerHash   += " '" + contentHashNative(src) + "'" for name, src of APP.webWorker.$
 workerHash   += " '" + contentHashNative(APP.serviceWorkerSource) + "'"
 
-fs.writeFileSync path.join(RootDir,'build','index.html'), $body = """
+fs.writeFileSync path.join(RootDir,'build','html','index.html'), $body = """
 <!DOCTYPE html>
 <html>
 <head>
@@ -341,6 +345,7 @@ delete p.devDependencies
 p.dependencies = {} unless p.dependencies
 p.dependencies[k] = v for k,v of BunPackage.dependencies when not p.dependencies[k]?
 p.bundinha = BunPackage.version
+p.name = p.name.replace /-devel$/,''
 
 fs.writeFileSync path.join(RootDir,'build','backend.js'), out
 fs.writeFileSync path.join(RootDir,'build','package.json'), JSON.stringify AppPackage
