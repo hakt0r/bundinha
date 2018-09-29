@@ -6,9 +6,10 @@
 #  ██████  ██   ██ ███████ ██ ██████
 #     ▀▀
 
-APP.script 'node_modules', 'qrcodejs', 'qrcode.min.js'
+# APP.script 'node_modules', 'qrcodejs', 'qrcode.min.js'
+APP.script 'node_modules', 'qrcoder', 'dist', 'qrcoder.js'
 
-api = APP.clientApi()
+api = APP.client()
 
 api.Sleep = (ms)-> new Promise (resolve)->
   setTimeout resolve, ms
@@ -20,7 +21,7 @@ api.HasMediaQueries = ->
 
 api.init = -> $$.QR =
   facingMode:'environment'
-  write: QRCode
+  write:qrcoder
   onDetect:->
 
   init: ->

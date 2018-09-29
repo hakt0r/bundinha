@@ -6,17 +6,54 @@
 
 # document.addEventListener 'DOMContentLoaded', -> return
 
-api = APP.clientApi()
+$client = @client init:->
+  $$.$   = (query)-> document.querySelector query
+  $.all  = (query)-> Array.prototype.slice.call document.querySelectorAll query
+  $.make = (html,opts)->
+    html = html opts || {} if html.call?
+    html = document.createRange().createContextualFragment html
+    node = html.childNodes
+    if node.length is 1 then node[0] else html
+  $.emit = (element,key,data)->
+    element = document.querySelector element if element.match?
+    e = new Event key
+    e.data = data
+    element.dispatchEvent e
+  $.once = (element,key,handler)->
+    element = document.querySelector element if element.match?
+    element.addEventListener key, (e)->
+      element.removeEventListener key, handler
+      handler.call @, e
+  $.on = (element,key,handler)->
+    element = document.querySelector element if element.match?
+    element.addEventListener key, handler
+  $.off = (element,key,handler)->
+    element = document.querySelector element if element.match?
+    element.removeEventListener key, handler
 
-api.LoadOffscreen = (html)->
-  o = document.createElement 'div'
-  o.innerHTML = html
-  if o.children.length is 1 then o.firstChild else o.content
+$client.queryStringToJSON = ->
+  return [] if ( pos = location.href.indexOf '?' ) == -1
+  query = location.href.substr pos + 1
+  result = {}
+  query.split('&').forEach (part) ->
+    return unless part
+    eq = ( part = part.split('+').join(' ') ).indexOf '='
+    key = if eq > -1 then part.substr(0, eq) else part
+    val = if eq > -1 then decodeURIComponent(part.substr(eq + 1)) else ''
+    if ( from = key.indexOf '[' ) == -1
+      result[decodeURIComponent(key)] = val
+      return
+    to = key.indexOf(']', from)
+    index = decodeURIComponent(key.substring(from + 1, to))
+    key = decodeURIComponent(key.substring(0, from))
+    if !result[key]
+      result[key] = []
+    if !index then result[key].push val
+    else result[key][index] = val
+    return
+  result
 
-api.LoadOffscreenFragment = (html)->
-  document.createRange().createContextualFragment html
-
-api.ajax = (call,data)-> new Promise (resolve,reject)->
+$client.ajax = (call,data)-> new Promise (resolve,reject)->
   method = 'POST'
   method = 'GET' unless data
   xhr = new XMLHttpRequest
@@ -33,24 +70,34 @@ api.ajax = (call,data)-> new Promise (resolve,reject)->
     else reject result.error
   null
 
-api.IconButton = (key,xclass='',fn)->
+$client.SubmitButton = (key,xclass='',fn)->
+  b = IconButton key,xclass,fn
+  b.type='submit'
+  b
+
+$client.ResetButton = (key,xclass='',fn)->
+  b = IconButton key,xclass,fn
+  b.type='reset'
+  b
+
+$client.IconButton = (key,xclass='',fn)->
   if typeof xclass is 'function'
     fn = xclass
     xclass = ''
   btn = """<button id="#{key}" class="#{key} #{xclass}">#{I18[key]}</button>"""
   btn = """<button id="#{key}" class="#{key} faw fa-#{ICON[key]}#{xclass}"><span>#{I18[key]}</span></button>""" if ICON[key]?
-  btn = LoadOffscreen btn
+  btn = $.make btn
   btn.onclick = fn if fn?
   btn.onclick = fn
   btn
 
-api.ModalWindow = (opts)->
+$client.ModalWindow = (opts)->
   ModalWindow.closeActive() if ModalWindow.closeActive
   extraClass = ''
   extraClass = opts.class if opts.class
   head = if opts.head then "<h1>#{opts.head}</h1>" else ''
   id   = if opts.id   then """id="#{opts.id}" """  else ''
-  document.body.append html = LoadOffscreen """
+  document.body.append html = $.make """
   <div #{id}class="window modal#{extraClass}">
     #{head}
   </div>"""
@@ -58,7 +105,7 @@ api.ModalWindow = (opts)->
     if Array.isArray opts.body
       html.append e for e in opts.body
     else if 'string' is typeof opts.body
-      html.append LoadOffscreen opts.body
+      html.append $.make opts.body
     else html.append opts.body
   opts.closeBtn.classList.add 'deleting' if opts.closeBtn?
   ModalWindow.closeActive = close = (e)->
@@ -83,7 +130,7 @@ api.ModalWindow = (opts)->
 # ██      ██   ██ ██    ██    ██    ██ ██   ██
 # ███████ ██████  ██    ██     ██████  ██   ██
 
-api.EditProperty = (opts)-> new Promise (resolve)->
+$client.EditProperty = (opts)-> new Promise (resolve)->
   resolved = ->
     resolve [key,value]
     ModalWindow.closeActive()
@@ -109,7 +156,7 @@ api.EditProperty = (opts)-> new Promise (resolve)->
   form$.onreset = resolved
   null
 
-api.EditValue = (opts)-> new Promise (resolve)->
+$client.EditValue = (opts)-> new Promise (resolve)->
   resolved = ->
     opts.onclose() if opts.onclose
     form$.remove()
@@ -140,44 +187,43 @@ api.EditValue = (opts)-> new Promise (resolve)->
 # ██  ██ ██ ██    ██    ██    ██ ██      ██ ██      ██   ██    ██    ██ ██    ██ ██  ██ ██      ██
 # ██   ████  ██████     ██    ██ ██      ██  ██████ ██   ██    ██    ██  ██████  ██   ████ ███████
 
-notifyApi = APP.clientApi()
-
-notifyApi.init = ->
+$notify = @client init:->
   new PersistentToast
   new NotificationToast
 
-notifyApi.ToastController = class ToastController
+$notify.ToastController = class ToastController
   constructor:(id)->
+    @constructor.instance = @
     @count = 0
-    @$ = LoadOffscreen "<div id=#{id} class=toasts></div>"
+    @$ = $.make "<div id=#{id} class=toasts></div>"
   push: -> if ++@count is 1 then @$.classList.add    'active'
   pop:  -> if --@count is 0 then @$.classList.remove 'active'
 
-notifyApi.PersistentToast = class PersistentToast extends ToastController
+$notify.PersistentToast = class PersistentToast extends ToastController
   constructor:-> super 'info'; PersistentToast.show = @show.bind @
   show: (text,ok,cancel)-> new Promise (resolve,reject)=>
     document.body.append @$
-    @$.append n = LoadOffscreen "<div class=notification>#{text}</div>"
-    n.append IconButton ok    , ( => @pop n.remove(); do resolve ) if ok
-    n.append IconButton cancel, ( => @pop n.remove(); do reject  ) if cancel
+    @$.append n = $.make "<div class=notification>#{text}</div>"
+    n.append SubmitButton ok    , ( => @pop n.remove(); do resolve ) if ok
+    n.append ResetButton  cancel, ( => @pop n.remove(); do reject  ) if cancel
     do @push
 
-notifyApi.NotificationToast = class NotificationToast extends ToastController
+$notify.NotificationToast = class NotificationToast extends ToastController
   constructor:-> super 'notify'; NotificationToast.show = @show.bind @
   show: (timeout,text)->
     document.body.append @$
     unless text? then ( text = timeout; timeout = 1000 )
-    @$.append html = LoadOffscreen "<div class=notification>#{text}</div>"
+    @$.append html = $.make "<div class=notification>#{text}</div>"
     setTimeout ( => html.remove(); @pop() ), timeout
     do @push
 
-notifyApi.showModalConfirm = (text)->
+$notify.showModalConfirm = (text)->
   { text, body, ok, cancel } = text if typeof text is 'object'
   ok     = I18.Ok     unless ok
   cancel = I18.Cancel unless cancel
   text = if body then ['<h1>',text,'</h1><p>',body,'</p>'].join('') else text
   return await new Promise (resolve)->
-    document.body.append LoadOffscreen """<div id="customConfirm" class="window modal">
+    document.body.append $.make """<div id="customConfirm" class="window modal">
       <div class="message">
         #{text}
       <div>

@@ -4,63 +4,156 @@
   All Rights Reserved.
 ###
 
-fs   = require 'fs'
-path = require 'path'
+Array::unique = ->
+  @filter (value, index, self) -> self.indexOf(value) == index
+
+setImmediate ->
+  $$.APP = new Bundinha
+  APP.cmd_handle()
+
+require 'colors'
 
 global.$$ = global
 
-$$.debug = no
+$$.fs   = require 'fs'
+$$.cp   = require 'child_process'
+$$.path = require 'path'
 
-$$.APP =
-  fromSource: true
-  require: $: [ 'os', 'fs', ['cp','child_process'], 'path', 'level', 'colors', ['forge','node-forge'] ]
+$$.ENV = process.env
+$$.ARG = process.argv.filter (v)-> not v.match /^-/
+for v in process.argv.filter (v)-> v.match /^-/
+  ARG[v.replace /^-+/, ''] = not ( v.match /^--no-/ )?
 
-require './dsl'
+$$.RootDir   = ENV.APP      || process.cwd()
+$$.ConfigDir = ENV.CONF     || path.join RootDir, 'config'
+$$.BuildDir  = ENV.BASE     || path.join RootDir, 'build'
+$$.BunDir    = ENV.BUNDINHA || path.dirname path.dirname __filename
+$$.WebDir    = ENV.HTML     || path.join BuildDir, 'html'
 
-$$.RootDir   =  process.env.APP  || path.dirname module.parent.parent.filename
-$$.BuildDir  = process.env.BASE || path.join RootDir, 'build'
-$$.ConfigDir = process.env.CONF || path.join RootDir, 'config'
-$$.BunDir    = path.dirname __dirname # in build mode
+$$.COM =
+  build: "bundinha"
+  prepublish: "bundinha"
+  start: "PROTO=http PORT=9999 CHGID=$USER node build/backend.js"
+  test:  "bundinha; ADDR=0.0.0.0 PORT=443 CHGID=$USER sudo -E node build/backend.js"
+  debug: "bundinha; ADDR=0.0.0.0 PORT=443 node --inspect build/backend.js"
+  push: "bundinha push"
 
-$$.BunPackage = JSON.parse fs.readFileSync (path.join BunDir,  'package.json'), 'utf8'
-$$.AppPackage = JSON.parse fs.readFileSync (path.join RootDir, 'package.json'), 'utf8'
-$$.AppPackageName = AppPackage.name.replace(/-devel$/,'')
+# ██████  ██    ██ ███    ██ ██████  ██ ███    ██ ██   ██  █████
+# ██   ██ ██    ██ ████   ██ ██   ██ ██ ████   ██ ██   ██ ██   ██
+# ██████  ██    ██ ██ ██  ██ ██   ██ ██ ██ ██  ██ ███████ ███████
+# ██   ██ ██    ██ ██  ██ ██ ██   ██ ██ ██  ██ ██ ██   ██ ██   ██
+# ██████   ██████  ██   ████ ██████  ██ ██   ████ ██   ██ ██   ██
 
-setImmediate APP.buildPackage = ->
-  do APP.loadDependencies
+$$.Bundinha = class Bundinha
+  constructor:(opts)->
+    @fromSource = true
+    @requireScope = ['os','fs',['cp','child_process'],'path','level','colors',['forge','node-forge']]
+    @clientScope = []
+    @configScope = {}
+    @cssScope = {}
+    @dbScope = user:on, session:on
+    @fallbackScope = {}
+    @pluginScope = {}
+    @privateScope = {}
+    @publicScope = {}
+    @scriptScope = []
+    @serverScope = []
+    @shared.constant = {}
+    @shared.function = {}
+    @tplScope = []
+    @webWorkerScope = {}
+    Object.assign @, opts
+    @shared Bundinha.global
+    return
+
+#  ██████  ██████  ███    ███ ███    ███  █████  ███    ██ ██████
+# ██      ██    ██ ████  ████ ████  ████ ██   ██ ████   ██ ██   ██
+# ██      ██    ██ ██ ████ ██ ██ ████ ██ ███████ ██ ██  ██ ██   ██
+# ██      ██    ██ ██  ██  ██ ██  ██  ██ ██   ██ ██  ██ ██ ██   ██
+#  ██████  ██████  ██      ██ ██      ██ ██   ██ ██   ████ ██████
+
+Bundinha::cmd_handle = ->
+  return do @cmd_init       if ( ARG.init is true )
+  $$.BunPackage = @parseConfig BunDir,  'package.json'
+  $$.AppPackage = @parseConfig RootDir, 'package.json'
+  $$.AppPackageName = AppPackage.name.replace(/-devel$/,'')
+  return do @cmd_push_clean if ( ARG.push and ARG.clean ) is true
+  return do @cmd_push       if ( ARG.push is true )
+
+  $$.forge  = require 'node-forge'
   $$.coffee = require 'coffeescript'
+
+  do @loadDependencies
+  @require 'bundinha/client'
+  @require 'bundinha/backend'
+
   console.log '------------------------------------'
   console.log ' ', AppPackage.name.green  + '/'.gray + AppPackage.version.gray,
               '['+ 'bundinha'.yellow + '/'.gray + BunPackage.version.gray+
-              ( if APP.fromSource then '/dev'.red else '/rel'.green ) + ']'
+              ( '/dev'.red ) + ']'
   console.log '------------------------------------'
-  $$.forge = require 'node-forge'
-  APP.NodeLicense = await do APP.fetchLicense
-  require './backend'
-  require './build'
+
+  @NodeLicense = await do @fetchLicense
+
+  do @build
   process.exit 0
 
-APP.loadDependencies = ->
-  for dep in APP.require.$
-    if Array.isArray dep
-      $$[dep[0]] = require dep[1]
-    else $$[dep] = require dep
-  return
+Bundinha::cmd_init = ->
+  console.log 'init'.yellow, RootDir
+  @reqdir RootDir, 'src'
+  @reqdir RootDir, 'config'
+  unless fs.existsSync path.join RootDir, 'package.json'
+    cp.execSync 'npm init'
+  p = @parseConfig RootDir, 'package.json'
+  appName = p.name.replace(/-devel$/,'')
+  p.bin = p.bin || {}
+  p.scripts = p.scripts || {}
+  p.devDependencies = p.devDependencies || {}
+  unless p.bin[appName+'-backend']
+    p.bin[appName+'-backend'] = path.join '.','build','backend.js'
+  p.scripts[name] = script for name,script of COM when not p.scripts[name]
+  p.devDependencies.bundinha = 'file:'+BunDir unless p.devDependencies.bundinha
+  @writeConfig p, RootDir, 'package.json'
+  process.exit 0
 
-APP.shared
-  SHA512: (value)->
-    forge.md.sha512.create().update( value ).digest().toHex()
-  escapeHTML: (str)->
-    String(str)
-    .replace /&/g,  '&amp;'
-    .replace /</g,  '&lt;'
-    .replace />/g,  '&gt;'
-    .replace /"/g,  '&#039;'
-    .replace /'/g,  '&x27;'
-    .replace /\//g, '&x2F;'
-  toAttr: (str)->
-    alphanumeric = /[a-zA-Z0-9]/
-    ( for char in str
-        if char.match alphanumeric then char
-        else '&#' + char.charCodeAt(0).toString(16) + ';'
-    ).join ''
+Bundinha::cmd_push = ->
+  cp.execSync """
+  tar cjvf - ./ | ssh #{ARG[1]} '
+    cd /var/www/#{AppPackageName}; tar xjvf -;
+    npm rebuild; killall node;
+    PROTO=#{if ARG.secure then 'https' else 'http'} PORT=#{ARG.p || 9999} CHGID=#{ARG[2]} npm start >/dev/null 2>&1 &'
+  """; return
+
+Bundinha::cmd_push_clean = ->
+  cp.execSync """
+  ssh #{ARG[0]} 'killall node; cd /var/www/; rm -rf #{AppPackageName}/*'
+  """; return
+
+require './build/lib'
+require './build/build'
+require './build/license'
+require './build/service'
+require './build/frontend'
+require './build/backend'
+
+#  ██████  ██       ██████  ██████   █████  ██
+# ██       ██      ██    ██ ██   ██ ██   ██ ██
+# ██   ███ ██      ██    ██ ██████  ███████ ██
+# ██    ██ ██      ██    ██ ██   ██ ██   ██ ██
+#  ██████  ███████  ██████  ██████  ██   ██ ███████
+
+Bundinha.global.escapeHTML = (str)->
+  String(str)
+  .replace /&/g,  '&amp;'
+  .replace /</g,  '&lt;'
+  .replace />/g,  '&gt;'
+  .replace /"/g,  '&#039;'
+  .replace /'/g,  '&x27;'
+  .replace /\//g, '&x2F;'
+
+Bundinha.global.toAttr = (str)->
+  alphanumeric = /[a-zA-Z0-9]/
+  ( for char in str
+      if char.match alphanumeric then char
+      else '&#' + char.charCodeAt(0).toString(16) + ';'
+  ).join ''

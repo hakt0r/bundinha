@@ -1,64 +1,38 @@
 
-#  █████  ██    ██ ████████ ██   ██
-# ██   ██ ██    ██    ██    ██   ██
-# ███████ ██    ██    ██    ███████
-# ██   ██ ██    ██    ██    ██   ██
-# ██   ██  ██████     ██    ██   ██
+# ███████ ███████ ██████  ██    ██ ███████ ██████
+# ██      ██      ██   ██ ██    ██ ██      ██   ██
+# ███████ █████   ██████  ██    ██ █████   ██████
+#      ██ ██      ██   ██  ██  ██  ██      ██   ██
+# ███████ ███████ ██   ██   ████   ███████ ██   ██
 
-APP.config "inviteKey.txt": ->
-  if fs.existsSync p = path.join ConfigDir, 'inviteKey.txt'
-    APP.InviteKey = fs.readFileSync(p).toString()
-  else fs.writeFileSync p, APP.InviteKey = 'secretKey!'
-
+APP.client RequestLogin:->
+  Promise.reject()
+APP.denyAuth = (q,req,res)->
+  res.json error:true
+  return
+APP.private "/login",    APP.denyAuth
+APP.private "/register", APP.denyAuth
 APP.private "/authenticated", (q,req,res)->
   res.json error:false
 
-APP.public "/login", (q,req,res)->
-  APP.user.get q.id, (error,rec)->
-    try rec = JSON.parse rec catch e
-      return res.json id:q.id, error:e.message
-    if error
-      return res.json id:q.id, error:I18.NXUser
-    unless q.pass?
-      return res.json challenge:
-        storageSalt: rec.storageSalt
-        seedSalt:    rec.seedSalt
-    hashedPass = SHA512 [ rec.pass, q.salt ].join ':'
-    unless hashedPass is q.pass
-      return res.json id:q.id, error:I18.NXUser
-    cookie = Buffer.from(forge.random.getBytesSync 128).toString('base64')
-    await APP.session.put cookie, q.id
+APP.server
+  GetUID:-> SHA512 Date.now() + '-' + forge.random.getBytesSync(16)
+  AddAuthCookie: (res,user)->
+    cookie = APP.GetUID()
     res.setHeader 'Set-Cookie', "SESSION=#{cookie}; expires=#{new Date(new Date().getTime()+86409000).toUTCString()}; path=/"
-    res.json error:false
-    null
-  null
-
-APP.public "/register", (q,req,res)->
-  APP.user.get q.id, (error,rec)->
-    console.log APP.InviteKey
-    hashedInviteKey = SHA512 [ APP.InviteKey, q.inviteSalt ].join ':'
-    return res.json error:'Invalid InviteKey' unless q.inviteKey is hashedInviteKey
-    return res.json error:'User exists'       unless error
-    cookie      = Buffer.from(forge.random.getBytesSync 128).toString 'base64'
-    storageSalt = Buffer.from(forge.random.getBytesSync 128).toString 'base64'
-    hashedPass = SHA512 [ q.pass, storageSalt ].join ':'
-    userRecord =
-      pass: hashedPass
-      seedSalt: q.salt
-      storageSalt: storageSalt
-    await Promise.all [
-      APP.user.put q.id, JSON.stringify userRecord
-      APP.session.put cookie, q.id ]
-    res.setHeader 'Set-Cookie', "SESSION=#{cookie}; expires=#{new Date(new Date().getTime()+86409000).toUTCString()}; path=/"
-    res.json error:false
-    null
-  null
+    console.log 'cookie'.yellow, user.id
+    APP.session.put cookie, user.id
+  NewUserRecord:(opts={})->
+    opts.id = opts.id || APP.GetUID()
+    process.emit 'user:precreate', opts
+    console.log 'user:precreate', opts
+    opts
 
 APP.private '/logout', (q,req,res)->
+  APP.session.del req.COOKIE
   res.setHeader 'Set-Cookie', "SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"
-  APP.session.delete cookie
-  APP.apiResponse {}
-  true
+  res.json error:false
+  return
 
 #  ██████ ██      ██ ███████ ███    ██ ████████
 # ██      ██      ██ ██      ████   ██    ██
@@ -68,7 +42,7 @@ APP.private '/logout', (q,req,res)->
 
 APP.script 'node_modules','node-forge','dist','forge.min.js'
 
-api = APP.clientApi()
+api = APP.client()
 
 api.CheckLoginCookie = ->
   if document.cookie.match /SESSION=/
@@ -82,22 +56,17 @@ api.CheckLoginCookie = ->
 api.ButtonLogout = ->
   btn = IconButton 'Logout'
   btn.onclick = ->
+    ModalWindow.closeActive() if ModalWindow.closeActive
     window.dispatchEvent new Event 'logout'
     ajax '/logout', {}
     .then LoginForm
     .catch LoginForm
   btn
 
-api.RequestChallenge = (user,pass)->
+api.Login = (user,pass)->
   ajax '/login', id:user
+  .then (challenge)-> RequestLogin user, pass, challenge
 
-api.RequestLogin = (user,pass,response)->
-  { challenge } = response
-  clientSalt = btoa forge.random.getBytesSync 128
-  hashedPass = SHA512 [ pass,       challenge.seedSalt    ].join ':'
-  hashedPass = SHA512 [ hashedPass, challenge.storageSalt ].join ':'
-  hashedPass = SHA512 [ hashedPass, clientSalt            ].join ':'
-  ajax '/login', id:user, pass:hashedPass, salt:clientSalt
 
 # ██       ██████   ██████  ██ ███    ██
 # ██      ██    ██ ██       ██ ████   ██
@@ -109,6 +78,7 @@ api.GetAppLogo = ->
   return null unless AppLogo?
   i = new Image
   i.src = URL.createObjectURL new Blob [AppLogo], filename:'AppLogo', type:'image/svg+xml'
+  i.draggable = false
   i
 
 api.LoginForm = -> requestAnimationFrame ->
@@ -130,8 +100,7 @@ api.LoginForm = -> requestAnimationFrame ->
     user = ( user$ = document.querySelector '[name=id]' ).value
     pass = ( pass$ = document.querySelector '[name=pass]' ).value
     window.UserID = user
-    RequestChallenge( user, pass )
-    .then  (challenge)-> RequestLogin user, pass, challenge
+    Login user, pass
     .then  (response)-> window.dispatchEvent new Event 'login'
     .catch (error)->
       NotificationToast.show error

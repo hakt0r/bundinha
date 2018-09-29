@@ -15,8 +15,10 @@ css = """
   position: absolute; top:0; left:0; }
 .faw:before { filter: invert(100%); }
 """ + ( for key, name of ICON
-  icon = path.join repo,'solid',"#{name}.svg"
-  icon = fs.readFileSync icon, 'utf8'
+  if fs.existsSync icon = path.join repo,'solid',"#{name}.svg"
+    icon = fs.readFileSync icon, 'utf8'
+  else if fs.existsSync icon = path.join repo,'brands',"#{name}.svg"
+    icon = fs.readFileSync icon, 'utf8'
   unless icon
     console.log '404'.red, name
     continue

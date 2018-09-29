@@ -18,12 +18,12 @@
     "level": "^4.0.0"
   },
   "devDependencies": {
-    "coffeescript": "^2.3.1",
-    "legally": "^2.10.0",
-    "touch": "^3.1.0",
-    "uglify-es": "^3.3.9",
     "@fortawesome/fontawesome-free": "^5.2.0",
+    "coffeescript": "^2.3.1",
     "jsqr": "^1.1.1",
-    "qrcodejs": "^1.0.0"
+    "legally": "^2.10.0",
+    "qrcoder": "^1.0.3",
+    "touch": "^3.1.0",
+    "uglify-es": "^3.3.9"
   }
 }
