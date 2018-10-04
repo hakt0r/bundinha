@@ -6,21 +6,16 @@
   else fs.writeFileSync p, APP.InviteKey = 'secretKey!'
 
 @public "/login", (q,req,res)->
-  APP.user.get q.id, (error,rec)->
-    try rec = JSON.parse rec catch e
-      return res.json id:q.id, error:e.message
-    if error
-      return res.json id:q.id, error:I18.NXUser
-    unless q.pass?
-      return res.json challenge:
-        storageSalt: rec.storageSalt
-        seedSalt:    rec.seedSalt
-    hashedPass = SHA512 [ rec.pass, q.salt ].join ':'
-    unless hashedPass is q.pass
-      return res.json id:q.id, error:I18.NXUser
-    await APP.AddAuthCookie res, q
-    res.json error:false
-    null
+  rec = await APP.user.get q.id, rec
+  rec = JSON.parse rec
+  unless q.pass?
+    return res.json challenge:
+      storageSalt: rec.storageSalt
+      seedSalt:    rec.seedSalt
+  hashedPass = SHA512 [ rec.pass, q.salt ].join ':'
+  threow new Error I18.NXUser unless hashedPass is q.pass
+  await AddAuthCookie res, q
+  res.json error:false, WebSockets:WebSockets
   null
 
 @client RequestLogin: (user,pass,response)->
@@ -30,6 +25,9 @@
   hashedPass = SHA512 [ hashedPass, challenge.storageSalt ].join ':'
   hashedPass = SHA512 [ hashedPass, clientSalt            ].join ':'
   ajax '/login', id:user, pass:hashedPass, salt:clientSalt
+  .then (result)->
+    return ConnectWebSocket() if result.WebSockets
+    result
 
 @public "/register", (q,req,res)->
   APP.user.get q.id, (error,rec)->
@@ -46,6 +44,6 @@
     await Promise.all [
       APP.user.put q.id, JSON.stringify userRecord
       AddAuthCookie res, q ]
-    res.json error:false
+    res.json error:false, WebSockets:WebSockets
     return
   return

@@ -13,19 +13,19 @@ APP.denyAuth = (q,req,res)->
 APP.private "/login",    APP.denyAuth
 APP.private "/register", APP.denyAuth
 APP.private "/authenticated", (q,req,res)->
-  res.json error:false
+  res.json error:false, WebSockets:WebSockets
 
 APP.server
   GetUID:-> SHA512 Date.now() + '-' + forge.random.getBytesSync(16)
   AddAuthCookie: (res,user)->
-    cookie = APP.GetUID()
+    cookie = GetUID()
     res.setHeader 'Set-Cookie', "SESSION=#{cookie}; expires=#{new Date(new Date().getTime()+86409000).toUTCString()}; path=/"
     console.log 'cookie'.yellow, user.id
     APP.session.put cookie, user.id
   NewUserRecord:(opts={})->
-    opts.id = opts.id || APP.GetUID()
+    opts.id = opts.id || GetUID()
     process.emit 'user:precreate', opts
-    console.log 'user:precreate', opts
+    console.log  'user:precreate', opts
     opts
 
 APP.private '/logout', (q,req,res)->
@@ -47,7 +47,9 @@ api = APP.client()
 api.CheckLoginCookie = ->
   if document.cookie.match /SESSION=/
     ajax '/authenticated', {}
-    .then (result)-> not result.error
+    .then (result)->
+      return ConnectWebSocket() if result.WebSockets
+      not result.error
     .catch (error)->
       NotificationToast.show 'offline mode' if error is 'offline'
       false

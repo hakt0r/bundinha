@@ -18,21 +18,20 @@
   Array::unique =-> @filter (value, index, self) -> self.indexOf(value) == index
   return
 
-$server = @server
-  init:->
-    do APP.loadDependencies
-    do APP.readEnv
-    console.debug = (->) unless DEBUG
-    do APP.splash
-    await do APP.startServer
-    do APP.initConfig
-    do APP.initDB
+$server = @server init:->
+  do APP.loadDependencies
+  do APP.readEnv
+  console.debug = (->) unless DEBUG
+  do APP.splash
+  await do APP.startServer
+  do APP.initConfig
+  do APP.initDB
 
 $server.APP = class $app
 
 $app.fromSource = no
 $app.requireScope = @requireScope
-$app.loadDependencies = APP.loadDependencies
+$app.loadDependencies = @loadDependencies
 
 $app.readEnv =->
   $$.DEBUG     =  process.env.DEBUG || false
@@ -113,7 +112,8 @@ $app.handleRequest =(req,res)->
   unless req.method is 'POST' and req.url is '/api'
     return APP.fileRequest req, res
   res.json = APP.apiResponse
-  try APP.apiRequest(req,res) catch error then res.json(error:error)
+  try APP.apiRequest(req,res)
+  catch error then res.json(error:error)
 
 $app.readStream =(stream)-> new Promise (resolve,reject)->
   body = []
@@ -149,7 +149,7 @@ $app.apiRequest =(req,res)->
     when 'raw'     then stream = req; stream.length = req.headers['content-length']
     else return res.json error:'Request without data'
 
-  body = JSON.parse await APP.readStream stream
+  body = JSON.parse await @readStream stream
 
   unless Array.isArray body
     throw new Error 'Request not an array'
@@ -157,17 +157,17 @@ $app.apiRequest =(req,res)->
   [ call, args ] = body
   # reply to public api-requests
 
-  if fn = APP.publicScope[call]
-    console.debug APP.Protocol.yellow, "call".green, call, args, '$public'
+  if fn = @publicScope[call]
+    console.debug @Protocol.yellow, "call".green, call, args, '$public'
     return fn args, req, res
 
   # reply to private api-requests only with valid auth
-  value = await APP.requireAuth req
+  value = await @requireAuth req
 
-  unless fn = APP.privateScope[call]
+  unless fn = @privateScope[call]
     throw new Error 'Command not found: ' + call
 
-  console.debug APP.Protocol.yellow, "call".green, req.ID, call, args
+  console.debug @Protocol.yellow, "call".green, req.ID, call, args
   fn args, req, res
 
 # ██     ██ ███████ ██████  ███████  ██████   ██████ ██   ██ ███████ ████████
@@ -177,7 +177,6 @@ $app.apiRequest =(req,res)->
 #  ███ ███  ███████ ██████  ███████  ██████   ██████ ██   ██ ███████    ██
 
 $app.initWebSockets =->
-  console.log APP.Protocol, 'websockets'.green
   wss = new ( require 'ws' ).Server noServer:true
   APP.server.on 'upgrade', (request, socket, head)->
     APP.requireAuth request
@@ -187,18 +186,20 @@ $app.initWebSockets =->
       console.log error
       socket.destroy()
     return
-  wss.on 'connection', (ws) ->
-    req = ws.request
-    res =
-      json: (data)-> data.error = no; ws.send data
-      error: (error)-> ws.send error:error
+  wss.on 'connection', (ws,connReq) ->
     ws.on 'message', (body) ->
       try
-        [ call, args ] = body
+        [ id, call, args ] = JSON.parse body
+        json = (data)-> data.id = id; ws.send JSON.stringify data
+        error = (error)-> ws.send JSON.stringify error:error, id:id
+        req = id:id, USER:connReq.USER, ID:connReq.ID
+        res = id:id, json:json, error:error
         return fn args, req, res if fn = APP.publicScope[call]
         return fn args, req, res if fn = APP.privateScope[call]
       catch error
+        console.log error
         res.error error
+  console.log APP.Protocol, 'websockets'.green
 
 # ███████ ██ ██      ███████
 # ██      ██ ██      ██
@@ -206,30 +207,66 @@ $app.initWebSockets =->
 # ██      ██ ██      ██
 # ██      ██ ███████ ███████
 
-$app.fileRequest =(req,res)->
+@shared MIME: class MIME
+  @typeOf:(file)->
+    MIME.type[file.split('.').pop()] || 'application/octet-stream'
+  @type:
+    avi:  'video/avi'
+    css:  'text/css'
+    html: 'text/html'
+    js:   'text/javascript'
+    mkv:  'video/x-matroska'
+    mp4:  'video/mp4'
+    oga:  'audio/ogg',
+    ogg:  'application/ogg',
+    ogv:  'video/ogg',
+    svg:  'image/svg+xml'
+    txt:  'text/plain',
+    wav:  'audio/x-wav',
+    webm: 'video/webm'
+
+$app.resolveWebFile = (file)->
+  path.join WebDir, file
+
+$app.errorResponse = (res,file,status,e)->
+  console.log APP.Protocol.red, file.yellow
+  console.log   ' ', e.message if e.message
+  console.debug ' ', e.trace
+  res.writeHead status
+  res.end status + ': ' + e
+
+$app.fileRequest = (req,res)->
   file = req.url
   file = '/index.html' if file is '/'
   file = '/index.html' if file is '/app'
-  mime = (
-    if file.match /js$/ then 'text/javascript'
-    else if file.match /svg$/ then 'image/svg+xml'
-    else if file.match /css$/ then 'text/css'
-    else 'text/html' )
-  console.debug 'static-get'.cyan, file, mime
-  file = path.join WebDir, file
-  errorResponse = (status)-> (e)->
-    console.log APP.Protocol.red, file.yellow
-    console.log   ' ', e.message if e.message
-    console.debug ' ', e.trace
-    res.writeHead status
-    res.end 'Internal Server Error: ' + e
+  mime = MIME.typeOf file
+  file = APP.resolveWebFile file
+  console.log 'static-get'.cyan, file, mime
   fs.stat file, (error,stat)->
-    return errorResponse(404) error if error
-    console.debug APP.Protocol.green, file.yellow
-    stream = fs.createReadStream file
-    stream.on 'error', errorResponse 500
-    res.setHeader 'Content-Type',   mime
-    res.setHeader 'Content-Length', stat.size
-    res.writeHead 200
-    stream.pipe res
+    return APP.errorResponse res, file, 404, 'File not Found' if error
+    return APP.errorResponse res, file, 404, 'File not Found' if stat.isDirectory()
+    return APP.fileRequestChunked req,res,file,mime,stat      if req.headers.range
+    res.writeHead 200,
+      "Accept-Ranges"  : "bytes"
+      "Content-Length" : stat.size
+      "Content-Type"   : mime
+    fs.createReadStream(file).pipe(res)
   null
+
+$app.fileRequestChunked = (req,res,file,mime,stat)->
+  parts = req.headers.range.replace(/bytes=/, "").split("-")
+  [ partialstart, partialend ] = parts
+  total = stat.size
+  start = parseInt partialstart, 10
+  end = if partialend then parseInt partialend, 10 else total - 1
+  end = Math.min end, start + 4 * 1024 * 1024
+  chunksize = end - start
+  console.log APP.Protocol.green, file.yellow, start, chunksize, total, stat.size
+  res.writeHead 206,
+    "Accept-Ranges"     : "bytes"
+    "Content-Length"    : chunksize + 1
+    "Content-Range"     : "bytes " + start + "-" + end + "/" + total
+    "Content-Type"      : mime
+    "Connection"        : 'keep-alive'
+    "Transfer-Encoding" : 'chunked'
+  fs.createReadStream(file,start:start,end:end).pipe(res)

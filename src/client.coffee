@@ -31,44 +31,52 @@ $client = @client init:->
     element = document.querySelector element if element.match?
     element.removeEventListener key, handler
 
-$client.queryStringToJSON = ->
-  return [] if ( pos = location.href.indexOf '?' ) == -1
-  query = location.href.substr pos + 1
-  result = {}
-  query.split('&').forEach (part) ->
-    return unless part
-    eq = ( part = part.split('+').join(' ') ).indexOf '='
-    key = if eq > -1 then part.substr(0, eq) else part
-    val = if eq > -1 then decodeURIComponent(part.substr(eq + 1)) else ''
-    if ( from = key.indexOf '[' ) == -1
-      result[decodeURIComponent(key)] = val
-      return
-    to = key.indexOf(']', from)
-    index = decodeURIComponent(key.substring(from + 1, to))
-    key = decodeURIComponent(key.substring(0, from))
-    if !result[key]
-      result[key] = []
-    if !index then result[key].push val
-    else result[key][index] = val
-    return
-  result
+$client.ajax = (call,data)->
+  return WebSocketRequest call, data if ajax.socket
+  new Promise (resolve,reject)->
+    xhr = new XMLHttpRequest
+    xhr.open ( if data then 'POST' else 'GET' ), '/api'
+    if data
+      xhr.setRequestHeader "Content-Type","application/json"
+      xhr.send JSON.stringify [call,data]
+    else xhr.send()
+    xhr.onload = ->
+      try result = JSON.parse @response
+      catch e then reject "JSON Error: " + e
+      unless result.error
+           resolve result
+      else reject result.error
+    null
 
-$client.ajax = (call,data)-> new Promise (resolve,reject)->
-  method = 'POST'
-  method = 'GET' unless data
-  xhr = new XMLHttpRequest
-  xhr.open method, '/api'
-  if data
-    xhr.setRequestHeader("Content-Type", "application/json");
-    xhr.send JSON.stringify [call,data]
-  else xhr.send()
-  xhr.onload = ->
-    try result = JSON.parse @response
-    catch e then reject "JSON Error: " + e
-    unless result.error
-        resolve result
-    else reject result.error
-  null
+$client.ConnectWebSocket = -> new Promise (resolve,reject)->
+  WebSocketRequest.id = 0
+  WebSocketRequest.request = {}
+  console.log 'ws', 'connect', BaseUrl.replace('http','ws') + '/api'
+  socket = new WebSocket BaseUrl.replace('http','ws') + '/api'
+  socket.addEventListener 'error', ->
+    ajax.socket = null
+    NotificationToast.show 1000, 'offline'
+  socket.addEventListener 'open', ->
+    console.log 'ws', 'connected'
+    ajax.socket = socket
+    resolve socket
+  socket.addEventListener 'message', (msg)->
+    data = JSON.parse msg.data
+    req = WebSocketRequest.request[data.id]
+    req.reject  data.error if data.error
+    req.resolve data
+    delete WebSocketRequest.request[data.id]
+  socket.addEventListener 'error', reject
+
+$client.WebSocketRequest = (call,data)-> new Promise (resolve,reject)->
+  WebSocketRequest.request[id = WebSocketRequest.id++] = resolve:resolve, reject:reject
+  ajax.socket.send JSON.stringify [id,call,data]
+
+# ██████  ██    ██ ████████ ████████  ██████  ███    ██ ███████
+# ██   ██ ██    ██    ██       ██    ██    ██ ████   ██ ██
+# ██████  ██    ██    ██       ██    ██    ██ ██ ██  ██ ███████
+# ██   ██ ██    ██    ██       ██    ██    ██ ██  ██ ██      ██
+# ██████   ██████     ██       ██     ██████  ██   ████ ███████
 
 $client.SubmitButton = (key,xclass='',fn)->
   b = IconButton key,xclass,fn
