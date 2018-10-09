@@ -112,8 +112,8 @@ $app.handleRequest =(req,res)->
   unless req.method is 'POST' and req.url is '/api'
     return APP.fileRequest req, res
   res.json = APP.apiResponse
-  try APP.apiRequest(req,res)
-  catch error then res.json(error:error)
+  try await APP.apiRequest req,res
+  catch error then res.json error:error.toString()
 
 $app.readStream =(stream)-> new Promise (resolve,reject)->
   body = []
@@ -126,7 +126,7 @@ $app.requireAuth =(req)->
   CookieReg = /SESSION=([A-Za-z0-9+/=]+={0,3});?/
   throw new Error 'Access denied: cookie' unless match = cookies.match CookieReg
   req.COOKIE = cookie = match[1]
-  id    = await APP.session.get cookie
+  id = await APP.session.get cookie
   value = await APP.user.get req.ID = id
   throw new Error 'Access denied: invalid session' unless ( req.USER = JSON.parse value )?
 
@@ -192,7 +192,7 @@ $app.initWebSockets =->
         [ id, call, args ] = JSON.parse body
         json = (data)-> data.id = id; ws.send JSON.stringify data
         error = (error)-> ws.send JSON.stringify error:error, id:id
-        req = id:id, USER:connReq.USER, ID:connReq.ID
+        req = id:id, USER:connReq.USER, ID:connReq.ID, COOKIE:connReq.COOKIE, setHeader:(->)
         res = id:id, json:json, error:error
         return fn args, req, res if fn = APP.publicScope[call]
         return fn args, req, res if fn = APP.privateScope[call]

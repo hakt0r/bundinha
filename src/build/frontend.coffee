@@ -113,10 +113,12 @@ Bundinha::buildFrontend = ->
   connect-src  #{@BaseUrl}/api#{insert_websocket};
   img-src      'self' blob: data: #{@BaseUrl}/#{@imgSources||''};
   media-src    'self' blob: data: #{@BaseUrl}/#{@mediaSources||''};
-  style-src    '#{stylesHash}' #{@BaseUrl}/app/;
+  style-src    'self' 'unsafe-inline';
   script-src   '#{scriptHash}' #{@BaseUrl}/app/;
   worker-src  #{workerHash} blob: #{@BaseUrl}/;
   frame-src    'self' #{@BaseUrl}/;"/>"""
+  # style-src    'self' 'unsafe-inline' '#{stylesHash}' #{@BaseUrl}/app/;
+  ## FF is very strict about styles and csp
 
   fs.writeFileSync path.join(WebDir,'index.html'), $body = """
   <!DOCTYPE html>

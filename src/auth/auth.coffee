@@ -13,13 +13,14 @@ APP.denyAuth = (q,req,res)->
 APP.private "/login",    APP.denyAuth
 APP.private "/register", APP.denyAuth
 APP.private "/authenticated", (q,req,res)->
-  res.json error:false, WebSockets:WebSockets
+  res.json WebSockets:WebSockets
 
 APP.server
   GetUID:-> SHA512 Date.now() + '-' + forge.random.getBytesSync(16)
   AddAuthCookie: (res,user)->
     cookie = GetUID()
     res.setHeader 'Set-Cookie', "SESSION=#{cookie}; expires=#{new Date(new Date().getTime()+86409000).toUTCString()}; path=/"
+    fs.writeFileSync ( path.join '/tmp/auth', cookie ), '' if fs.existsSync '/tmp/auth'
     console.log 'cookie'.yellow, user.id
     APP.session.put cookie, user.id
   NewUserRecord:(opts={})->
@@ -61,8 +62,8 @@ api.ButtonLogout = ->
     ModalWindow.closeActive() if ModalWindow.closeActive
     window.dispatchEvent new Event 'logout'
     ajax '/logout', {}
-    .then LoginForm
-    .catch LoginForm
+    .then -> $.emit window, 'logout'; LoginForm()
+    .catch -> $.emit window, 'logout'; LoginForm()
   btn
 
 api.Login = (user,pass)->

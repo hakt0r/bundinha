@@ -53,18 +53,18 @@ Bundinha::ServiceWorker = ->
         caches.delete key )
   self.addEventListener 'fetch', (event)->
     { url } = req = event.request
-    unless url.match /\.(mp3|ogg|opus|mkv|mp4|avi|mpe?g|ts)$/
-      if req.method is "POST"
-        event.respondWith fetch(req.clone()).catch ->
-          new Response errorResponse, jsonHeaders
-      else event.respondWith new Promise (resolve)->
-        return resolve res if res = await caches.match req
-        res = await fetch req.clone()
-        if !res or res.status != 200 or res.type isnt 'basic'
-          return resolve res
-        cache = await caches.open CACHE_NAME
-        cache.put req, res.clone()
-        resolve res
+    return unless req.method is "POST"
+    # event.respondWith fetch(req.clone()).catch ->
+    #   new Response errorResponse, jsonHeaders
+    return unless url.match /\.(mp3|ogg|opus|mkv|mp4|avi|mpe?g|ts)$/
+    event.respondWith new Promise (resolve)->
+      return resolve res if res = await caches.match req
+      res = await fetch req.clone()
+      if !res or res.status != 200 or res.type isnt 'basic'
+        return resolve res
+      cache = await caches.open CACHE_NAME
+      cache.put req, res.clone()
+      resolve res
   null
 
 Bundinha::InitServiceWorker = ->
