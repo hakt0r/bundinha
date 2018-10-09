@@ -9,7 +9,7 @@ $$.contentHash = (data)->
   """sha256-#{require('crypto').createHash('sha256').update(data).digest().toString 'base64'}"""
 
 $$.accessor = (key)->
-  return ".#{key}" if key.match /^[a-z0-9_-]+$/i
+  return ".#{key}" if key.match /^[a-z0-9_]+$/i
   return "[#{JSON.stringify key}]"
 
 Function::toCode = -> '('+ @toString() + '());\n'
