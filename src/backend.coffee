@@ -192,8 +192,8 @@ $app.initWebSockets =->
         [ id, call, args ] = JSON.parse body
         json = (data)-> data.id = id; ws.send JSON.stringify data
         error = (error)-> ws.send JSON.stringify error:error, id:id
-        req = id:id, USER:connReq.USER, ID:connReq.ID, COOKIE:connReq.COOKIE, setHeader:(->)
-        res = id:id, json:json, error:error
+        req = id:id, USER:connReq.USER, ID:connReq.ID, COOKIE:connReq.COOKIE
+        res = id:id, json:json, error:error, setHeader:(->)
         return fn args, req, res if fn = APP.publicScope[call]
         return fn args, req, res if fn = APP.privateScope[call]
       catch error

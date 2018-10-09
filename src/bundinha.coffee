@@ -53,6 +53,7 @@ $$.Bundinha = class Bundinha
     @cssScope = {}
     @dbScope = user:on, session:on
     @fallbackScope = {}
+    @commandScope = {}
     @pluginScope = {}
     @privateScope = {}
     @publicScope = {}

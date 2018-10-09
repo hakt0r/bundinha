@@ -7,6 +7,10 @@
 Bundinha::buildBackend = ->
   console.log ':build'.green, 'backend'.bold
 
+  @command 'test', ->
+    console.log 'command works'
+    process.exit 0
+
   out = '(' + ( @serverHeader ).toString() + ')()\n'
 
   server = init:''
@@ -49,7 +53,7 @@ Bundinha::buildBackend = ->
   scripts.push apis
   scripts.push plugins
 
-  for scope in ['config','db','public','private']
+  for scope in ['config','db','public','private','command']
     add = "\nAPP#{accessor scope+'Scope'} = {};"
     for name, func of @[scope+'Scope']
       add +="\nAPP#{accessor scope+'Scope'}#{accessor name} = #{func.toString()};"
@@ -62,8 +66,8 @@ Bundinha::buildBackend = ->
 
   out += scripts.join '\n'
   out += init + '\n'
-
   # out = minify(out).code
+  out = "#!#{process.execPath}\n" + out
 
   p = AppPackage
   delete p.devDependencies
@@ -71,6 +75,9 @@ Bundinha::buildBackend = ->
   p.dependencies[k] = v for k,v of BunPackage.dependencies when not p.dependencies[k]?
   p.bundinha = BunPackage.version
   p.name = p.name.replace /-devel$/,''
+
+  AppPackage.bin[AppPackageName + '-backend'] = './backend.js'
+  # AppPackage.scripts['install-systemd'] = """sudo npm -g i .; #{} install-systemd"""
 
   fs.writeFileSync path.join(RootDir,'build','backend.js'), out
   fs.writeFileSync path.join(RootDir,'build','package.json'), JSON.stringify AppPackage
