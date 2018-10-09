@@ -35,8 +35,14 @@ $server = @server
 $server.APP = class $app
 
 $app.fromSource = no
-$app.require = @require
-$app.loadDependencies = @loadDependencies
+$app.require = @requireScope
+
+$app.loadDependencies = ->
+  for dep in @require
+    if Array.isArray dep
+      $$[dep[0]] = require dep[1]
+    else $$[dep] = require dep
+  return
 
 $app.readEnv =->
   $$.DEBUG     =  process.env.DEBUG || false

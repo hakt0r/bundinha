@@ -29,8 +29,8 @@ Bundinha::buildBackend = ->
   hooks[hook] = '' for hook in @backendHooks
 
   for funcs in @serverScope
-    for hook in @backendHooks when ( init = funcs[hook] )?
-      hooks[hook] += "\n(#{init.toString()})();"
+    for hook in @backendHooks when ( func = funcs[hook] )?
+      hooks[hook] += "\n#{func.toBareCode()}"
       delete funcs[hook]
     for name, api of funcs when typeof api isnt 'function'
       scripts.push "$$#{accessor name} = #{JSON.stringify api};"
@@ -73,10 +73,12 @@ Bundinha::buildBackend = ->
   { minify } = require 'uglify-es'
 
   out += scripts.join '\n'
-  out += '\n(function(){' +  hooks[hook] + '\n })()' for hook in @backendHooks
+  out += "\nAPP#{accessor hook} = async function(){" +  hooks[hook] + '\n};' for hook in @backendHooks
+  out += "\nAPP#{accessor hook}();" for hook in @backendHooks
   out += '\n'
   # out = minify(out).code
-  out = "#!#{process.execPath}\n" + out
+
+  out = "#!#{process.execPath}\n" + out # add shebang
 
   p = AppPackage
   delete p.devDependencies
