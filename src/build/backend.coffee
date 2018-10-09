@@ -14,7 +14,10 @@ Bundinha::buildBackend = ->
       Description=#{AppPackage.name} backend
 
       [Service]
-      Environment=
+      Environment=PROTO=#{PROTO}
+      Environment=ADDR=#{ADDR}
+      Environment=PORT=#{PORT}
+      Environment=CHGID=#{CHGID}
       ExecStart=#{process.execPath} #{__filename}
 
       [Install]
