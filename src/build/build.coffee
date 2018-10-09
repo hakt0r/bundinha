@@ -13,10 +13,7 @@ $$.accessor = (key)->
   return "[#{JSON.stringify key}]"
 
 Function::toCode = -> '('+ @toString() + '());\n'
-Function::toBareCode = ->
-  @toString()
-  .replace(/^[^\{]+{/,'')
-  .replace(/}$/,'')
+Function::toBareCode = -> @toString().replace(/^[^\{]+{/,'').replace(/}$/,'')
 
 Bundinha::build = ->
   @shared BuildId: SHA512 new Date
