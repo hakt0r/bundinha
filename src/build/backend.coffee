@@ -8,8 +8,17 @@ Bundinha::backendHooks = ['preinit','init']
 Bundinha::buildBackend = ->
   console.log ':build'.green, 'backend'.bold
 
-  @command 'test', ->
-    console.log 'command works'
+  @command 'install-systemd', ->
+    fs.writeFileSync '/etc/systemd/system/' + AppPackageName + '.service', """
+      [Unit]
+      Description=${AppPackageName} backend
+
+      [Service]
+      ExecStart=${AppPackageName}
+
+      [Install]
+      WantedBy=multi-user.target
+    """
     process.exit 0
 
   out = '(' + ( @serverHeader ).toString() + ')()\n'
