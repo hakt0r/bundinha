@@ -31,9 +31,7 @@ Bundinha.global.SHA1 = (value)->
   forge.md.sha1.create().update( value ).digest().toHex()
 
 Bundinha::command = (name,callback)->
-  s = @server()
-  s.init = -> for name, func of $$.commandScope
-  s['CMD_' + name] = callback
+  @commandScope[name] = callback
 
 Bundinha::public = (path,callback,fallback)->
   @publicScope[path] = callback

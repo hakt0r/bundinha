@@ -4,6 +4,7 @@
 # ██   ██ ██   ██ ██      ██  ██  ██      ██  ██ ██ ██   ██
 # ██████  ██   ██  ██████ ██   ██ ███████ ██   ████ ██████
 
+Bundinha::backendHooks = ['preinit','init']
 Bundinha::buildBackend = ->
   console.log ':build'.green, 'backend'.bold
 
@@ -13,13 +14,15 @@ Bundinha::buildBackend = ->
 
   out = '(' + ( @serverHeader ).toString() + ')()\n'
 
-  server = init:''
   scripts = []
+  server = {}
+  hooks = {}
+  hooks[hook] = '' for hook in @backendHooks
 
   for funcs in @serverScope
-    if ( init = funcs.init )?
-      delete funcs.init
-      server.init += "\n(#{init.toString()})();"
+    for hook in @backendHooks when ( init = funcs[hook] )?
+      hooks[hook] += "\n(#{init.toString()})();"
+      delete funcs[hook]
     for name, api of funcs when typeof api isnt 'function'
       scripts.push "$$#{accessor name} = #{JSON.stringify api};"
       delete funcs[name]
@@ -43,20 +46,16 @@ Bundinha::buildBackend = ->
     console.log 'plugin'.green, module, list.join ' '
 
   apis = ''; apilist = []
-
-  init = '(function(){' +  server.init + '\n })()'
-  delete server.init
-
   apis += @processAPI @shared.function, apilist
-  apis += @processAPI server, apilist
+  apis += @processAPI server,           apilist
 
   scripts.push apis
   scripts.push plugins
 
   for scope in ['config','db','public','private','command']
-    add = "\nAPP#{accessor scope+'Scope'} = {};"
+    add = "\nAPP#{accessor scope} = {};"
     for name, func of @[scope+'Scope']
-      add +="\nAPP#{accessor scope+'Scope'}#{accessor name} = #{func.toString()};"
+      add +="\nAPP#{accessor scope}#{accessor name} = #{func.toString()};"
     scripts.push add
     console.log scope.green, Object.keys(@[scope+'Scope']).join(' ').gray
 
@@ -65,7 +64,8 @@ Bundinha::buildBackend = ->
   { minify } = require 'uglify-es'
 
   out += scripts.join '\n'
-  out += init + '\n'
+  out += '\n(function(){' +  hooks[hook] + '\n })()' for hook in @backendHooks
+  out += '\n'
   # out = minify(out).code
   out = "#!#{process.execPath}\n" + out
 

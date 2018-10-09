@@ -18,14 +18,19 @@
   Array::unique =-> @filter (value, index, self) -> self.indexOf(value) == index
   return
 
-$server = @server init:->
-  do APP.loadDependencies
-  do APP.readEnv
-  console.debug = (->) unless DEBUG
-  do APP.splash
-  await do APP.startServer
-  do APP.initConfig
-  do APP.initDB
+$server = @server
+  preinit:->
+    func() for name, func of APP.command when process.argv.includes name
+    return
+  init:->
+    do APP.loadDependencies
+    do APP.readEnv
+    console.debug = (->) unless DEBUG
+    do APP.splash
+    await do APP.startServer
+    do APP.initConfig
+    do APP.initDB
+    return
 
 $server.APP = class $app
 
