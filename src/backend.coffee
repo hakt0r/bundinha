@@ -22,9 +22,11 @@ $server = @server
   preinit:->
     do APP.loadDependencies
     do APP.readEnv
-    func() for name, func of APP.command when process.argv.includes name
+    for name, func of APP.command when process.argv.includes name
+      func()
     return
   init:->
+    await APP.preinit()
     console.debug = (->) unless DEBUG
     do APP.splash
     await do APP.startServer
