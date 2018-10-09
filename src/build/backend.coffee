@@ -9,12 +9,12 @@ Bundinha::buildBackend = ->
   console.log ':build'.green, 'backend'.bold
 
   @command 'install-systemd', ->
-    fs.writeFileSync '/etc/systemd/system/' + AppPackageName + '.service', """
+    fs.writeFileSync '/etc/systemd/system/' + AppPackage.name + '.service', """
       [Unit]
-      Description=${AppPackageName} backend
+      Description=#{AppPackage.name} backend
 
       [Service]
-      ExecStart=${AppPackageName}
+      ExecStart=#{AppPackag.name}
 
       [Install]
       WantedBy=multi-user.target
