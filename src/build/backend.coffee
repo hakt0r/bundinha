@@ -24,6 +24,10 @@ Bundinha::buildBackend = ->
       [Install]
       WantedBy=multi-user.target
     """
+    cp.execSync """
+      systemctl enable  #{AppPackage.name}
+      systemctl restart #{AppPackage.name}
+    """
     process.exit 0
 
   out = '(' + ( @serverHeader ).toString() + ')()\n'
