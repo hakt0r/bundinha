@@ -14,7 +14,7 @@ Bundinha::buildBackend = ->
       Description=#{AppPackage.name} backend
 
       [Service]
-      ExecStart=#{AppPackage.name}
+      ExecStart=#{process.execPath} #{__filename}
 
       [Install]
       WantedBy=multi-user.target
