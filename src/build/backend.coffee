@@ -14,6 +14,7 @@ Bundinha::buildBackend = ->
       Description=#{AppPackage.name} backend
 
       [Service]
+      Environment=
       ExecStart=#{process.execPath} #{__filename}
 
       [Install]
