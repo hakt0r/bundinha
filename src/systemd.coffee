@@ -10,6 +10,7 @@
     Environment=ADDR=#{APP.addr}
     Environment=PORT=#{APP.port}
     Environment=CHGID=#{APP.chgid}
+    Environment=CONF=#{ConfigDir}
     ExecStart=#{process.execPath} #{__filename}
 
     [Install]
