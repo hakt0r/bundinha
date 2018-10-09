@@ -72,10 +72,25 @@ $app.initConfig =->
     catch e
       console.log 'config', ConfigDir.red, e.message
       process.exit 1
-  for key, fn of APP.config
-    try fn()
-    catch e then console.log key.red, fn, e.message
-  console.log 'config', ConfigDir.green, Object.keys(APP.config).join(' ').gray
+  @configKeys = Object.keys @defaultConfig
+  if fs.existsSync p = path.join ConfigDir, AppPackage.name + '.json'
+    Object.assign $$, config = JSON.parse fs.readFileSync p, 'utf8'
+    update = no
+    for key, value of @defaultConfig when not $$[key]?
+      update = yes
+      $$[key] = value
+      console.debug 'config'.yellow, key, JSON.stringify value
+    @configKeys = Object.keys(config).concat(@configKeys).unique()
+    do @writeConfig if update is yes
+  else fs.writeFileSync p, JSON.stringify @defaultConfig
+  console.log 'config', ConfigDir.green, @configKeys.join(' ').gray
+
+$app.writeConfig = ->
+  p = path.join ConfigDir, AppPackage.name + '.json'
+  fs.writeFileSync p, JSON.stringify (
+    o = {}
+    o[k] = $$[k] for k in @configKeys
+    o ), null, 2
 
 $app.initDB =->
   for name, opts of APP.db

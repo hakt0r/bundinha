@@ -96,27 +96,28 @@ Bundinha::buildFrontend = ->
   insert_scripts += (
     if @inlineScripts
          """<script>#{scripts}</script>"""
-    else """<script src="#{@BaseUrl}/app/app.js"></script>""" )
+    else """<script src="/app/app.js"></script>""" )
 
   insert_styles = ''
   insert_styles += workers if workers
   insert_styles += (
     if @inlineScripts
          """<script>#{styles}</script>"""
-    else """<link rel=stylesheet href="#{@BaseUrl}/app/app.css"/>""" )
+    else """<link rel=stylesheet href="/app/app.css"/>""" )
 
-  insert_websocket = ''
-  insert_websocket = ' ' + @BaseUrl.replace('http','ws') + '/api' if WebSockets?
+  #insert_websocket = ''
+  #insert_websocket = ' ' + @BaseUrl.replace('http','ws') + '/api' if WebSockets?
+  insert_websocket = ' wss:/api' if WebSockets?
   @insert_policy = """<meta http-equiv="Content-Security-Policy" content="
   default-src  'none';
   manifest-src 'self' data: '#{mainfestHash}';
-  connect-src  #{@BaseUrl}/api#{insert_websocket};
-  img-src      'self' blob: data: #{@BaseUrl}/#{@imgSources||''};
-  media-src    'self' blob: data: #{@BaseUrl}/#{@mediaSources||''};
+  connect-src  'self' wss:;
+  img-src      'self' blob: data:;
+  media-src    'self' blob: data:;
   style-src    'self' 'unsafe-inline';
-  script-src   '#{scriptHash}' #{@BaseUrl}/app/;
-  worker-src  #{workerHash} blob: #{@BaseUrl}/;
-  frame-src    'self' #{@BaseUrl}/;"/>"""
+  script-src   'self' '#{scriptHash}';
+  worker-src   'self' #{workerHash} blob:;
+  frame-src    'self';"/>"""
   # style-src    'self' 'unsafe-inline' '#{stylesHash}' #{@BaseUrl}/app/;
   ## FF is very strict about styles and csp
 
@@ -125,7 +126,7 @@ Bundinha::buildFrontend = ->
   <html>
   <head>
     <meta charset="utf-8"/>
-    <title>#{title}</title>
+    <title>#{AppName}</title>
     <meta name="description" content="#{@description}"/>
     <meta name="theme-color" content="#{@manifest.theme_color}"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>

@@ -1,9 +1,6 @@
 @require 'bundinha/auth/auth'
 
-@config "inviteKey.txt": ->
-  if fs.existsSync p = path.join ConfigDir, 'inviteKey.txt'
-    APP.InviteKey = fs.readFileSync(p).toString()
-  else fs.writeFileSync p, APP.InviteKey = 'secretKey!'
+@config InviteKey: 'secretKey!'
 
 @public "/login", (q,req,res)->
   rec = await APP.user.get q.id, rec

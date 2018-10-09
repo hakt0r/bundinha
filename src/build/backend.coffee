@@ -48,7 +48,13 @@ Bundinha::buildBackend = ->
   scripts.push apis
   scripts.push plugins
 
-  for scope in ['config','db','public','private','command']
+  add = "\nAPP.defaultConfig = {};"
+  for name, value of @configScope
+    add +="""\nAPP.defaultConfig#{accessor name} = #{JSON.stringify value};"""
+  scripts.push add
+  console.log 'config'.green, Object.keys(@configScope).join(' ').gray
+
+  for scope in ['db','public','private','command']
     add = "\nAPP#{accessor scope} = {};"
     for name, func of @[scope+'Scope']
       add +="\nAPP#{accessor scope}#{accessor name} = #{func.toString()};"
