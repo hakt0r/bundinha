@@ -30,7 +30,7 @@ $server = @server init:->
 $server.APP = class $app
 
 $app.fromSource = no
-$app.requireScope = @requireScope
+$app.require = @require
 $app.loadDependencies = @loadDependencies
 
 $app.readEnv =->
@@ -59,13 +59,13 @@ $app.initConfig =->
     catch e
       console.log 'config', ConfigDir.red, e.message
       process.exit 1
-  for key, fn of APP.configScope
+  for key, fn of APP.config
     try fn()
     catch e then console.log key.red, fn, e.message
-  console.log 'config', ConfigDir.green, Object.keys(APP.configScope).join(' ').gray
+  console.log 'config', ConfigDir.green, Object.keys(APP.config).join(' ').gray
 
 $app.initDB =->
-  for name, opts of APP.dbScope
+  for name, opts of APP.db
     APP[name] = level path.join ConfigDir, name + '.db'
     console.log '::::db', ':' + name.bold
   console.log '::::db', 'ready'.green
@@ -157,14 +157,14 @@ $app.apiRequest =(req,res)->
   [ call, args ] = body
   # reply to public api-requests
 
-  if fn = @publicScope[call]
+  if fn = @public[call]
     console.debug @Protocol.yellow, "call".green, call, args, '$public'
     return fn args, req, res
 
   # reply to private api-requests only with valid auth
   value = await @requireAuth req
 
-  unless fn = @privateScope[call]
+  unless fn = @private[call]
     throw new Error 'Command not found: ' + call
 
   console.debug @Protocol.yellow, "call".green, req.ID, call, args
@@ -194,8 +194,8 @@ $app.initWebSockets =->
         error = (error)-> ws.send JSON.stringify error:error, id:id
         req = id:id, USER:connReq.USER, ID:connReq.ID, COOKIE:connReq.COOKIE
         res = id:id, json:json, error:error, setHeader:(->)
-        return fn args, req, res if fn = APP.publicScope[call]
-        return fn args, req, res if fn = APP.privateScope[call]
+        return fn args, req, res if fn = APP.public[call]
+        return fn args, req, res if fn = APP.private[call]
       catch error
         console.log error
         res.error error
