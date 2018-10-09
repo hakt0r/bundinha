@@ -51,8 +51,9 @@ $client.ajax = (call,data)->
 $client.ConnectWebSocket = -> new Promise (resolve,reject)->
   WebSocketRequest.id = 0
   WebSocketRequest.request = {}
-  console.log 'ws', 'connect', BaseUrl.replace('http','ws') + '/api'
-  socket = new WebSocket BaseUrl.replace('http','ws') + '/api'
+  l = location; p = l.protocol; h = l.host
+  console.log 'ws', 'connect', p.replace('http','ws') + '://' + h + '/api'
+  socket = new WebSocket p.replace('http','ws') + '//' + h + '/api'
   socket.addEventListener 'error', ->
     ajax.socket = null
     NotificationToast.show 1000, 'offline'

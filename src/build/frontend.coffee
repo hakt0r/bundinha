@@ -88,37 +88,35 @@ Bundinha::buildFrontend = ->
   stylesHash   = contentHash styles
   scriptHash   = contentHash scripts
   workerHash   = ''
+  workerHash   += "'" + contentHash(@serviceWorkerSource) + "'"
   workerHash   += " '" + contentHash(src) + "'" for name, src of @webWorkerScope
-  workerHash   += " '" + contentHash(@serviceWorkerSource) + "'"
 
   insert_scripts = ''
   insert_scripts += workers if workers
   insert_scripts += (
     if @inlineScripts
          """<script>#{scripts}</script>"""
-    else """<script src="/app/app.js"></script>""" )
+    else """<script src="app/app.js"></script>""" )
 
   insert_styles = ''
-  insert_styles += workers if workers
   insert_styles += (
     if @inlineScripts
          """<script>#{styles}</script>"""
-    else """<link rel=stylesheet href="/app/app.css"/>""" )
+    else """<link rel=stylesheet href="app/app.css"/>""" )
 
-  #insert_websocket = ''
-  #insert_websocket = ' ' + @BaseUrl.replace('http','ws') + '/api' if WebSockets?
-  insert_websocket = ' wss:/api' if WebSockets?
+  insert_websocket = ''
+  insert_websocket = ' wss:' if WebSockets?
   @insert_policy = """<meta http-equiv="Content-Security-Policy" content="
-  default-src  'none';
+  default-src  'self';
   manifest-src 'self' data: '#{mainfestHash}';
-  connect-src  'self' wss:;
-  img-src      'self' blob: data:;
-  media-src    'self' blob: data:;
+  connect-src  'self'#{insert_websocket};
+  img-src      'self' blob: data: https:;
+  media-src    'self' blob: data: https:;
   style-src    'self' 'unsafe-inline';
-  script-src   'self' '#{scriptHash}';
-  worker-src   'self' #{workerHash} blob:;
-  frame-src    'self';"/>"""
-  # style-src    'self' 'unsafe-inline' '#{stylesHash}' #{@BaseUrl}/app/;
+  script-src   'self' '#{scriptHash}' https:;
+  worker-src   'self' #{workerHash} blob: https:;
+  frame-src    'self' ;"/>"""
+  # style-src    'self' 'unsafe-inline' '#{stylesHash}' app/;
   ## FF is very strict about styles and csp
 
   fs.writeFileSync path.join(WebDir,'index.html'), $body = """
