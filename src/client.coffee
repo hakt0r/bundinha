@@ -6,30 +6,9 @@
 
 # document.addEventListener 'DOMContentLoaded', -> return
 
-$client = @client init:->
-  $$.$   = (query)-> document.querySelector query
-  $.all  = (query)-> Array.prototype.slice.call document.querySelectorAll query
-  $.make = (html,opts)->
-    html = html opts || {} if html.call?
-    html = document.createRange().createContextualFragment html
-    node = html.childNodes
-    if node.length is 1 then node[0] else html
-  $.emit = (element,key,data)->
-    element = document.querySelector element if element.match?
-    e = new Event key
-    e.data = data
-    element.dispatchEvent e
-  $.once = (element,key,handler)->
-    element = document.querySelector element if element.match?
-    element.addEventListener key, (e)->
-      element.removeEventListener key, handler
-      handler.call @, e
-  $.on = (element,key,handler)->
-    element = document.querySelector element if element.match?
-    element.addEventListener key, handler
-  $.off = (element,key,handler)->
-    element = document.querySelector element if element.match?
-    element.removeEventListener key, handler
+@client init:@arrayTools
+@client init:@miqro
+$client = @client()
 
 $client.ajax = (call,data)->
   return WebSocketRequest call, data if ajax.socket

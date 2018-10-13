@@ -4,7 +4,8 @@
 # ██ ██  ██ ██ ██    ██
 # ██ ██   ████ ██    ██
 
-@serverHeader = ->
+@serverHeader = []
+@serverHeader.push ->
   global.$$ = global
   require 'colors'
   $$.path = require 'path'
@@ -15,8 +16,9 @@
   $$.WebDir     = process.env.HTML || path.join RootDir, 'html'
   $$.ConfigDir  = process.env.CONF || path.join path.dirname(RootDir), 'config'
   $$.AppPackage = JSON.parse fs.readFileSync (path.join RootDir, 'package.json' ), 'utf8'
-  Array::unique =-> @filter (value, index, self) -> self.indexOf(value) == index
   return
+@serverHeader.push @arrayTools
+@serverHeader.push @miqro
 
 $server = @server
   preinit:->
@@ -80,7 +82,7 @@ $app.initConfig =->
       update = yes
       $$[key] = value
       console.debug 'config'.yellow, key, JSON.stringify value
-    @configKeys = Object.keys(config).concat(@configKeys).unique()
+    @configKeys = Object.keys(config).concat(@configKeys).unique
     do @writeConfig if update is yes
   else fs.writeFileSync p, JSON.stringify @defaultConfig
   console.log 'config', ConfigDir.green, @configKeys.join(' ').gray

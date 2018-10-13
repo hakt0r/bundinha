@@ -61,9 +61,7 @@ api.ButtonLogout = ->
   btn.onclick = ->
     ModalWindow.closeActive() if ModalWindow.closeActive
     window.dispatchEvent new Event 'logout'
-    ajax '/logout', {}
-    .then -> $.emit window, 'logout'; LoginForm()
-    .catch -> $.emit window, 'logout'; LoginForm()
+    ajax('/logout',{}).then(anew = -> $$.emit 'logout';do LoginForm).catch(anew)
   btn
 
 api.Login = (user,pass)->

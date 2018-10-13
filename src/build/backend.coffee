@@ -8,7 +8,10 @@ Bundinha::backendHooks = ['preinit','init']
 Bundinha::buildBackend = ->
   console.log ':build'.green, 'backend'.bold
 
-  out = '(' + ( @serverHeader ).toString() + ')()\n'
+  out = '( function(){ ' + (
+    @serverHeader.map (i)-> i.toBareCode()
+    .join('\n')
+  ).toString() + '\n})()\n'
 
   scripts = []
   server = {}

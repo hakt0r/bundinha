@@ -4,9 +4,6 @@
   All Rights Reserved.
 ###
 
-Array::unique = ->
-  @filter (value, index, self) -> self.indexOf(value) == index
-
 setImmediate ->
   $$.APP = new Bundinha
   APP.cmd_handle()
