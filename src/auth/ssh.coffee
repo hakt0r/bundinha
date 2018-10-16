@@ -12,7 +12,7 @@
       return res.json challenge:'fixme:plaintext'
     user = q.user.replace( /[^a-z0-9]/gi, '' ).substring 0, 512
     pass = q.pass
-    i = cp.exec = """
+    i = $cp.exec = """
       LANG=C ssh #{user}@localhost -- echo '@ok@'
     """
     i.stderr.data = (data)->
@@ -22,7 +22,7 @@
     hashedPass = SHA512 [ rec.pass, q.salt ].join ':'
     unless hashedPass is q.pass
       return res.json id:q.id, error:I18.NXUser
-    cookie = Buffer.from(forge.random.getBytesSync 128).toString('base64')
+    cookie = Buffer.from($forge.random.getBytesSync 128).toString('base64')
     await APP.session.put cookie, q.id
     res.setHeader 'Set-Cookie', "SESSION=#{cookie}; expires=#{new Date(new Date().getTime()+86409000).toUTCString()}; path=/"
     res.json error:false, WebSockets:WebSockets
@@ -37,11 +37,11 @@ $client.RequestLogin = (user,pass,response)->
     hashedPass = pass
     clientSalt = null
   else
-    clientSalt = btoa forge.random.getBytesSync 128
+    clientSalt = btoa $forge.random.getBytesSync 128
     hashedPass = SHA512 [ pass,       challenge.seedSalt    ].join ':'
     hashedPass = SHA512 [ hashedPass, challenge.storageSalt ].join ':'
     hashedPass = SHA512 [ hashedPass, clientSalt            ].join ':'
-  ajax '/login', id:user, pass:hashedPass, salt:clientSalt
+  CALL '/login', id:user, pass:hashedPass, salt:clientSalt
   .then (result)->
     console.log result
     return ConnectWebSocket() if result.WebSockets

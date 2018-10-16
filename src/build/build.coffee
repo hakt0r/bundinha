@@ -5,7 +5,7 @@
 # ██████   ██████  ██ ███████ ██████
 
 $$.contentHash = (data)->
-  # """sha256-#{forge.util.encode64 forge.md.sha256.create().update(data).digest().bytes()}"""
+  # """sha256-#{$forge.util.encode64 $forge.md.sha256.create().update(data).digest().bytes()}"""
   """sha256-#{require('crypto').createHash('sha256').update(data).digest().toString 'base64'}"""
 
 $$.accessor = (key)->
@@ -19,10 +19,10 @@ Bundinha::build = ->
   @shared BuildId: SHA512 new Date
   console.log ':build'.green, ( BuildId ).yellow
   @reqdir  BuildDir
-  @reqdir  path.join BuildDir, 'html'
-  @require path.join AppPackageName, AppPackageName
-  @WebRoot  = path.join RootDir,'build','html'
-  @AssetDir = path.join RootDir,'build','html','app'
+  @reqdir  $path.join BuildDir, 'html'
+  @require $path.join AppPackageName, AppPackageName
+  @WebRoot  = $path.join RootDir,'build','html'
+  @AssetDir = $path.join RootDir,'build','html','app'
   do @buildLicense
   do @buildServiceWorker
   do @buildFrontend

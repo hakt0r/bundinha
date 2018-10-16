@@ -8,10 +8,12 @@
 
 @client init:@arrayTools
 @client init:@miqro
-$client = @client()
 
-$client.ajax = (call,data)->
-  return WebSocketRequest call, data if ajax.socket
+$client = @client init:->
+  $$.$forge = forge
+
+$client.CALL = $client.AJAX = (call,data)->
+  return WebSocketRequest call, data if CALL.socket
   new Promise (resolve,reject)->
     xhr = new XMLHttpRequest
     xhr.open ( if data then 'POST' else 'GET' ), '/api'
@@ -34,11 +36,11 @@ $client.ConnectWebSocket = -> new Promise (resolve,reject)->
   console.log 'ws', 'connect', p.replace('http','ws') + '://' + h + '/api'
   socket = new WebSocket p.replace('http','ws') + '//' + h + '/api'
   socket.addEventListener 'error', ->
-    ajax.socket = null
+    CALL.socket = null
     NotificationToast.show 1000, 'offline'
   socket.addEventListener 'open', ->
     console.log 'ws', 'connected'
-    ajax.socket = socket
+    CALL.socket = socket
     resolve socket
   socket.addEventListener 'message', (msg)->
     data = JSON.parse msg.data
@@ -50,7 +52,7 @@ $client.ConnectWebSocket = -> new Promise (resolve,reject)->
 
 $client.WebSocketRequest = (call,data)-> new Promise (resolve,reject)->
   WebSocketRequest.request[id = WebSocketRequest.id++] = resolve:resolve, reject:reject
-  ajax.socket.send JSON.stringify [id,call,data]
+  CALL.socket.send JSON.stringify [id,call,data]
 
 # ██████  ██    ██ ████████ ████████  ██████  ███    ██ ███████
 # ██   ██ ██    ██    ██       ██    ██    ██ ████   ██ ██

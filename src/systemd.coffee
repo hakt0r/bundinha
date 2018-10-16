@@ -1,7 +1,7 @@
 
 @command 'install-systemd', ->
   console.log 'install'.red, 'systemd.service'
-  fs.writeFileSync '/etc/systemd/system/' + AppPackage.name + '.service', """
+  $fs.writeFileSync '/etc/systemd/system/' + AppPackage.name + '.service', """
     [Unit]
     Description=#{AppPackage.name} backend
 
@@ -16,7 +16,7 @@
     [Install]
     WantedBy=multi-user.target
   """
-  cp.execSync """
+  $cp.execSync """
     systemctl enable  #{AppPackage.name}
     systemctl restart #{AppPackage.name}
   """

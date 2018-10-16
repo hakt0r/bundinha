@@ -57,12 +57,13 @@ Bundinha::buildBackend = ->
   scripts.push add
   console.log 'config'.green, Object.keys(@configScope).join(' ').gray
 
-  for scope in ['db','public','private','command']
+  for scope in ['db','public','private','group','command']
     add = "\nAPP#{accessor scope} = {};"
     for name, func of @[scope+'Scope']
-      add +="\nAPP#{accessor scope}#{accessor name} = #{func.toString()};"
+      value = if typeof func is 'function' then func.toString() else JSON.stringify func
+      add +="\nAPP#{accessor scope}#{accessor name} = #{value};"
     scripts.push add
-    console.log scope.green, Object.keys(@[scope+'Scope']).join(' ').gray
+    console.log scope.red, Object.keys(@[scope+'Scope']).join(' ').gray
 
   console.log 'server'.green, apilist.join(' ').gray
 
@@ -86,8 +87,8 @@ Bundinha::buildBackend = ->
   AppPackage.bin[AppPackageName + '-backend'] = './backend.js'
   # AppPackage.scripts['install-systemd'] = """sudo npm -g i .; #{} install-systemd"""
 
-  fs.writeFileSync path.join(RootDir,'build','backend.js'), out
-  fs.writeFileSync path.join(RootDir,'build','package.json'), JSON.stringify AppPackage
+  $fs.writeFileSync $path.join(RootDir,'build','backend.js'), out
+  $fs.writeFileSync $path.join(RootDir,'build','package.json'), JSON.stringify AppPackage
 
-  unless fs.existsSync path.join BuildDir, 'node_modules'
-    cp.execSync 'cd build; npm i'
+  unless $fs.existsSync $path.join BuildDir, 'node_modules'
+    $cp.execSync 'cd build; npm i'

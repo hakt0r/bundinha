@@ -5,31 +5,57 @@
 #      ██ ██      ██   ██  ██  ██  ██      ██   ██
 # ███████ ███████ ██   ██   ████   ███████ ██   ██
 
-APP.client RequestLogin:->
-  Promise.reject()
-APP.denyAuth = (q,req,res)->
-  res.json error:true
-  return
-APP.private "/login",    APP.denyAuth
-APP.private "/register", APP.denyAuth
-APP.private "/authenticated", (q,req,res)->
-  res.json WebSockets:WebSockets
+@config AdminUser: 'anx'
 
-APP.server
-  GetUID:-> SHA512 Date.now() + '-' + forge.random.getBytesSync(16)
-  AddAuthCookie: (res,user)->
-    cookie = GetUID()
-    res.setHeader 'Set-Cookie', "SESSION=#{cookie}; expires=#{new Date(new Date().getTime()+86409000).toUTCString()}; path=/"
-    fs.writeFileSync ( path.join '/tmp/auth', cookie ), '' if fs.existsSync '/tmp/auth'
-    console.log 'cookie'.yellow, user.id
-    APP.session.put cookie, user.id
+@server
+  GetUID:-> SHA512 Date.now() + '-' + $forge.random.getBytesSync(16)
   NewUserRecord:(opts={})->
     opts.id = opts.id || GetUID()
     process.emit 'user:precreate', opts
     console.log  'user:precreate', opts
     opts
 
-APP.private '/logout', (q,req,res)->
+  AddAuthCookie: (res,user)->
+    cookie = GetUID()
+    res.setHeader 'Set-Cookie', "SESSION=#{cookie}; expires=#{new Date(new Date().getTime()+86409000).toUTCString()}; path=/"
+    $fs.writeFileSync ( $path.join '/tmp/auth', cookie ), '' if $fs.existsSync '/tmp/auth'
+    console.log 'AUTH'.yellow, user.id, user.group
+    APP.session.put cookie, user.id
+
+  RequireAuth: (req)->
+    console.debug APP.Protocol.yellow, "headers", req.headers
+    throw new Error 'Access denied: no cookie' unless cookies = req.headers.cookie
+    CookieReg = /SESSION=([A-Za-z0-9+/=]+={0,3});?/
+    throw new Error 'Access denied: cookie' unless match = cookies.match CookieReg
+    req.COOKIE = cookie = match[1]
+    id   = await APP.session.get cookie
+    user = await APP.user.get req.ID = id
+    unless ( req.USER = JSON.parse user )?
+      throw new Error 'Access denied: invalid session'
+
+  RequireGroup: (req,group)->
+    in_group = (access,i)-> access or has_group.includes i
+    user_id = req.USER.id
+    if user_id is AdminUser and not req.USER.group
+      req.USER.group = ['admin']
+      APP.user.put user_id, JSON.stringify req.USER
+    has_group = req.USER.group
+    console.log 'GROUP'.yellow, user_id, 'has:', has_group, 'needs:', group
+    unless has_group
+      throw new Error 'Access denied: no groups'
+    unless group.reduce in_group, no
+      throw new Error 'Access denied: invalid group'
+
+  DenyAuth: DenyAuth = (q,req,res)->
+    res.json error:true
+    return
+
+@private "/login",    DenyAuth
+@private "/register", DenyAuth
+@private "/authenticated", (q,req,res)->
+  res.json WebSockets:WebSockets
+
+@private '/logout', (q,req,res)->
   APP.session.del req.COOKIE
   res.setHeader 'Set-Cookie', "SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"
   res.json error:false
@@ -41,13 +67,14 @@ APP.private '/logout', (q,req,res)->
 # ██      ██      ██ ██      ██  ██ ██    ██
 #  ██████ ███████ ██ ███████ ██   ████    ██
 
-APP.script 'node_modules','node-forge','dist','forge.min.js'
+@script 'node_modules','node-forge','dist','forge.min.js'
 
-api = APP.client()
+api = @client
+  RequestLogin:-> Promise.reject()
 
 api.CheckLoginCookie = ->
   if document.cookie.match /SESSION=/
-    ajax '/authenticated', {}
+    CALL '/authenticated', {}
     .then (result)->
       return ConnectWebSocket() if result.WebSockets
       not result.error
@@ -61,11 +88,11 @@ api.ButtonLogout = ->
   btn.onclick = ->
     ModalWindow.closeActive() if ModalWindow.closeActive
     window.dispatchEvent new Event 'logout'
-    ajax('/logout',{}).then(anew = -> $$.emit 'logout';do LoginForm).catch(anew)
+    CALL('/logout',{}).then(anew = -> $$.emit 'logout';do LoginForm).catch(anew)
   btn
 
 api.Login = (user,pass)->
-  ajax '/login', id:user
+  CALL '/login', id:user
   .then (challenge)-> RequestLogin user, pass, challenge
 
 
@@ -147,12 +174,12 @@ api.RegisterForm = -> requestAnimationFrame ->
     inviteKey = inviteKey$.value
     if pass is confirm then confirm$.setCustomValidity ''
     else return confirm$.setCustomValidity I18.PasswordNoMatch
-    seedSalt   = btoa forge.random.getBytesSync 128
-    inviteSalt = btoa forge.random.getBytesSync 128
+    seedSalt   = btoa $forge.random.getBytesSync 128
+    inviteSalt = btoa $forge.random.getBytesSync 128
     hashedPass = SHA512 [ pass, seedSalt ].join ':'
     hashedInviteKey = SHA512 [ inviteKey, inviteSalt ].join ':'
     window.UserID = user
-    ajax '/register', id:user, pass:hashedPass, salt:seedSalt, inviteKey:hashedInviteKey, inviteSalt:inviteSalt
+    CALL '/register', id:user, pass:hashedPass, salt:seedSalt, inviteKey:hashedInviteKey, inviteSalt:inviteSalt
     .then ->
       window.dispatchEvent new Event 'register'
       window.dispatchEvent new Event 'login'

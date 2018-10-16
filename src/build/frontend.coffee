@@ -9,11 +9,11 @@ Bundinha::buildFrontend = ->
   @reqdir @AssetDir
 
   scripts = @scriptScope.map (i)->
-    unless fs.existsSync i
+    unless $fs.existsSync i
       console.log 'script'.red, i
       return i
     console.log 'script'.green, i
-    fs.readFileSync i
+    $fs.readFileSync i
 
   scripts.push """
     window.$$ = window;
@@ -72,7 +72,7 @@ Bundinha::buildFrontend = ->
   styles = ( for css, opts of @cssScope
     if opts is true
       console.log ':::css'.green, css
-      fs.readFileSync css, 'utf8'
+      $fs.readFileSync css, 'utf8'
     else opts
   ).join '\n'
 
@@ -81,8 +81,8 @@ Bundinha::buildFrontend = ->
     """<script id="#{name}" type="text/js-worker">#{src}</script>"""
   ).join '\n'
 
-  fs.writeFileSync path.join(@AssetDir,'app.js'), scripts
-  fs.writeFileSync path.join(@AssetDir,'app.css'), styles
+  $fs.writeFileSync $path.join(@AssetDir,'app.js'), scripts
+  $fs.writeFileSync $path.join(@AssetDir,'app.css'), styles
 
   mainfestHash = contentHash @insert_manifest
   stylesHash   = contentHash styles
@@ -119,7 +119,7 @@ Bundinha::buildFrontend = ->
   # style-src    'self' 'unsafe-inline' '#{stylesHash}' app/;
   ## FF is very strict about styles and csp
 
-  fs.writeFileSync path.join(WebDir,'index.html'), $body = """
+  $fs.writeFileSync $path.join(WebDir,'index.html'), $body = """
   <!DOCTYPE html>
   <html>
   <head>

@@ -6,16 +6,16 @@
 
 @serverHeader = []
 @serverHeader.push ->
-  global.$$ = global
   require 'colors'
-  $$.path = require 'path'
-  $$.fs   = require 'fs'
-  $$.isClient = not ( $$.isServer = yes )
+  global.$$     = global
+  $$.$path      = require 'path'
+  $$.$fs        = require 'fs'
+  $$.isClient   = not ( $$.isServer = yes )
   $$.debug      = no
   $$.RootDir    = process.env.APP  || __dirname
-  $$.WebDir     = process.env.HTML || path.join RootDir, 'html'
-  $$.ConfigDir  = process.env.CONF || path.join path.dirname(RootDir), 'config'
-  $$.AppPackage = JSON.parse fs.readFileSync (path.join RootDir, 'package.json' ), 'utf8'
+  $$.WebDir     = process.env.HTML || $path.join RootDir, 'html'
+  $$.ConfigDir  = process.env.CONF || $path.join $path.dirname(RootDir), 'config'
+  $$.AppPackage = JSON.parse $fs.readFileSync ($path.join RootDir, 'package.json' ), 'utf8'
   return
 @serverHeader.push @arrayTools
 @serverHeader.push @miqro
@@ -44,8 +44,8 @@ $app.require = @requireScope
 $app.loadDependencies = ->
   for dep in @require
     if Array.isArray dep
-      $$[dep[0]] = require dep[1]
-    else $$[dep] = require dep
+      $$['$' + dep[0]] = require dep[1]
+    else $$['$' + dep] = require dep
   return
 
 $app.readEnv =->
@@ -69,14 +69,14 @@ $app.splash = ->
   return
 
 $app.initConfig =->
-  unless fs.existsSync confDir = path.join ConfigDir
-    try fs.mkdirSync path.join ConfigDir
+  unless $fs.existsSync confDir = $path.join ConfigDir
+    try $fs.mkdirSync $path.join ConfigDir
     catch e
       console.log 'config', ConfigDir.red, e.message
       process.exit 1
   @configKeys = Object.keys @defaultConfig
-  if fs.existsSync p = path.join ConfigDir, AppPackage.name + '.json'
-    Object.assign $$, config = JSON.parse fs.readFileSync p, 'utf8'
+  if $fs.existsSync p = $path.join ConfigDir, AppPackage.name + '.json'
+    Object.assign $$, config = JSON.parse $fs.readFileSync p, 'utf8'
     update = no
     for key, value of @defaultConfig when not $$[key]?
       update = yes
@@ -84,19 +84,19 @@ $app.initConfig =->
       console.debug 'config'.yellow, key, JSON.stringify value
     @configKeys = Object.keys(config).concat(@configKeys).unique
     do @writeConfig if update is yes
-  else fs.writeFileSync p, JSON.stringify @defaultConfig
+  else $fs.writeFileSync p, JSON.stringify @defaultConfig
   console.log 'config', ConfigDir.green, @configKeys.join(' ').gray
 
 $app.writeConfig = ->
-  p = path.join ConfigDir, AppPackage.name + '.json'
-  fs.writeFileSync p, JSON.stringify (
+  p = $path.join ConfigDir, AppPackage.name + '.json'
+  $fs.writeFileSync p, JSON.stringify (
     o = {}
     o[k] = $$[k] for k in @configKeys
     o ), null, 2
 
 $app.initDB =->
   for name, opts of APP.db
-    APP[name] = level path.join ConfigDir, name + '.db'
+    APP[name] = $level $path.join ConfigDir, name + '.db'
     console.log '::::db', ':' + name.bold
   console.log '::::db', 'ready'.green
 
@@ -112,8 +112,8 @@ $app.startServer =->
     APP.server = require('http')
     .createServer APP.web
   else
-    hasKey = fs.existsSync keyPath = path.join ConfigDir, 'host.key'
-    hasCrt = fs.existsSync crtPath = path.join ConfigDir, 'host.crt'
+    hasKey = $fs.existsSync keyPath = $path.join ConfigDir, 'host.key'
+    hasCrt = $fs.existsSync crtPath = $path.join ConfigDir, 'host.crt'
 
     unless hasKey and hasCrt
       console.log 'SSL'.red, 'HOST crt missing:', crtPath
@@ -122,8 +122,8 @@ $app.startServer =->
 
     APP.Protocol = ':https'
     options =
-      key:  fs.readFileSync keyPath
-      cert: fs.readFileSync crtPath
+      key:  $fs.readFileSync keyPath
+      cert: $fs.readFileSync crtPath
 
     APP.server = require('https')
     .createServer options, APP.handleRequest
@@ -149,16 +149,6 @@ $app.readStream =(stream)-> new Promise (resolve,reject)->
   body = []
   stream.on 'data', (chunk)-> body.push chunk
   stream.on 'end', -> resolve Buffer.concat(body).toString('utf8')
-
-$app.requireAuth =(req)->
-  console.debug APP.Protocol.yellow, "headers", req.headers
-  throw new Error 'Access denied: no cookie' unless cookies = req.headers.cookie
-  CookieReg = /SESSION=([A-Za-z0-9+/=]+={0,3});?/
-  throw new Error 'Access denied: cookie' unless match = cookies.match CookieReg
-  req.COOKIE = cookie = match[1]
-  id = await APP.session.get cookie
-  value = await APP.user.get req.ID = id
-  throw new Error 'Access denied: invalid session' unless ( req.USER = JSON.parse value )?
 
 #  █████       ██  █████  ██   ██
 # ██   ██      ██ ██   ██  ██ ██
@@ -192,7 +182,10 @@ $app.apiRequest =(req,res)->
     return fn args, req, res
 
   # reply to private api-requests only with valid auth
-  value = await @requireAuth req
+  value = await RequireAuth req
+
+  if false isnt need_group = @group[call]
+    RequireGroup req, need_group
 
   unless fn = @private[call]
     throw new Error 'Command not found: ' + call
@@ -209,7 +202,7 @@ $app.apiRequest =(req,res)->
 $app.initWebSockets =->
   wss = new ( require 'ws' ).Server noServer:true
   APP.server.on 'upgrade', (request, socket, head)->
-    APP.requireAuth request
+    RequireAuth request
     .then -> wss.handleUpgrade request, socket, head, (ws)->
       wss.emit 'connection', ws, request
     .catch (error)->
@@ -225,6 +218,8 @@ $app.initWebSockets =->
         req = id:id, USER:connReq.USER, ID:connReq.ID, COOKIE:connReq.COOKIE
         res = id:id, json:json, error:error, setHeader:(->)
         return fn args, req, res if fn = APP.public[call]
+        if false isnt need_group = APP.group[call]
+          RequireGroup req, need_group
         return fn args, req, res if fn = APP.private[call]
       catch error
         console.log error
@@ -256,7 +251,7 @@ $app.initWebSockets =->
     webm: 'video/webm'
 
 $app.resolveWebFile = (file)->
-  path.join WebDir, file
+  $path.join WebDir, file
 
 $app.errorResponse = (res,file,status,e)->
   console.log APP.Protocol.red, file.yellow
@@ -272,7 +267,7 @@ $app.fileRequest = (req,res)->
   mime = MIME.typeOf file
   file = APP.resolveWebFile file
   console.log 'static-get'.cyan, file, mime
-  fs.stat file, (error,stat)->
+  $fs.stat file, (error,stat)->
     return APP.errorResponse res, file, 404, 'File not Found' if error
     return APP.errorResponse res, file, 404, 'File not Found' if stat.isDirectory()
     return APP.fileRequestChunked req,res,file,mime,stat      if req.headers.range
@@ -280,7 +275,7 @@ $app.fileRequest = (req,res)->
       "Accept-Ranges"  : "bytes"
       "Content-Length" : stat.size
       "Content-Type"   : mime
-    fs.createReadStream(file).pipe(res)
+    $fs.createReadStream(file).pipe(res)
   null
 
 $app.fileRequestChunked = (req,res,file,mime,stat)->
@@ -299,4 +294,4 @@ $app.fileRequestChunked = (req,res,file,mime,stat)->
     "Content-Type"      : mime
     "Connection"        : 'keep-alive'
     "Transfer-Encoding" : 'chunked'
-  fs.createReadStream(file,start:start,end:end).pipe(res)
+  $fs.createReadStream(file,start:start,end:end).pipe(res)

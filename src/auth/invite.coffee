@@ -17,11 +17,11 @@
 
 @client RequestLogin: (user,pass,response)->
   { challenge } = response
-  clientSalt = btoa forge.random.getBytesSync 128
+  clientSalt = btoa $forge.random.getBytesSync 128
   hashedPass = SHA512 [ pass,       challenge.seedSalt    ].join ':'
   hashedPass = SHA512 [ hashedPass, challenge.storageSalt ].join ':'
   hashedPass = SHA512 [ hashedPass, clientSalt            ].join ':'
-  ajax '/login', id:user, pass:hashedPass, salt:clientSalt
+  CALL '/login', id:user, pass:hashedPass, salt:clientSalt
   .then (result)->
     return ConnectWebSocket() if result.WebSockets
     result
@@ -31,7 +31,7 @@
     hashedInviteKey = SHA512 [ APP.InviteKey, q.inviteSalt ].join ':'
     return res.json error:'Invalid InviteKey' unless q.inviteKey is hashedInviteKey
     return res.json error:'User exists'       unless error
-    storageSalt = Buffer.from(forge.random.getBytesSync 128).toString 'base64'
+    storageSalt = Buffer.from($forge.random.getBytesSync 128).toString 'base64'
     hashedPass = SHA512 [ q.pass, storageSalt ].join ':'
     userRecord =
       id:q.id

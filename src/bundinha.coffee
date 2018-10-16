@@ -12,9 +12,10 @@ require 'colors'
 
 global.$$ = global
 
-$$.fs   = require 'fs'
-$$.cp   = require 'child_process'
-$$.path = require 'path'
+$$.$fs   = require 'fs'
+$$.$cp   = require 'child_process'
+$$.$path = require 'path'
+$$.$util = require 'util'
 
 $$.ENV = process.env
 $$.ARG = process.argv.filter (v)-> not v.match /^-/
@@ -22,10 +23,10 @@ for v in process.argv.filter (v)-> v.match /^-/
   ARG[v.replace /^-+/, ''] = not ( v.match /^--no-/ )?
 
 $$.RootDir   = ENV.APP      || process.cwd()
-$$.ConfigDir = ENV.CONF     || path.join RootDir, 'config'
-$$.BuildDir  = ENV.BASE     || path.join RootDir, 'build'
-$$.BunDir    = ENV.BUNDINHA || path.dirname path.dirname __filename
-$$.WebDir    = ENV.HTML     || path.join BuildDir, 'html'
+$$.ConfigDir = ENV.CONF     || $path.join RootDir, 'config'
+$$.BuildDir  = ENV.BASE     || $path.join RootDir, 'build'
+$$.BunDir    = ENV.BUNDINHA || $path.dirname $path.dirname __filename
+$$.WebDir    = ENV.HTML     || $path.join BuildDir, 'html'
 
 $$.COM =
   build: "bundinha"
@@ -44,7 +45,7 @@ $$.COM =
 $$.Bundinha = class Bundinha
   constructor:(opts)->
     @fromSource = true
-    @requireScope = ['os','fs',['cp','child_process'],'path','level','colors',['forge','node-forge']]
+    @requireScope = ['os','util','fs',['cp','child_process'],'path','level','colors',['forge','node-forge']]
     @clientScope = []
     @configScope = {}
     @cssScope = {}
@@ -53,6 +54,7 @@ $$.Bundinha = class Bundinha
     @commandScope = {}
     @pluginScope = {}
     @privateScope = {}
+    @groupScope = {}
     @publicScope = {}
     @scriptScope = []
     @serverScope = []
@@ -78,8 +80,8 @@ Bundinha::cmd_handle = ->
   return do @cmd_push_clean if ( ARG.push and ARG.clean ) is true
   return do @cmd_push       if ( ARG.push is true )
 
-  $$.forge  = require 'node-forge'
-  $$.coffee = require 'coffeescript'
+  $$.$forge  = require 'node-forge'
+  $$.$coffee = require 'coffeescript'
 
   do @loadDependencies
   @require 'bundinha/client'
@@ -100,22 +102,22 @@ Bundinha::cmd_init = ->
   console.log 'init'.yellow, RootDir
   @reqdir RootDir, 'src'
   @reqdir RootDir, 'config'
-  unless fs.existsSync path.join RootDir, 'package.json'
-    cp.execSync 'npm init'
+  unless $fs.existsSync $path.join RootDir, 'package.json'
+    $cp.execSync 'npm init'
   p = @parseConfig RootDir, 'package.json'
   appName = p.name.replace(/-devel$/,'')
   p.bin = p.bin || {}
   p.scripts = p.scripts || {}
   p.devDependencies = p.devDependencies || {}
   unless p.bin[appName+'-backend']
-    p.bin[appName+'-backend'] = path.join '.','build','backend.js'
+    p.bin[appName+'-backend'] = $path.join '.','build','backend.js'
   p.scripts[name] = script for name,script of COM when not p.scripts[name]
   p.devDependencies.bundinha = 'file:'+BunDir unless p.devDependencies.bundinha
   @writeConfig p, RootDir, 'package.json'
   process.exit 0
 
 Bundinha::cmd_push = ->
-  cp.execSync """
+  $cp.execSync """
   tar cjvf - ./ | ssh #{ARG[1]} '
     cd /var/www/#{AppPackageName}; tar xjvf -;
     npm rebuild; killall node;
@@ -123,7 +125,7 @@ Bundinha::cmd_push = ->
   """; return
 
 Bundinha::cmd_push_clean = ->
-  cp.execSync """
+  $cp.execSync """
   ssh #{ARG[0]} 'killall node; cd /var/www/; rm -rf #{AppPackageName}/*'
   """; return
 

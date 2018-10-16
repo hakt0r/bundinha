@@ -7,9 +7,15 @@
 
 Bundinha::arrayTools = ->
   Object.defineProperties Array::,
-    trim:       get: -> return ( @filter (i)-> i? and i isnt false ) || []
-    random:     get: -> @[Math.round Math.random()*(@length-1)]
-    unique:     get: -> u={}; @filter (i)-> return u[i] = on unless u[i]; no
+    trim:    get: -> return ( @filter (i)-> i? and i isnt false ) || []
+    random:  get: -> @[Math.round Math.random()*(@length-1)]
+    unique:  get: -> u={}; @filter (i)-> return u[i] = on unless u[i]; no
+    uniques: get: ->
+      u={}; result = @slice()
+      @forEach (i)->
+        result.remove i if u[i]
+        u[i] = on
+      result
     remove:     enumerable:no, value: (v) -> @splice i, 1 if i = @indexOf v; @
     pushUnique: enumerable:no, value: (v) -> @push v if -1 is @indexOf v
     common:     enumerable:no, value: (b) -> @filter (i)-> -1 isnt b.indexOf i
@@ -49,16 +55,16 @@ Bundinha::require = (file)->
   #   RootDir, BunDir, RootDir + '/node_modules', BunDir + '/node_modules' ]
   mod = ( rest = file.split '/' ).shift()
   switch mod
-    when 'bundinha'     then file = path.join BunDir,  'src', rest.join '/'
-    when AppPackageName then file = path.join RootDir, 'src', rest.join '/'
+    when 'bundinha'     then file = $path.join BunDir,  'src', rest.join '/'
+    when AppPackageName then file = $path.join RootDir, 'src', rest.join '/'
     else return require file
   try
-    if fs.existsSync cfile = file + '.coffee'
-         scpt = fs.readFileSync cfile, 'utf8'
-         scpt = coffee.compile scpt, bare:on, filename:cfile
-    else scpt = fs.readFileSync file + '.js', 'utf8'
+    if $fs.existsSync cfile = file + '.coffee'
+         scpt = $fs.readFileSync cfile, 'utf8'
+         scpt = $coffee.compile scpt, bare:on, filename:cfile
+    else scpt = $fs.readFileSync file + '.js', 'utf8'
     func = new Function 'APP','require','__filename','__dirname',scpt
-    func.call @, APP, require, file, path.dirname file
+    func.call @, APP, require, file, $path.dirname file
   catch error
     console.log 'Bundinha::require'.red, error.message.bold
     console.log error if error
@@ -66,24 +72,26 @@ Bundinha::require = (file)->
 
 Bundinha.global = {}
 Bundinha.global.SHA512 = (value)->
-  forge.md.sha512.create().update( value ).digest().toHex()
+  $forge.md.sha512.create().update( value ).digest().toHex()
 Bundinha.global.SHA1 = (value)->
-  forge.md.sha1.create().update( value ).digest().toHex()
+  $forge.md.sha1.create().update( value ).digest().toHex()
 
 Bundinha::command = (name,callback)->
   @commandScope[name] = callback
 
-Bundinha::public = (path,callback,fallback)->
-  @publicScope[path] = callback
+Bundinha::public = (path,callback)->
+  @publicScope[path]  = callback
   @privateScope[path] = callback
-  @fallbackScope[path] = fallback if fallback
+  @groupScope[path]   = false
 
-Bundinha::private = (path,callback,fallback)->
+Bundinha::private = (path,group,callback)->
+  unless callback
+    callback = group; group = false
   @privateScope[path] = callback
-  @fallbackScope[path] = fallback if fallback
+  @groupScope[path]   = group
 
-Bundinha::fallback = (path,fallback)->
-  @fallbackScope[path] = fallback
+Bundinha::group = (path,group)->
+  @groupScope[path] = group
 
 Bundinha::db = (name)-> @dbScope[name] = true
 
@@ -91,7 +99,7 @@ Bundinha::css = (argsForPath...)->
   if argsForPath[0] is true
     @cssScope[argsForPath[1]] = argsForPath[2]
   else
-    p = path.join.apply path, argsForPath
+    p = $path.join.apply path, argsForPath
     @cssScope[p] = true
 
 Bundinha::config = (obj)->
@@ -120,9 +128,9 @@ Bundinha::client = (obj={})->
   obj
 
 Bundinha::script = (args...)->
-  if fs.existsSync p = path.join.apply path, [RootDir].concat args
+  if $fs.existsSync p = $path.join.apply path, [RootDir].concat args
     @scriptScope.push p
-  else if fs.existsSync p = path.join.apply path, [BunDir ].concat args
+  else if $fs.existsSync p = $path.join.apply path, [BunDir ].concat args
     @scriptScope.push p
   else @scriptScope.push args[0]
 
@@ -168,21 +176,21 @@ Bundinha::loadDependencies = ->
 Bundinha::touch = require 'touch'
 
 Bundinha::parseConfig = (args...)->
-  JSON.parse fs.readFileSync path.join.apply(path,args), 'utf8'
+  JSON.parse $fs.readFileSync $path.join.apply($path,args), 'utf8'
 
 Bundinha::writeConfig = (cfg,args...)->
-  fs.writeFileSync path.join.apply(path,args), JSON.stringify(cfg,null,2),'utf8'
+  $fs.writeFileSync $path.join.apply($path,args), JSON.stringify(cfg,null,2),'utf8'
 
 Bundinha::symlink = (src,dst)->
-  ok = -> console.log '::link'.green, path.basename(src).yellow, '->'.yellow, dst.bold
-  return do ok if fs.existsSync dst
-  return do ok if fs.symlinkSync src, dst
+  ok = -> console.log '::link'.green, $path.basename(src).yellow, '->'.yellow, dst.bold
+  return do ok if $fs.existsSync dst
+  return do ok if $fs.symlinkSync src, dst
 
 Bundinha::reqdir = (dst...) ->
-  dst = path.join.apply path, dst
-  ok = -> console.log ':::dir'.green, path.basename(dst).yellow
-  return do ok if fs.existsSync dst
-  return do ok if fs.mkdirSync dst
+  dst = $path.join.apply path, dst
+  ok = -> console.log ':::dir'.green, $path.basename(dst).yellow
+  return do ok if $fs.existsSync dst
+  return do ok if $fs.mkdirSync dst
 
 Bundinha::compileSources = (sources)->
   out = ''
@@ -193,10 +201,10 @@ Bundinha::compileSources = (sources)->
       source = source.join '\n'
       out += source
     else if Array.isArray source
-      source = path.join.apply path, source if Array.isArray source
+      source = $path.join.apply path, source if Array.isArray source
       if source.match /.coffee$/
-           out += coffee.compile ( fs.readFileSync source, 'utf8' ), bare:on
-      else out += fs.readFileSync source, 'utf8'
+           out += $coffee.compile ( $fs.readFileSync source, 'utf8' ), bare:on
+      else out += $fs.readFileSync source, 'utf8'
     else if typeof source is 'string'
       out += source;
     else throw new Error 'source of unhandled type', typeof source
