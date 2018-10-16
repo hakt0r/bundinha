@@ -4,7 +4,6 @@
 # ██   ██ ██   ██ ██      ██  ██  ██      ██  ██ ██ ██   ██
 # ██████  ██   ██  ██████ ██   ██ ███████ ██   ████ ██████
 
-Bundinha::backendHooks = ['preinit','init']
 Bundinha::buildBackend = ->
   console.log ':build'.green, 'backend'.bold
 
@@ -16,16 +15,17 @@ Bundinha::buildBackend = ->
   scripts = []
   server = {}
   hooks = {}
-  hooks[hook] = '' for hook in @backendHooks
+  hooks[hook] = '' for hook in @server._hook
 
-  for funcs in @serverScope
-    for hook in @backendHooks when ( func = funcs[hook] )?
-      hooks[hook] += "\n#{func.toBareCode()}"
-      delete funcs[hook]
-    for name, api of funcs when typeof api isnt 'function'
-      scripts.push "$$#{accessor name} = #{JSON.stringify api};"
-      delete funcs[name]
-    Object.assign server, funcs
+  for hook in @server._hook when ( code = @serverScope[hook] )?
+    hooks[hook] = code
+    delete @serverScope[hook]
+
+  for name, api of @serverScope when typeof api isnt 'function'
+    scripts.push "$$#{accessor name} = #{JSON.stringify api};"
+    delete @serverScope[name]
+
+  Object.assign server, @serverScope
 
   add = ''
   for name, cons of @shared.constant
@@ -70,7 +70,7 @@ Bundinha::buildBackend = ->
   { minify } = require 'uglify-es'
 
   out += scripts.join '\n'
-  out += "\nAPP#{accessor hook} = async function(){" +  hooks[hook] + '\n};' for hook in @backendHooks
+  out += "\nAPP#{accessor hook} = async function(){" +  hooks[hook] + '\n};' for hook in @server._hook
   out += "\nAPP.init();"
   out += '\n'
   # out = minify(out).code

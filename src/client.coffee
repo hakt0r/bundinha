@@ -9,10 +9,11 @@
 @client init:@arrayTools
 @client init:@miqro
 
-$client = @client init:->
+@client.init = ->
   $$.$forge = forge
+  return
 
-$client.CALL = $client.AJAX = (call,data)->
+@client.CALL = @client.AJAX = (call,data)->
   return WebSocketRequest call, data if CALL.socket
   new Promise (resolve,reject)->
     xhr = new XMLHttpRequest
@@ -29,7 +30,7 @@ $client.CALL = $client.AJAX = (call,data)->
       else reject result.error
     null
 
-$client.ConnectWebSocket = -> new Promise (resolve,reject)->
+@client.ConnectWebSocket = -> new Promise (resolve,reject)->
   WebSocketRequest.id = 0
   WebSocketRequest.request = {}
   l = location; p = l.protocol; h = l.host
@@ -50,7 +51,7 @@ $client.ConnectWebSocket = -> new Promise (resolve,reject)->
     delete WebSocketRequest.request[data.id]
   socket.addEventListener 'error', reject
 
-$client.WebSocketRequest = (call,data)-> new Promise (resolve,reject)->
+@client.WebSocketRequest = (call,data)-> new Promise (resolve,reject)->
   WebSocketRequest.request[id = WebSocketRequest.id++] = resolve:resolve, reject:reject
   CALL.socket.send JSON.stringify [id,call,data]
 
@@ -60,17 +61,17 @@ $client.WebSocketRequest = (call,data)-> new Promise (resolve,reject)->
 # ██   ██ ██    ██    ██       ██    ██    ██ ██  ██ ██      ██
 # ██████   ██████     ██       ██     ██████  ██   ████ ███████
 
-$client.SubmitButton = (key,xclass='',fn)->
+@client.SubmitButton = (key,xclass='',fn)->
   b = IconButton key,xclass,fn
   b.type='submit'
   b
 
-$client.ResetButton = (key,xclass='',fn)->
+@client.ResetButton = (key,xclass='',fn)->
   b = IconButton key,xclass,fn
   b.type='reset'
   b
 
-$client.IconButton = (key,xclass='',fn)->
+@client.IconButton = (key,xclass='',fn)->
   if typeof xclass is 'function'
     fn = xclass
     xclass = ''
@@ -81,7 +82,7 @@ $client.IconButton = (key,xclass='',fn)->
   btn.onclick = fn
   btn
 
-$client.ModalWindow = (opts)->
+@client.ModalWindow = (opts)->
   ModalWindow.closeActive() if ModalWindow.closeActive
   extraClass = ''
   extraClass = opts.class if opts.class
@@ -120,7 +121,7 @@ $client.ModalWindow = (opts)->
 # ██      ██   ██ ██    ██    ██    ██ ██   ██
 # ███████ ██████  ██    ██     ██████  ██   ██
 
-$client.EditProperty = (opts)-> new Promise (resolve)->
+@client.EditProperty = (opts)-> new Promise (resolve)->
   resolved = ->
     resolve [key,value]
     ModalWindow.closeActive()
@@ -146,7 +147,7 @@ $client.EditProperty = (opts)-> new Promise (resolve)->
   form$.onreset = resolved
   null
 
-$client.EditValue = (opts)-> new Promise (resolve)->
+@client.EditValue = (opts)-> new Promise (resolve)->
   resolved = ->
     opts.onclose() if opts.onclose
     form$.remove()
@@ -177,11 +178,12 @@ $client.EditValue = (opts)-> new Promise (resolve)->
 # ██  ██ ██ ██    ██    ██    ██ ██      ██ ██      ██   ██    ██    ██ ██    ██ ██  ██ ██      ██
 # ██   ████  ██████     ██    ██ ██      ██  ██████ ██   ██    ██    ██  ██████  ██   ████ ███████
 
-$notify = @client init:->
+@client.init = ->
   new PersistentToast
   new NotificationToast
+  return
 
-$notify.ToastController = class ToastController
+@client class ToastController
   constructor:(id)->
     @constructor.instance = @
     @count = 0
@@ -189,7 +191,7 @@ $notify.ToastController = class ToastController
   push: -> if ++@count is 1 then @$.classList.add    'active'
   pop:  -> if --@count is 0 then @$.classList.remove 'active'
 
-$notify.PersistentToast = class PersistentToast extends ToastController
+@client class PersistentToast extends ToastController
   constructor:-> super 'info'; PersistentToast.show = @show.bind @
   show: (text,ok,cancel)-> new Promise (resolve,reject)=>
     document.body.append @$
@@ -198,7 +200,7 @@ $notify.PersistentToast = class PersistentToast extends ToastController
     n.append ResetButton  cancel, ( => @pop n.remove(); do reject  ) if cancel
     do @push
 
-$notify.NotificationToast = class NotificationToast extends ToastController
+@client class NotificationToast extends ToastController
   constructor:-> super 'notify'; NotificationToast.show = @show.bind @
   show: (timeout,text)->
     document.body.append @$
@@ -207,7 +209,7 @@ $notify.NotificationToast = class NotificationToast extends ToastController
     setTimeout ( => html.remove(); @pop() ), timeout
     do @push
 
-$notify.showModalConfirm = (text)->
+@client.showModalConfirm = (text)->
   { text, body, ok, cancel } = text if typeof text is 'object'
   ok     = I18.Ok     unless ok
   cancel = I18.Cancel unless cancel

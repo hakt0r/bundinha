@@ -18,7 +18,7 @@
   $$.AppPackage = JSON.parse $fs.readFileSync ($path.join RootDir, 'package.json' ), 'utf8'
   return
 @serverHeader.push @arrayTools
-@serverHeader.push @miqro
+# @serverHeader.push @miqro
 
 $server = @server
   preinit:->

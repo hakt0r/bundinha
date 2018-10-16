@@ -29,7 +29,9 @@ Bundinha::buildServiceWorker = ->
   @serviceWorkerSource = @compileSources [ @ServiceHeader, @ServiceWorker ]
   $fs.writeFileSync $path.join(@WebRoot,'service.js'), @serviceWorkerSource
 
-  @client init:@InitServiceWorker
+  @client
+    init:-> InitServiceWorker(); return
+    InitServiceWorker: @InitServiceWorker
 
 Bundinha::ServiceHeader = ''
 Bundinha::ServiceWorker = ->

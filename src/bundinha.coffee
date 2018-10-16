@@ -19,7 +19,7 @@ $$.$util = require 'util'
 
 $$.ENV = process.env
 $$.ARG = process.argv.filter (v)-> not v.match /^-/
-for v in process.argv.filter (v)-> v.match /^-/
+for v in ( process.argv.filter (v)-> v.match /^-/ )
   ARG[v.replace /^-+/, ''] = not ( v.match /^--no-/ )?
 
 $$.RootDir   = ENV.APP      || process.cwd()
@@ -46,7 +46,6 @@ $$.Bundinha = class Bundinha
   constructor:(opts)->
     @fromSource = true
     @requireScope = ['os','util','fs',['cp','child_process'],'path','level','colors',['forge','node-forge']]
-    @clientScope = []
     @configScope = {}
     @cssScope = {}
     @dbScope = user:on, session:on
@@ -57,11 +56,14 @@ $$.Bundinha = class Bundinha
     @groupScope = {}
     @publicScope = {}
     @scriptScope = []
+    @clientScope = init:''
     @serverScope = []
     @shared.constant = {}
     @shared.function = {}
     @tplScope = []
     @webWorkerScope = {}
+    @CollectorScope 'client'
+    @CollectorScope 'server'
     Object.assign @, opts
     @shared Bundinha.global
     return

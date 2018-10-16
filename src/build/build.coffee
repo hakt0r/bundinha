@@ -4,6 +4,18 @@
 # ██   ██ ██    ██ ██ ██      ██   ██
 # ██████   ██████  ██ ███████ ██████
 
+Function::toCode = ->
+  '('+ @toString().replace(/\n[ ]{4}/g,'\n') + '());\n'
+
+Function::toBareCode = ->
+  code = @toString()
+  .replace(/^[^\{]+{/,'')
+  .replace(/\n[ ]{4}/g,'\n')
+  .replace(/^return /,'')
+  .replace(/}$/,'')
+  # console.log '###',code,'###'
+  code
+
 $$.contentHash = (data)->
   # """sha256-#{$forge.util.encode64 $forge.md.sha256.create().update(data).digest().bytes()}"""
   """sha256-#{require('crypto').createHash('sha256').update(data).digest().toString 'base64'}"""
@@ -11,9 +23,6 @@ $$.contentHash = (data)->
 $$.accessor = (key)->
   return ".#{key}" if key.match /^[a-z0-9_]+$/i
   return "[#{JSON.stringify key}]"
-
-Function::toCode = -> '('+ @toString() + '());\n'
-Function::toBareCode = -> @toString().replace(/^[^\{]+{/,'').replace(/}$/,'')
 
 Bundinha::build = ->
   @shared BuildId: SHA512 new Date

@@ -19,6 +19,7 @@ Bundinha::arrayTools = ->
     remove:     enumerable:no, value: (v) -> @splice i, 1 if i = @indexOf v; @
     pushUnique: enumerable:no, value: (v) -> @push v if -1 is @indexOf v
     common:     enumerable:no, value: (b) -> @filter (i)-> -1 isnt b.indexOf i
+  return
 
 Bundinha::miqro = ->
   window.$$$ = document
@@ -66,8 +67,15 @@ Bundinha::require = (file)->
     func = new Function 'APP','require','__filename','__dirname',scpt
     func.call @, APP, require, file, $path.dirname file
   catch error
-    console.log 'Bundinha::require'.red, error.message.bold
-    console.log error if error
+    if error.stack
+      line = parseInt error.stack.split('\n')[1].split(':')[1]
+      col  = try parseInt error.stack.split('\n')[1].split(':')[2].split(')')[0] catch e then 0
+      console.log 'require'.red.bold, [file.bold,line,col].join ':'
+    console.log ' ', error.message.bold
+    console.log '>',
+      scpt.split('\n')[line-3].substring(0,col-2).yellow
+      scpt.split('\n')[line-3].substring(col-1,col).red
+      scpt.split('\n')[line-3].substring(col+1).yellow
     process.exit 1
 
 Bundinha.global = {}
@@ -105,27 +113,39 @@ Bundinha::css = (argsForPath...)->
 Bundinha::config = (obj)->
   Object.assign @configScope, obj
 
+Bundinha::CollectorScope = (scope)->
+  hook = ['preinit','init']
+  _scope = @[scope+'Scope'] = {}
+  _scope[cat] = '' for cat in hook
+  @[scope] = new Proxy (->),
+    get: (_target,_prop)=>
+      return hook if _prop is '_hook'
+      _scope[_prop]
+    set: doSet = (_target,_prop,_value)=>
+      console.log scope.yellow.bold, _prop.bold if scope is 'server'
+      if hook.includes _prop
+           _scope[_prop] += _value.toBareCode()
+      else _scope[_prop]  = _value
+      true
+    apply: (_target,_this,_args)=>
+      [ obj ] = _args
+      return @[scope] unless obj?
+      name = obj.name
+      if obj::?
+        doSet null, name, @[scope][name] = obj
+      else
+        doSet null,k,v for k,v of obj
+      @[scope]
+
 Bundinha::shared = (obj)->
   # console.debug 'shared'.bold, obj
   client = @client()
   server = @server()
   for key, value of obj
     if typeof value is 'function'
-      @shared.function[key] = value
-      client[key]           = value
-      $$[key]               = value
-    else
-      @shared.constant[key] = value
-      $$[key]               = value
+         @shared.function[key] = client[key] = $$[key] = value
+    else @shared.constant[key] = $$[key] = value
   return
-
-Bundinha::server = (obj={})->
-  @serverScope.push obj
-  obj
-
-Bundinha::client = (obj={})->
-  @clientScope.push obj
-  obj
 
 Bundinha::script = (args...)->
   if $fs.existsSync p = $path.join.apply path, [RootDir].concat args

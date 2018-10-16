@@ -5,6 +5,7 @@
 # ██      ██   ██  ██████  ██   ████    ██    ███████ ██   ████ ██████
 
 Bundinha::buildFrontend = ->
+  @clientScope.preinit = false if @clientScope.preinit is ''
   console.log ':build'.green, 'frontend'.bold, @AssetDir.yellow
   @reqdir @AssetDir
 
@@ -34,13 +35,7 @@ Bundinha::buildFrontend = ->
 
   scripts.push tpls
 
-  client = init:''
-
-  for funcs in @clientScope
-    if ( init = funcs.init )?
-      delete funcs.init
-      client.init += init.toCode()
-    Object.assign client, funcs
+  client = @clientScope
 
   for module, plugs of @pluginScope
     list = []
