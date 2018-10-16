@@ -4,43 +4,72 @@ BUNDINHA is an open-source backend and webapp bundler.
 It's aim is to enable you to jump-start a self-contained
 webapp within a few lines of code.
 
-## Usage example
+Yes, ATM you're forced to use CoffeeScript because I'm lazy and won't add
+complexity when it's not requested :P
 
-First begin a regular NodeJS project :) Yes, ATM you're forced to use CoffeeScript because I'm lazy and won't add complexity when it's not requested :P It should look roughly like this.
+Please note that I had to make some funky language level compromises in order
+to keep things as clean and simple (as possible)
 
-  - myApp/
-    - package.json
-    - index.js
-      - *require("bundinha")*
-    - src/
-       - myApp.coffee : **entry Point**
+### Quickstart
 
-The reason is the packaging process in which code and assets
-are being bundled into the *build/* directory.
+```ShellScript
+  $ sudo npm i -g git+https://github.com/hakt0r/bundinha
+  $ mkdir MY_BUNDLE
+  $ cd    MY_BUNDLE
+  $ bundinha init
+  $ ls
+```
+Your source files willl be in src/, your entry point would be:
 
-Your entry Point could look like this.
+  src/MY_BUNDLE.coffee
+
+### Example Point
+
+This works for @client, @server or @shared API's
 
 ```CoffeeScript
-require 'bundinha/auth_invite'
-# this will give you basic SHA512 / challenge-response
-# with seed, server and transaction salts
-# the inviteKey can be configured in *config/inviteKey.txt*
 
-shared = APP.global()
-shared.SomeGlobal = true
-# client/server wide global
+# You would add more sources like this:
+#   They are not included using node's require
+#   Instead their @ will be your current Bundinha
+#   -> @ stays the same on @require
+@require 'bundinha/fontawesome'             # use the fontawesome module
+@require 'bundinha/auth/invite'             # use the auth/invite module
+@require 'MY_BUNDLE/my_other_source.coffee' # use your own extra source
 
-tpl = APP.tpl()
-tpl.hr = '<hr/>' # a client side template
+# create global client / server API's like this
+@server.SomeFunction = -> console.log "I'm server"
+@client.SomeFunction = -> console.log "I'm client"
 
-client = APP.client()
+# Hooks are special functions
+@server.init = ->
+  SomeFunction()
+  return
 
-client.init = ->
-  # your client side init code
+# classes are supported too
+@client class AbstractApp
+  andsoforth:->  console.log 'works'
 
-client.SomeFunction = (args)->
-  # a client side function
+@client class MyApp extends AbstractApp
+  constructor:-> @andsoforth()
+
+MyApp.staticMember = -> console.log 'works'
+MyApp::member = -> console.log 'works'
+
+MyApp::andsoforth = ->
+  console.log 'works but in order to call super, you must do this:'
+  AbstractApp::andsoforth.call @, 'arg1', 'arg2', '...'
+
 ```
+
+### A word about hooks
+
+Hooks on an API are special, they will be unwrapped of the function you define,
+and concatenated. Therefore:
+
+  - hook functions **must** end with a blank return
+  - hook functions **must not** have other return's
+
 ## Module-API
 ```CoffeeScript
 APP.script ( string path )
