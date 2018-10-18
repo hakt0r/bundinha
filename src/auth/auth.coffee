@@ -40,7 +40,7 @@
       req.USER.group = ['admin']
       APP.user.put user_id, JSON.stringify req.USER
     has_group = req.USER.group
-    console.log 'GROUP'.yellow, user_id, 'has:', has_group, 'needs:', group
+    console.debug 'GROUP'.yellow, user_id, 'has:', has_group, 'needs:', group
     unless has_group
       throw new Error 'Access denied: no groups'
     unless group.reduce in_group, no
