@@ -33,7 +33,7 @@ Bundinha::build = ->
   @WebRoot  = $path.join RootDir,'build','html'
   @AssetDir = $path.join RootDir,'build','html','app'
   do @buildLicense
-  do @buildServiceWorker
+  do @buildServiceWorker if @buildServiceWorker?
   do @buildFrontend
   do @buildBackend
 

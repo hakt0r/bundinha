@@ -134,7 +134,6 @@ Bundinha::cmd_push_clean = ->
 require './build/lib'
 require './build/build'
 require './build/license'
-require './build/service'
 require './build/frontend'
 require './build/backend'
 

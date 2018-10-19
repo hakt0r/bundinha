@@ -1,39 +1,12 @@
+
 # ███████ ███████ ██████  ██    ██ ██  ██████ ███████
 # ██      ██      ██   ██ ██    ██ ██ ██      ██
 # ███████ █████   ██████  ██    ██ ██ ██      █████
 #      ██ ██      ██   ██  ██  ██  ██ ██      ██
 # ███████ ███████ ██   ██   ████   ██  ██████ ███████
 
-Bundinha::buildServiceWorker = ->
-  @manifest =
-    name: AppName
-    short_name: title
-    start_url: @BaseUrl
-    display: "standalone"
-    icons: [
-      src: "data:image/png;base64,#{AppIconPNG}", density: "1", sizes: "512x512", type: "image/png"
-      src: "data:image/svg+xml;base64,#{AppIcon}", density: "1", sizes: "any", type: "image/svg+xml" ]
-    theme_color: "black"
-    background_color: "%23231f27"
+@HasServiceWorker = true
 
-  @insert_manifest = unless @HasServiceWorker then '' else """
-  <link rel=manifest href='data:application/manifest+json,#{JSON.stringify @manifest}'/>"""
-
-  return unless @HasServiceWorker
-
-  @ServiceHeader = """
-  AppName = '#{AppName}';
-  BuildId = '#{BuildId}';
-  """ + @ServiceHeader
-
-  @serviceWorkerSource = @compileSources [ @ServiceHeader, @ServiceWorker ]
-  $fs.writeFileSync $path.join(@WebRoot,'service.js'), @serviceWorkerSource
-
-  @client
-    init:-> InitServiceWorker(); return
-    InitServiceWorker: @InitServiceWorker
-
-Bundinha::ServiceHeader = ''
 Bundinha::ServiceWorker = ->
   SCOPE = self
   WAS_UPDATED = no
@@ -69,7 +42,17 @@ Bundinha::ServiceWorker = ->
       resolve res
   null
 
-Bundinha::InitServiceWorker = ->
+#  ██████ ██      ██ ███████ ███    ██ ████████
+# ██      ██      ██ ██      ████   ██    ██
+# ██      ██      ██ █████   ██ ██  ██    ██
+# ██      ██      ██ ██      ██  ██ ██    ██
+#  ██████ ███████ ██ ███████ ██   ████    ██
+
+@client.init = ->
+  InitServiceWorker()
+  return
+
+@client.InitServiceWorker = ->
   window.addEventListener 'beforeinstallprompt', ->
     console.log 'install-prompt'
   return Promise.resolve() unless 'serviceWorker' of navigator
@@ -92,3 +75,35 @@ Bundinha::InitServiceWorker = ->
   navigator.serviceWorker.addEventListener 'message', (event)->
     console.log event.data
   return
+
+# ██████  ██    ██ ██ ██      ██████
+# ██   ██ ██    ██ ██ ██      ██   ██
+# ██████  ██    ██ ██ ██      ██   ██
+# ██   ██ ██    ██ ██ ██      ██   ██
+# ██████   ██████  ██ ███████ ██████
+
+Bundinha::ServiceHeader = ''
+Bundinha::buildServiceWorker = ->
+  @manifest =
+    name: AppName
+    short_name: title
+    start_url: @BaseUrl
+    display: "standalone"
+    icons: [
+      src: "data:image/png;base64,#{AppIconPNG}", density: "1", sizes: "512x512", type: "image/png"
+      src: "data:image/svg+xml;base64,#{AppIcon}", density: "1", sizes: "any", type: "image/svg+xml" ]
+    theme_color: "black"
+    background_color: "%23231f27"
+
+  @insert_manifest = unless @HasServiceWorker then '' else """
+  <link rel=manifest href='data:application/manifest+json,#{JSON.stringify @manifest}'/>"""
+
+  return unless @HasServiceWorker
+
+  @ServiceHeader = """
+  AppName = '#{AppName}';
+  BuildId = '#{BuildId}';
+  """ + @ServiceHeader
+
+  @serviceWorkerSource = @compileSources [ @ServiceHeader, @ServiceWorker ]
+  $fs.writeFileSync $path.join(@WebRoot,'service.js'), @serviceWorkerSource
