@@ -107,10 +107,12 @@ $app.initDB = ->
 #  ███ ███  ███████ ██████  ███████ ██   ██   ████
 
 $app.startServer = ->
+
   if 'http' is APP.protocol
     APP.Protocol = '::http'
     APP.server = require('http')
     .createServer APP.web
+
   else
     hasKey = $fs.existsSync keyPath = $path.join ConfigDir, 'host.key'
     hasCrt = $fs.existsSync crtPath = $path.join ConfigDir, 'host.crt'
