@@ -11,33 +11,36 @@ Bundinha::ServiceWorker = ->
   SCOPE = self
   WAS_UPDATED = no
   CACHE_NAME = AppName + '_' + BuildId
+  cache = null
+  caches.open CACHE_NAME
+  .then (c)-> cache = c
   jsonHeaders = headers:'Content-Type':'application/json'
   errorResponse = JSON.stringify error:'offline'
   self.addEventListener 'install', (event)-> event.waitUntil (
-    caches.open CACHE_NAME
-    .then (cache)-> cache.addAll ['/'] )
+    cache.addAll ['/','/app/app.css','/app/app.js'] )
   self.addEventListener 'message', (msg)->
     return unless msg.data is 'skipWaiting'
-    self.skipWaiting()
-    .then -> clients.claim()
-  self.addEventListener 'activate', (event)-> event.waitUntil (
-    caches.keys()
-    .then (keyList)->
+    await self.skipWaiting()
+    clients.claim()
+  self.addEventListener 'activate', (event)->
+    event.waitUntil new Promise (resolve)->
+      keyList = await caches.keys()
       for key in keyList
         continue if key is CACHE_NAME
-        caches.delete key )
+        caches.delete key
+      resolve true
   self.addEventListener 'fetch', (event)->
     { url } = req = event.request
-    return unless req.method is "POST"
-    # event.respondWith fetch(req.clone()).catch ->
-    #   new Response errorResponse, jsonHeaders
-    return unless url.match /\.(mp3|ogg|opus|mkv|mp4|avi|mpe?g|ts)$/
+    return if req.method is "POST"
+    return if url.match /\.(mp3|ogg|opus|mkv|mp4|avi|mpe?g|ts)$/
     event.respondWith new Promise (resolve)->
-      return resolve res if res = await caches.match req
+      console.log 'cached?', req.url
+      res = await caches.match req
+      return resolve res if res
+      console.log 'cached?no', req.url
       res = await fetch req.clone()
-      if !res or res.status != 200 or res.type isnt 'basic'
-        return resolve res
-      cache = await caches.open CACHE_NAME
+      return resolve res if !res or res.status != 200 or res.type isnt 'basic'
+      console.log 'get?yesh', req.url
       cache.put req, res.clone()
       resolve res
   null
