@@ -56,8 +56,12 @@ Bundinha::require = (file)->
   #   RootDir, BunDir, RootDir + '/node_modules', BunDir + '/node_modules' ]
   mod = ( rest = file.split '/' ).shift()
   switch mod
-    when 'bundinha'     then file = $path.join BunDir,  'src', rest.join '/'
-    when AppPackageName then file = $path.join RootDir, 'src', rest.join '/'
+    when 'bundinha'
+      console.log 'depend'.green.bold, file.bold
+      file = $path.join BunDir,  'src', rest.join '/'
+    when AppPackageName
+      console.log 'depend'.yellow.bold, file.bold
+      file = $path.join RootDir, 'src', rest.join '/'
     else return require file
   try
     if $fs.existsSync cfile = file + '.coffee'
@@ -122,7 +126,7 @@ Bundinha::CollectorScope = (scope)->
       return hook if _prop is '_hook'
       _scope[_prop]
     set: doSet = (_target,_prop,_value)=>
-      console.log scope.yellow.bold, _prop.bold if scope is 'server'
+      # console.log scope.yellow.bold, _prop.bold if scope is 'server'
       if hook.includes _prop
            _scope[_prop] += _value.toBareCode()
       else _scope[_prop]  = _value

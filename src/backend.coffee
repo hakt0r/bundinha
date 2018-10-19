@@ -85,7 +85,7 @@ $app.initConfig =->
     @configKeys = Object.keys(config).concat(@configKeys).unique
     do @writeConfig if update is yes
   else $fs.writeFileSync p, JSON.stringify @defaultConfig
-  console.log 'config', ConfigDir.green, @configKeys.join(' ').gray
+  console.debug 'config', ConfigDir.green, @configKeys.join(' ').gray
 
 $app.writeConfig = ->
   p = $path.join ConfigDir, AppPackage.name + '.json'

@@ -80,7 +80,15 @@ Bundinha::buildBackend = ->
   p = AppPackage
   delete p.devDependencies
   p.dependencies = {} unless p.dependencies
-  p.dependencies[k] = v for k,v of BunPackage.dependencies when not p.dependencies[k]?
+  for k,v of BunPackage.scripts when not p.scripts[k]?
+    p.scripts[k] = v
+  for k,v of p.scripts when v.match 'bundinha'
+    v = v.replace 'build/', ''
+    if      v is 'bundinha' then delete p.scripts[k]
+    else if v is 'bundinha push' then delete p.scripts[k]
+    else p.scripts[k] = v.replace 'bundinha; ', ''
+  for k,v of BunPackage.dependencies when not p.dependencies[k]?
+    p.dependencies[k] = v
   p.bundinha = BunPackage.version
   p.name = p.name.replace /-devel$/,''
 
@@ -88,7 +96,7 @@ Bundinha::buildBackend = ->
   # AppPackage.scripts['install-systemd'] = """sudo npm -g i .; #{} install-systemd"""
 
   $fs.writeFileSync $path.join(RootDir,'build','backend.js'), out
-  $fs.writeFileSync $path.join(RootDir,'build','package.json'), JSON.stringify AppPackage
+  $fs.writeFileSync $path.join(RootDir,'build','package.json'), JSON.stringify AppPackage, null, 2
 
   unless $fs.existsSync $path.join BuildDir, 'node_modules'
     $cp.execSync 'cd build; npm i'
