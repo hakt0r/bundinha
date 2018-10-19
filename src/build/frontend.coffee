@@ -5,7 +5,6 @@
 # ██      ██   ██  ██████  ██   ████    ██    ███████ ██   ████ ██████
 
 Bundinha::buildFrontend = ->
-  @clientScope.preinit = false if @clientScope.preinit is ''
   console.log ':build'.green, 'frontend'.bold, @AssetDir.yellow
   @reqdir @AssetDir
 
@@ -50,13 +49,16 @@ Bundinha::buildFrontend = ->
         # setTimeout plug.worker # TODO: oninit
     console.log 'plugin'.green, module, list.join ' '
 
-  init = client.init; delete client.init
-  apis = ''; apilist = []
+  hook = {}
+  for name in ['preinit','init'] when client[name]
+    hook[name] = client[name]
+    delete client[name]
 
-  apis += @processAPI @shared.function, apilist
-  apis += @processAPI client, apilist
-  scripts.push apis
-  scripts.push init
+  scripts.push @processAPI @shared.function, apilist = []
+  scripts.push @processAPI client, apilist
+  scripts.push 'setTimeout(async ()=>{' +
+    [hook.preinit,hook.init].join('\n') +
+    '});'
 
   console.log 'client'.green, apilist.join(' ').gray
 
