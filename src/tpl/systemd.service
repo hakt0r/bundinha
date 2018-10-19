@@ -1,8 +1,0 @@
-[Unit]
-Description=CINV backend
-
-[Service]
-ExecStart=CINV_START
-
-[Install]
-WantedBy=multi-user.target
