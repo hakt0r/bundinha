@@ -48,7 +48,7 @@ $app.loadDependencies = ->
     else $$['$' + dep] = require dep
   return
 
-$app.readEnv =->
+$app.readEnv = ->
   $$.DEBUG     =  process.env.DEBUG || false
   APP.chgid    =  process.env.CHGID || false
   APP.port     =  process.env.PORT  || 9999
@@ -68,7 +68,7 @@ $app.splash = ->
   console.log 'ConfigDir'.yellow, ConfigDir.green
   return
 
-$app.initConfig =->
+$app.initConfig = ->
   unless $fs.existsSync confDir = $path.join ConfigDir
     try $fs.mkdirSync $path.join ConfigDir
     catch e
@@ -94,7 +94,7 @@ $app.writeConfig = ->
     o[k] = $$[k] for k in @configKeys
     o ), null, 2
 
-$app.initDB =->
+$app.initDB = ->
   for name, opts of APP.db
     APP[name] = $level $path.join ConfigDir, name + '.db'
     console.log '::::db', ':' + name.bold
@@ -106,7 +106,7 @@ $app.initDB =->
 # ██ ███ ██ ██      ██   ██      ██ ██   ██  ██  ██
 #  ███ ███  ███████ ██████  ███████ ██   ██   ████
 
-$app.startServer =->
+$app.startServer = ->
   if 'http' is APP.protocol
     APP.Protocol = '::http'
     APP.server = require('http')
@@ -137,7 +137,7 @@ $app.startServer =->
     process.setuid APP.chgid
     return resolve()
 
-$app.handleRequest =(req,res)->
+$app.handleRequest = (req,res)->
   console.debug 'request'.cyan, req.url
   unless req.method is 'POST' and req.url is '/api'
     return APP.fileRequest req, res
@@ -145,7 +145,7 @@ $app.handleRequest =(req,res)->
   try await APP.apiRequest req,res
   catch error then res.json error:error.toString()
 
-$app.readStream =(stream)-> new Promise (resolve,reject)->
+$app.readStream = (stream)-> new Promise (resolve,reject)->
   body = []
   stream.on 'data', (chunk)-> body.push chunk
   stream.on 'end', -> resolve Buffer.concat(body).toString('utf8')
@@ -156,12 +156,12 @@ $app.readStream =(stream)-> new Promise (resolve,reject)->
 # ██   ██ ██   ██ ██   ██  ██ ██
 # ██   ██  █████  ██   ██ ██   ██
 
-$app.apiResponse =(data)->
+$app.apiResponse = (data)->
   @setHeader 'Content-Type', 'text/json'
   @statusCode = 200
   @end JSON.stringify data
 
-$app.apiRequest =(req,res)->
+$app.apiRequest = (req,res)->
   stream = undefined
   switch (req.headers['content-encoding'] or 'raw').toLowerCase()
     when 'deflate' then req.pipe stream = zlib.createInflate()
@@ -199,7 +199,7 @@ $app.apiRequest =(req,res)->
 # ██ ███ ██ ██      ██   ██      ██ ██    ██ ██      ██  ██  ██         ██
 #  ███ ███  ███████ ██████  ███████  ██████   ██████ ██   ██ ███████    ██
 
-$app.initWebSockets =->
+$app.initWebSockets = ->
   wss = new ( require 'ws' ).Server noServer:true
   APP.server.on 'upgrade', (request, socket, head)->
     RequireAuth request
