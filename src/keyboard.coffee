@@ -1,8 +1,10 @@
 
 @client.init = ->
   new KeyboardManager
+  $$.KeyboardSettings = bind:{}
+  return
 
-@client class KeyboardManager
+@client Kbd = class KeyboardManager
   constructor:(opts={})->
     $$.Kbd = @
     @help  = opts.help  || {}
@@ -31,14 +33,16 @@ Kbd::workingKeycodes2018 = ["AltLeft","AltRight","ArrowDown","ArrowLeft","ArrowR
 "Select","Semicolon","ShiftLeft","ShiftRight","Slash","Space","Tab","Undo"]
 
 Kbd::macro = (name,key,d10,func)->
-  NUU.settings.bind = {} unless NUU.settings.bind?
-  key = NUU.settings.bind[name] || key
-  console.debug key, name, NUU.settings.bind[name]?
+  { name,key,d10,func } = name unless name.match
+  KeyboardSettings.bind = {} unless KeyboardSettings.bind?
+  key = KeyboardSettings.bind[name] || key
+  console.debug key, name, KeyboardSettings.bind[name]?
   @macro[name] = func
   @bind key, name if key
   @d10[name] = d10
 
 Kbd::bind = (combo,macro,opt) ->
+  { combo,macro,opt } = combo unless combo.match
   opt = @macro[macro] unless opt?
   delete @rmap[combo]
   delete @help[combo]

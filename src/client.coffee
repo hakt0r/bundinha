@@ -4,8 +4,6 @@
   All Rights Reserved.
 ###
 
-# document.addEventListener 'DOMContentLoaded', -> return
-
 @client init:@arrayTools
 @client init:@miqro
 
