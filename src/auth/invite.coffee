@@ -10,21 +10,19 @@
       storageSalt: rec.storageSalt
       seedSalt:    rec.seedSalt
   hashedPass = SHA512 [ rec.pass, q.salt ].join ':'
-  threow new Error I18.NXUser unless hashedPass is q.pass
+  throw new Error I18.NXUser unless hashedPass is q.pass
   await AddAuthCookie res, q
-  res.json error:false, WebSockets:WebSockets
+  AuthSuccess q, req, res, rec
   null
 
-@client RequestLogin: (user,pass,response)->
+@client.RequestLogin = (user,pass,response)->
   { challenge } = response
   clientSalt = btoa $forge.random.getBytesSync 128
   hashedPass = SHA512 [ pass,       challenge.seedSalt    ].join ':'
   hashedPass = SHA512 [ hashedPass, challenge.storageSalt ].join ':'
   hashedPass = SHA512 [ hashedPass, clientSalt            ].join ':'
   CALL '/login', id:user, pass:hashedPass, salt:clientSalt
-  .then (result)->
-    return ConnectWebSocket() if result.WebSockets
-    result
+  .then LoginResult
 
 @public "/register", (q,req,res)->
   APP.user.get q.id, (error,rec)->
@@ -41,6 +39,6 @@
     await Promise.all [
       APP.user.put q.id, JSON.stringify userRecord
       AddAuthCookie res, q ]
-    res.json error:false, WebSockets:WebSockets
+    AuthSuccess q, req, res, rec
     return
   return

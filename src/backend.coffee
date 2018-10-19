@@ -195,39 +195,6 @@ $app.apiRequest = (req,res)->
   console.debug @Protocol.yellow, "call".green, req.ID, call, args
   fn args, req, res
 
-# ██     ██ ███████ ██████  ███████  ██████   ██████ ██   ██ ███████ ████████
-# ██     ██ ██      ██   ██ ██      ██    ██ ██      ██  ██  ██         ██
-# ██  █  ██ █████   ██████  ███████ ██    ██ ██      █████   █████      ██
-# ██ ███ ██ ██      ██   ██      ██ ██    ██ ██      ██  ██  ██         ██
-#  ███ ███  ███████ ██████  ███████  ██████   ██████ ██   ██ ███████    ██
-
-$app.initWebSockets = ->
-  wss = new ( require 'ws' ).Server noServer:true
-  APP.server.on 'upgrade', (request, socket, head)->
-    RequireAuth request
-    .then -> wss.handleUpgrade request, socket, head, (ws)->
-      wss.emit 'connection', ws, request
-    .catch (error)->
-      console.log error
-      socket.destroy()
-    return
-  wss.on 'connection', (ws,connReq) ->
-    ws.on 'message', (body) ->
-      try
-        [ id, call, args ] = JSON.parse body
-        json = (data)-> data.id = id; ws.send JSON.stringify data
-        error = (error)-> ws.send JSON.stringify error:error, id:id
-        req = id:id, USER:connReq.USER, ID:connReq.ID, COOKIE:connReq.COOKIE
-        res = id:id, json:json, error:error, setHeader:(->)
-        return fn args, req, res if fn = APP.public[call]
-        if false isnt need_group = APP.group[call]
-          RequireGroup req, need_group
-        return fn args, req, res if fn = APP.private[call]
-      catch error
-        console.log error
-        res.error error
-  console.log APP.Protocol, 'websockets'.green
-
 # ███████ ██ ██      ███████
 # ██      ██ ██      ██
 # █████   ██ ██      █████

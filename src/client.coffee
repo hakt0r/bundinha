@@ -12,7 +12,6 @@
   return
 
 @client.CALL = @client.AJAX = (call,data)->
-  return WebSocketRequest call, data if CALL.socket
   new Promise (resolve,reject)->
     xhr = new XMLHttpRequest
     xhr.open ( if data then 'POST' else 'GET' ), '/api'
@@ -27,31 +26,6 @@
            resolve result
       else reject result.error
     null
-
-@client.ConnectWebSocket = -> new Promise (resolve,reject)->
-  WebSocketRequest.id = 0
-  WebSocketRequest.request = {}
-  l = location; p = l.protocol; h = l.host
-  console.log 'ws', 'connect', p.replace('http','ws') + '://' + h + '/api'
-  socket = new WebSocket p.replace('http','ws') + '//' + h + '/api'
-  socket.addEventListener 'error', ->
-    CALL.socket = null
-    NotificationToast.show 1000, 'offline'
-  socket.addEventListener 'open', ->
-    console.log 'ws', 'connected'
-    CALL.socket = socket
-    resolve socket
-  socket.addEventListener 'message', (msg)->
-    data = JSON.parse msg.data
-    req = WebSocketRequest.request[data.id]
-    req.reject  data.error if data.error
-    req.resolve data
-    delete WebSocketRequest.request[data.id]
-  socket.addEventListener 'error', reject
-
-@client.WebSocketRequest = (call,data)-> new Promise (resolve,reject)->
-  WebSocketRequest.request[id = WebSocketRequest.id++] = resolve:resolve, reject:reject
-  CALL.socket.send JSON.stringify [id,call,data]
 
 # ██████  ██    ██ ████████ ████████  ██████  ███    ██ ███████
 # ██   ██ ██    ██    ██       ██    ██    ██ ████   ██ ██
