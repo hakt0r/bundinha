@@ -33,7 +33,7 @@ Kbd::workingKeycodes2018 = ["AltLeft","AltRight","ArrowDown","ArrowLeft","ArrowR
 Kbd::macro = (name,key,d10,func)->
   NUU.settings.bind = {} unless NUU.settings.bind?
   key = NUU.settings.bind[name] || key
-  console.log key, name, NUU.settings.bind[name]? if debug
+  console.debug key, name, NUU.settings.bind[name]?
   @macro[name] = func
   @bind key, name if key
   @d10[name] = d10
@@ -46,7 +46,7 @@ Kbd::bind = (combo,macro,opt) ->
   opt = up: opt if typeof opt is 'function'
   key = combo.replace /^[cas]+/,''
   return console.log ':kbd', 'bind:key:unknown', macro, key, combo, opt if -1 is @workingKeycodes2018.indexOf key
-  console.log ':kbd', 'bind', combo, opt if debug
+  console.debug ':kbd', 'bind', combo, opt
   @up[macro] = opt.up if opt.up?
   @dn[macro] = opt.dn if opt.dn?
   @mmap[macro] = combo
@@ -70,7 +70,7 @@ Kbd::keydownHandler = (e) ->
   return @onkeydown e, code if @onkeydown
   return true if @onkeyup
   macro = @rmap[code]
-  notice 500, "d[#{code}]:#{macro} #{e.code}" if debug
+  # notice 500, "d[#{code}]:#{macro} #{e.code}" if debug
   return if @state[code] is true
   @state[code] = true
   @dn[macro](e) if @dn[macro]?
@@ -83,7 +83,7 @@ Kbd::keyupHandler = (e) ->
   code = 's' + code if e.shiftKey
   return @onkeyup e, code if @onkeyup
   macro = @rmap[code]
-  notice 500, "u[#{code}]:#{macro}" if debug
+  # notice 500, "u[#{code}]:#{macro}" if debug
   return if @state[code] is false
   @state[code] = false
   @up[macro](e) if @up[macro]?
@@ -100,38 +100,37 @@ Kbd::clearHooks = (key)->
   true
 
 Kbd::grab = (focus,opts)->
-  console.log ':kbd', 'grab', focus.name if debug
+  console.debug ':kbd', 'grab', focus.name
   if @focus
     unless @focus is focus and opts.onkeydown is @onkeydown and opts.onkeyup is @onkeyup and opts.onpaste is @onpaste
-      console.log ':kbd', 'obscure', @focus.name if debug
+      console.debug ':kbd', 'obscure', @focus.name
       @stackOrder.push @stackItem[@focus.name] =
         focus:@focus
         onkeydown:@onkeydown
         onkeyup:@onkeyup
         onpaste:@onpaste
-    else
-      console.log ':kbd', 'same', @focus.name if debug
+    else console.debug ':kbd', 'same', @focus.name
     do @clearHooks
   @focus = focus; Object.assign @, opts
   document.addEventListener 'paste', @onpaste if @onpaste
-  console.log ':kbd', 'grabbed', @focus.name if debug
+  console.debug ':kbd', 'grabbed', @focus.name
   true
 
 Kbd::release = (focus)->
   if @focus is focus
-    console.log ':kbd', 'release_current', focus.name if debug
+    console.debug ':kbd', 'release_current', focus.name
     do @clearHooks
     if @stackOrder.length is 0
-      console.log ':kbd', 'main-focus' if debug
+      console.debug ':kbd', 'main-focus'
       return true
     item = @stackOrder.pop()
     @grab item.focus, item
-    console.log ':kbd', 'main' unless @focus if debug
+    console.debug ':kbd', 'main' unless @focus
     true
   else if item = @stackItem[focus.name]
-    console.log ':kbd', 'release_obscured', focus.name if debug
+    console.debug ':kbd', 'release_obscured', focus.name
     Array.splice idx, 0 if idx = @stackOrder.indexOf item
     delete @stackItem[focus.name]
-    console.log ':kbd', 'main' unless @focus if debug
+    console.debug ':kbd', 'main' unless @focus
     true
   else false
