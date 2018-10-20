@@ -15,7 +15,7 @@ Bundinha::ServiceWorker = ->
   errorResponse = JSON.stringify error:'offline'
   self.addEventListener 'install', (event)-> event.waitUntil(
     caches.open CACHE_NAME
-    .then -> cache.addAll ['/','/app/app.css','/app/app.js'])
+    .then (cache) -> cache.addAll ['/','/app/app.css','/app/app.js'])
   self.addEventListener 'message', (msg)->
     return unless msg.data is 'skipWaiting'
     await self.skipWaiting()
