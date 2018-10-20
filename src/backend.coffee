@@ -235,7 +235,7 @@ $app.fileRequest = (req,res)->
   file = '/index.html' if file is '/app'
   mime = MIME.typeOf file
   file = APP.resolveWebFile file
-  console.log 'static-get'.cyan, file, mime
+  console.debug 'static-get'.cyan, file, mime
   $fs.stat file, (error,stat)->
     return APP.errorResponse res, file, 404, 'File not Found' if error
     return APP.errorResponse res, file, 404, 'File not Found' if stat.isDirectory()
@@ -255,7 +255,7 @@ $app.fileRequestChunked = (req,res,file,mime,stat)->
   end = if partialend then parseInt partialend, 10 else total - 1
   end = Math.min end, start + 4 * 1024 * 1024
   chunksize = end - start
-  console.log APP.Protocol.green, file.yellow, start, chunksize, total, stat.size
+  console.debug APP.Protocol.green, file.yellow, start, chunksize, total, stat.size
   res.writeHead 206,
     "Accept-Ranges"     : "bytes"
     "Content-Length"    : chunksize + 1
