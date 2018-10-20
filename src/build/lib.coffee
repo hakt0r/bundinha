@@ -175,13 +175,13 @@ Bundinha::plugin = (module,obj)->
   plug
 
 Bundinha::webWorker = (name,sources...)->
-  @client init:->
+  @client.init = ->
     loadWorker = (name)->
       src = document.getElementById(name).textContent
       blob = new Blob [src], type: 'text/javascript'
       $$[name] = new Worker window.URL.createObjectURL blob
     loadWorker name for name in BunWebWorker
-    null
+    return
   @webWorkerScope[name] = @compileSources sources
 
 # ████████  ██████   ██████  ██      ███████
