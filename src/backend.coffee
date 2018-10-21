@@ -235,16 +235,17 @@ $app.fileRequest = (req,res)->
   file = '/index.html' if file is '/app'
   mime = MIME.typeOf file
   file = APP.resolveWebFile file
+  return APP.errorResponse res, file, 404, 'File not Found' if false is file
   console.debug 'static-get'.cyan, file, mime
-  $fs.stat file, (error,stat)->
-    return APP.errorResponse res, file, 404, 'File not Found' if error
-    return APP.errorResponse res, file, 404, 'File not Found' if stat.isDirectory()
-    return APP.fileRequestChunked req,res,file,mime,stat      if req.headers.range
-    res.writeHead 200,
-      "Accept-Ranges"  : "bytes"
-      "Content-Length" : stat.size
-      "Content-Type"   : mime
-    $fs.createReadStream(file).pipe(res)
+  try stat = await $fs.stat$ file
+  catch e then return APP.errorResponse res, file, 404, 'File not Found'
+  return APP.errorResponse res, file, 404, 'File not Found' if stat.isDirectory()
+  return APP.fileRequestChunked req,res,file,mime,stat      if req.headers.range
+  res.writeHead 200,
+    "Accept-Ranges"  : "bytes"
+    "Content-Length" : stat.size
+    "Content-Type"   : mime
+  $fs.createReadStream(file).pipe res
   null
 
 $app.fileRequestChunked = (req,res,file,mime,stat)->
