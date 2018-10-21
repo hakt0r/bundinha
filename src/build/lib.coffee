@@ -36,9 +36,9 @@ Bundinha::miqro = ->
     on: (key,func,opts)->
       @addEventListener key, func, opts
       (( @EVENT = @EVENT || @EVENT = {} )[key] || @EVENT[key] = [] ).push func
-    off: (key,func)->
+    off: (key,func,opts)->
       @events(key).remove func
-      @removeEventListener key, func
+      @removeEventListener key, func, opts
     kill: (key)-> @events(key).map @off.bind @, key
     once: (key,func)-> @on key, func, once:yes
     emit: (key,data)-> @dispatchEvent Object.assign( new Event key ), data: data
