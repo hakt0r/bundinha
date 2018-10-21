@@ -153,6 +153,7 @@
 @client.init = ->
   new PersistentToast
   new NotificationToast
+  new MutableToast
   return
 
 @client class ToastController
@@ -180,6 +181,31 @@
     @$.append html = $.make "<div class=notification>#{text}</div>"
     setTimeout ( => html.remove(); @pop() ), timeout
     do @push
+
+@client class MutableToast extends ToastController
+  @byName: {}
+  constructor:-> super 'mutable'; MutableToast.show = @show.bind @
+  expire:(name,timeout)->
+    return unless wrap = MutableToast.byName[name]
+    clearTimeout  wrap.timer
+    wrap.timer = setTimeout ( =>
+      delete MutableToast.byName[name]
+      wrap.remove()
+      @pop()
+    ), timeout
+    return wrap
+  show: (name,timeout,html)->
+    document.body.append @$
+    unless html? then ( html = timeout; timeout = 1000 )
+    if wrap = MutableToast.byName[name]
+      wrap.innerHTML = ''
+      wrap.append html
+      return @expire name, timeout
+    MutableToast.byName[name] = wrap = $.make "<div class=notification></div>"
+    wrap.append html
+    @$.append wrap
+    @push()
+    return @expire name, timeout
 
 @client.showModalConfirm = (text)->
   { text, body, ok, cancel } = text if typeof text is 'object'
