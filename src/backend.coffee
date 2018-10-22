@@ -29,6 +29,11 @@ $server = @server
     return
   init:->
     await APP.preinit()
+    $fs.stat$     = $util.promisify $fs.stat
+    $fs.exists$   = $util.promisify $fs.exists
+    $fs.readdir$  = $util.promisify $fs.readdir
+    $fs.readFile$ = $util.promisify $fs.readFile
+    $cp.spawn$    = $util.promisify $cp.spawn
     console.debug = (->) unless DEBUG
     do APP.splash
     await do APP.startServer
