@@ -95,14 +95,22 @@ Bundinha.global.SHA1 = (value)->
 Bundinha::command = (name,callback)->
   @commandScope[name] = callback
 
+Bundinha::get = (path,group,callback)->
+  unless callback
+    callback = group
+    group = false
+  path = path.toString() if path.exec?
+  @getScope[path] = callback
+  @groupScope[path]   = group
+
 Bundinha::public = (path,callback)->
-  @publicScope[path]  = callback
-  @privateScope[path] = callback
-  @groupScope[path]   = false
+  @publicScope[path] = callback
+  @groupScope[path]  = false
 
 Bundinha::private = (path,group,callback)->
   unless callback
-    callback = group; group = false
+    callback = group
+    group = false
   @privateScope[path] = callback
   @groupScope[path]   = group
 

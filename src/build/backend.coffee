@@ -57,7 +57,7 @@ Bundinha::buildBackend = ->
   scripts.push add
   console.log 'config'.green, Object.keys(@configScope).join(' ').gray
 
-  for scope in ['db','public','private','group','command']
+  for scope in ['db','get','public','private','group','command']
     add = "\nAPP#{accessor scope} = {};"
     for name, func of @[scope+'Scope']
       value = if typeof func is 'function' then func.toString() else JSON.stringify func

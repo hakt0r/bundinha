@@ -139,13 +139,30 @@ $app.startServer = ->
     process.setuid APP.chgid
     return resolve()
 
+@server.init = ->
+  out = []
+  for expr, func of APP.get
+    m = expr.match /\/(.*?)\/([gimy])?$/
+    expr = new RegExp m[1], m[2] || ''
+    out.push expr:expr, func:func
+  APP.get = out
+  return
+
 $app.handleRequest = (req,res)->
   console.debug 'request'.cyan, req.url
-  unless req.method is 'POST' and req.url is '/api'
-    return APP.fileRequest req, res
-  res.json = APP.apiResponse
-  try await APP.apiRequest req,res
-  catch error then res.json error:error.toString()
+  if req.method is 'POST' and req.url is '/api'
+    res.json = APP.apiResponse
+    try await APP.apiRequest req,res
+    catch error
+      res.json error:error.toString()
+  else if req.method is 'GET'
+    for rule in APP.get
+      continue unless m = rule.expr.exec req.url
+      req.parsedUrl = m
+      return rule.func req, res
+    # fallback to fileRequest
+    APP.fileRequest req, res
+  else APP.errorResponse 501, 'Uninplemented'
 
 $app.readStream = (stream)-> new Promise (resolve,reject)->
   body = []

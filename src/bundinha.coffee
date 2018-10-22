@@ -55,6 +55,7 @@ $$.Bundinha = class Bundinha
     @privateScope = {}
     @groupScope = {}
     @publicScope = {}
+    @getScope = {}
     @scriptScope = []
     @clientScope = init:''
     @serverScope = []
