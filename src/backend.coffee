@@ -152,14 +152,14 @@ $app.handleRequest = (req,res)->
   console.debug 'request'.cyan, req.url
   if req.method is 'POST' and req.url is '/api'
     res.json = APP.apiResponse
-    try await APP.apiRequest req,res
+    try await APP.apiRequest req, res
     catch error
       res.json error:error.toString()
   else if req.method is 'GET'
     for rule in APP.get
       continue unless m = rule.expr.exec req.url
       req.parsedUrl = m
-      return rule.func req, res
+      return rule.func.call res, req, res
     # fallback to fileRequest
     APP.fileRequest req, res
   else APP.errorResponse 501, 'Uninplemented'
@@ -198,7 +198,7 @@ $app.apiRequest = (req,res)->
 
   if fn = @public[call]
     console.debug @Protocol.yellow, "call".green, call, args, '$public'
-    return fn args, req, res
+    return fn.call res, args, req, res
 
   # reply to private api-requests only with valid auth
   value = await RequireAuth req
@@ -210,7 +210,7 @@ $app.apiRequest = (req,res)->
     throw new Error 'Command not found: ' + call
 
   console.debug @Protocol.yellow, "call".green, req.ID, call, args
-  fn args, req, res
+  fn.call res, args, req, res
 
 # ███████ ██ ██      ███████
 # ██      ██ ██      ██

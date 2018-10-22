@@ -30,10 +30,10 @@
         error = (error)-> ws.send JSON.stringify error:error, id:id
         req = id:id, USER:connReq.USER, ID:connReq.ID, COOKIE:connReq.COOKIE
         res = id:id, json:json, error:error, setHeader:(->)
-        return fn args, req, res if fn = APP.public[call]
+        return fn.call res, args, req, res if fn = APP.public[call]
         if false isnt need_group = APP.group[call]
           RequireGroup req, need_group
-        return fn args, req, res if fn = APP.private[call]
+        return fn.call res, args, req, res if fn = APP.private[call]
       catch error
         console.log error
         res.error error
