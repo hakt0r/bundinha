@@ -60,6 +60,19 @@ MyApp::andsoforth = ->
   console.log 'works but in order to call super, you must do this:'
   AbstractApp::andsoforth.call @, 'arg1', 'arg2', '...'
 
+# define a private backend api
+@private 'some.function', (query, req, res)->
+  # must be an object
+  res.json result:'works'
+  # fail by just throwing an error
+  throw new Error 'ooops'
+
+# call api from the client side
+@client.init ->
+  result = await CALL 'some.function', some:true, args:[1,2,3]
+  console.log 'some.function returned', result
+  return
+
 ```
 
 ### A word about hooks
@@ -107,8 +120,15 @@ APP.tpl ( optional boolean isglobal, object ofTemplates )
 
 ## Client-API
 ```CoffeeScript
-window.ajax ( object ofJsonQueries ) return promise
-  # Default api-access
+# call a backend function
+CALL ( object ofJsonQueries )
+yield  object ofJsonQueries
+return promise
+
+# force AJAX query if you enabled WebSockets
+AJAX ( object ofJsonQueries )
+yield  object ofJsonQueries
+return promise
 ```
 
 ## Copyrights
