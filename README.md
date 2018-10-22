@@ -105,14 +105,17 @@ APP.global ( object ofFunctions )
 APP.headers ( function headerGenerator )
   # Add headers
 
-APP.postPrivate ( string path, function callback )
-  # Add private (authenticated) post handler
+APP.get ( string path, optional array groups, function callback )
+  # Add GET-handler
 
-APP.postPublic ( string path, function callback )
-  # Add public post handler
+APP.private ( string path, optional array groups, function callback )
+  # Add private (authenticated) API-handler
 
-APP.shared ( object ofConstants )
-  # Add add shared constant (global)
+APP.public ( string path, function callback )
+  # Add public API-handler
+
+APP.shared ( object ofVariables )
+  # Add add shared variable (global)
 
 APP.tpl ( optional boolean isglobal, object ofTemplates )
   # Add client side template
