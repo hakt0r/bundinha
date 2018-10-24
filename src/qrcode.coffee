@@ -1,16 +1,18 @@
 
+@client.init = ->
+  QR.write = qrcode
+  QR.read  = jsQR
+  return
+
+@script $path.join BunDir,'node_modules','qrcode-generator','qrcode.js'
+@script $path.join BunDir,'node_modules','jsqr','dist','jsQR.js'
+
 #  ██████  ██████  ██      ██ ██████
 # ██    ██ ██   ██ ██      ██ ██   ██
 # ██    ██ ██████  ██      ██ ██████
 # ██ ▄▄ ██ ██   ██ ██      ██ ██   ██
 #  ██████  ██   ██ ███████ ██ ██████
 #     ▀▀
-
-APP.script 'node_modules', 'qrcode-svg', 'dist', 'qrcode.min.js'
-
-@client.init = ->
-  QR.write = QRCode
-  return
 
 @client.Sleep = (ms)-> new Promise (resolve)->
   setTimeout resolve, ms
@@ -41,6 +43,7 @@ QR.startVideo = ->
     width  = video.videoWidth
     height = video.videoHeight
     $$.canvas = new OffscreenCanvas width, height
+    QR.ctx = canvas.getContext '2d'
     document.body.classList.add 'recording'
     resolve true
 
@@ -66,18 +69,22 @@ QR.scanNextImage = ->
   return unless document.body.classList.contains 'recording'
   width  = canvas.width
   height = canvas.height
-  ctx = canvas.getContext '2d'
-  ctx.drawImage video, 0, 0
-  img = ctx.getImageData 0, 0, width, height
+  QR.ctx.drawImage video, 0, 0
+  img = QR.ctx.getImageData 0, 0, width, height
   CodeScanner.postMessage data:img, width:width, height:height
-  CodeScanner.onmessage = QR.processWorkerResult ctx
+  CodeScanner.onmessage = QR.processWorkerResult
 
-QR.processWorkerResult = (ctx)-> (msg)->
+QR.processWorkerResult = (msg)->
   result = msg.data
-  unless result.data and result.data.trim() isnt ''
+  if result.data? and result.data isnt ''
+    # console.log 'result', result.data
+    QR.onDetect result.data if QR.onDetect
+  else if result.binaryData? and result.binaryData.length > 0
+    console.log 'bin-result', result.binaryData
+    QR.onDetect result.binaryData if QR.onDetect
+  else
+    # console.log 'skip', result
     return do QR.scanNextImage
-  console.log 'result', result.data
-  QR.onDetect result.data if QR.onDetect
   return
   ctx.clearRect 0,0, canvas.width, canvas.height
   ctx.strokeStyle = "red"
@@ -98,7 +105,7 @@ QR.processWorkerResult = (ctx)-> (msg)->
     msg = msg.data.data
     result = jsQR msg.data, msg.width, msg.height
     self.postMessage (
-      if result then result else error:false )
+      if result then result else error:true )
     null
   null
 ), [BunDir,'node_modules','jsqr','dist','jsQR.js']
