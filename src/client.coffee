@@ -54,6 +54,25 @@
   btn.onclick = fn
   btn
 
+@client.ModalWindowButton = (opts)->
+  opts.id = opts.id || opts.key.toLowerCase()
+  opts.body = opts.body || $.make """<div>"""
+  opts.buttonTitle = opts.buttonTitle || opts.title || opts.key
+  opts.title = opts.title || I18[opts.key] || 'ModalWindow'
+  show = ->
+    body = opts.body || ''
+    body = body() if body.call
+    win = ModalWindow
+      id: opts.id || opts.title.toLowerCase()
+      head: opts.head || opts.title.toLowerCase()
+      body: body
+      showHandler: show
+      closeBtn: opts.closeBtn || btn
+    win.show = show
+    opts.init.call win, opts if opts.init
+    win
+  btn = IconButton opts.buttonTitle, show
+
 @client.ModalWindow = (opts)->
   ModalWindow.closeActive() if ModalWindow.closeActive
   extraClass = ''
@@ -65,13 +84,11 @@
     #{head}
   </div>"""
   if opts.body
-    if Array.isArray opts.body
-      html.append e for e in opts.body
-    else if 'string' is typeof opts.body
-      html.append $.make opts.body
-    else html.append opts.body
+    if Array.isArray opts.body then           html.append html.body = e for e in opts.body
+    else if 'string' is typeof opts.body then html.append html.body = $.make opts.body
+    else                                      html.append html.body = opts.body
   opts.closeBtn.classList.add 'deleting' if opts.closeBtn?
-  ModalWindow.closeActive = close = (e)->
+  ModalWindow.closeActive = html.close = close = (e)->
     ModalWindow.closeActive = null
     if opts.closeBtn?
       opts.closeBtn.classList.remove 'deleting'
