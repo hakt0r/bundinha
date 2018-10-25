@@ -15,12 +15,19 @@ Bundinha::buildBackend = ->
   scripts = []
   server = {}
   hooks = {}
-  hooks[hook] = '' for hook in @server._hook
+  hooks[hook] = '' for hook in @serverHook
 
-  for hook in @server._hook when ( code = @serverScope[hook] )?
+  # FLAGS
+  scripts.push "$$.FLAG = {};"
+  for name, value of @flagScope
+    scripts.push "FLAG#{accessor name} = #{JSON.stringify value};"
+
+  # PULL HOOKS
+  for hook in @serverHook when ( code = @serverScope[hook] )?
     hooks[hook] = code
     delete @serverScope[hook]
 
+  # CONSTANTS
   for name, api of @serverScope when typeof api isnt 'function'
     scripts.push "$$#{accessor name} = #{JSON.stringify api};"
     delete @serverScope[name]
@@ -70,7 +77,8 @@ Bundinha::buildBackend = ->
   { minify } = require 'uglify-es'
 
   out += scripts.join '\n'
-  out += "\nAPP#{accessor hook} = async function(){" +  hooks[hook] + '\n};' for hook in @server._hook
+  out += "\nAPP#{accessor hook} = async function(){" +  hooks[hook] + '\n};' for hook in @serverHook
+
   out += "\nAPP.init();"
   out += '\n'
   # out = minify(out).code

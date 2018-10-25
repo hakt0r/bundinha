@@ -5,8 +5,8 @@
 ###
 
 setImmediate ->
-  $$.APP = new Bundinha
-  APP.cmd_handle()
+  $$.$coffee = require 'coffeescript'
+  new Bundinha().cmd_handle()
 
 require 'colors'
 
@@ -44,27 +44,15 @@ $$.COM =
 
 $$.Bundinha = class Bundinha
   constructor:(opts)->
+    $$.BUND = @ unless $$.BUND?
     @fromSource = true
     @requireScope = ['os','util','fs',['cp','child_process'],'path','level','colors',['forge','node-forge']]
-    @configScope = {}
-    @cssScope = {}
-    @dbScope = user:on, session:on
-    @fallbackScope = {}
-    @commandScope = {}
-    @pluginScope = {}
-    @privateScope = {}
-    @groupScope = {}
-    @publicScope = {}
-    @getScope = {}
-    @scriptScope = []
-    @clientScope = init:''
-    @serverScope = []
-    @shared.constant = {}
-    @shared.function = {}
-    @tplScope = []
-    @webWorkerScope = {}
-    @CollectorScope 'client'
-    @CollectorScope 'server'
+    @require 'bundinha/build/build'
+    @require 'bundinha/build/lib'
+    @require 'bundinha/build/scope'
+    @require 'bundinha/build/license'
+    @require 'bundinha/build/frontend'
+    @require 'bundinha/build/backend'
     Object.assign @, opts
     @shared Bundinha.global
     return
@@ -84,7 +72,6 @@ Bundinha::cmd_handle = ->
   return do @cmd_push       if ( ARG.push is true )
 
   $$.$forge  = require 'node-forge'
-  $$.$coffee = require 'coffeescript'
 
   do @loadDependencies
   @require 'bundinha/client'
@@ -132,17 +119,57 @@ Bundinha::cmd_push_clean = ->
   ssh #{ARG[0]} 'killall node; cd /var/www/; rm -rf #{AppPackageName}/*'
   """; return
 
-require './build/lib'
-require './build/build'
-require './build/license'
-require './build/frontend'
-require './build/backend'
+# ██████  ███████  ██████  ██    ██ ██ ██████  ███████
+# ██   ██ ██      ██    ██ ██    ██ ██ ██   ██ ██
+# ██████  █████   ██    ██ ██    ██ ██ ██████  █████
+# ██   ██ ██      ██ ▄▄ ██ ██    ██ ██ ██   ██ ██
+# ██   ██ ███████  ██████   ██████  ██ ██   ██ ███████
+#                     ▀▀
 
-#  ██████  ██       ██████  ██████   █████  ██
-# ██       ██      ██    ██ ██   ██ ██   ██ ██
-# ██   ███ ██      ██    ██ ██████  ███████ ██
-# ██    ██ ██      ██    ██ ██   ██ ██   ██ ██
-#  ██████  ███████  ██████  ██████  ██   ██ ███████
+Bundinha::require = (file)->
+  # unless module.paths.includes(RootDir) then module.paths = module.paths.concat [
+  #   RootDir, BunDir, RootDir + '/node_modules', BunDir + '/node_modules' ]
+  mod = ( rest = file.split '/' ).shift()
+  switch mod
+    when 'bundinha'
+      console.log 'depend'.green.bold, file.bold
+      file = $path.join BunDir,  'src', rest.join '/'
+    when AppPackageName
+      console.log 'depend'.yellow.bold, file.bold
+      file = $path.join RootDir, 'src', rest.join '/'
+    else return require file
+  try
+    if $fs.existsSync cfile = file + '.coffee'
+         scpt = $fs.readFileSync cfile, 'utf8'
+         scpt = $coffee.compile scpt, bare:on, filename:cfile
+    else scpt = $fs.readFileSync file + '.js', 'utf8'
+    func = new Function 'APP','require','__filename','__dirname',scpt
+    func.call @, @, require, file, $path.dirname file
+  catch error
+    if error.stack
+      line = parseInt error.stack.split('\n')[1].split(':')[1]
+      col  = try parseInt error.stack.split('\n')[1].split(':')[2].split(')')[0] catch e then 0
+      console.log 'require'.red.bold, [file.bold,line,col].join ':'
+    console.log ' ', error.message.bold
+    console.log '>',
+      scpt.split('\n')[line-3].substring(0,col-2).yellow
+      scpt.split('\n')[line-3].substring(col-1,col).red
+      scpt.split('\n')[line-3].substring(col+1).yellow
+    process.exit 1
+
+#  ██████  ██       ██████  ██████   █████  ██      ███████
+# ██       ██      ██    ██ ██   ██ ██   ██ ██      ██
+# ██   ███ ██      ██    ██ ██████  ███████ ██      ███████
+# ██    ██ ██      ██    ██ ██   ██ ██   ██ ██           ██
+#  ██████  ███████  ██████  ██████  ██   ██ ███████ ███████
+
+Bundinha.global = {}
+
+Bundinha.global.SHA512 = (value)->
+  $forge.md.sha512.create().update( value ).digest().toHex()
+
+Bundinha.global.SHA1 = (value)->
+  $forge.md.sha1.create().update( value ).digest().toHex()
 
 Bundinha.global.escapeHTML = (str)->
   String(str)

@@ -5,7 +5,10 @@
 #      ██ ██      ██   ██  ██  ██  ██      ██   ██
 # ███████ ███████ ██   ██   ████   ███████ ██   ██
 
-@config AdminUser: 'anx'
+@config AdminUser:'anx'
+@flag   'UseAuth'
+@db     'user'
+@db     'session'
 
 @server.GetUID = ->
   SHA512 Date.now() + '-' + $forge.random.getBytesSync(16)
