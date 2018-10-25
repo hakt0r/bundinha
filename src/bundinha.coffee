@@ -54,7 +54,6 @@ $$.Bundinha = class Bundinha
     @require 'bundinha/build/frontend'
     @require 'bundinha/build/backend'
     Object.assign @, opts
-    @shared Bundinha.global
     return
 
 #  ██████  ██████  ███    ███ ███    ███  █████  ███    ██ ██████
