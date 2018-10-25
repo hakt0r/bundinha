@@ -78,6 +78,7 @@ $app.splash = ->
   return
 
 $app.initConfig = ->
+  return if @configWasRead
   unless $fs.existsSync confDir = $path.join ConfigDir
     try $fs.mkdirSync $path.join ConfigDir
     catch e
@@ -94,6 +95,7 @@ $app.initConfig = ->
     @configKeys = Object.keys(config).concat(@configKeys).unique
     do @writeConfig if update is yes
   else $fs.writeFileSync p, JSON.stringify @defaultConfig
+  @configWasRead = true
   console.debug 'config', ConfigDir.green, @configKeys.join(' ').gray
 
 $app.writeConfig = ->
