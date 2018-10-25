@@ -1,6 +1,7 @@
 @server class NGINX
 
 @config
+  SSLBackend:   false
   SSLFullchain: "/path/to/fullchain.crt"
   SSLHostKey:   "/path/to/host.key"
   SSLClientCA:  "/path/to/ca.crt"
@@ -11,7 +12,7 @@
   await APP.initConfig()
   # $fs.writeFileSync '/etc/nginx/sites-available/' + AppPackage.name, """
   $fs.writeFileSync $path.join(ConfigDir,'nginx.site.conf'), NGINX.config()
-  $fs.writeFileSync $path.join(ConfigDir,'nginx.server.conf'), NGINX.testConfig()
+  # $fs.writeFileSync $path.join(ConfigDir,'nginx.server.conf'), NGINX.testConfig()
   # console.log NGINX.config()
   process.exit 0
 
@@ -38,16 +39,17 @@ NGINX.testConfig = ->
   """
 
 NGINX.config = ->
-  """
-  #{NGINX.ssl(fullchain,keyfile)}
-  #{NGINX.sslLockdown()}
+  c = ''
+  if SSLBackend is true
+    c += NGINX.ssl(SSLFullchain,SSLHostKey) + '\n'
+    c += NGINX.sslLockdown() + '\n'
+  c += """
   server {
-    #{NGINX.sslServer '_'}
+    #{NGINX.sslServer $$.ServerName || '_'}
     root #{WebDir};
-    #{NGINX.singleFactor()}
-    #{NGINX.apiConfig()}
-  }
-  """
+    #{if FLAGS.UseAuth then NGINX.singleFactor() else ''}
+    #{if FLAGS.HasBackend then NGINX.apiConfig() else ''}
+  }"""
 
 NGINX.sslServer = (serverName='_',webRoot='')->
   defaultServer = if '_' is serverName then ' default_server' else ''
