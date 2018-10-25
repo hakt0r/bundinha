@@ -12,10 +12,10 @@ Bundinha::build = ->
   @require $path.join AppPackageName, AppPackageName
   @WebRoot  = $path.join RootDir,'build','html'
   @AssetDir = $path.join RootDir,'build','html','app'
-  do @buildLicense
-  do @buildServiceWorker if @buildServiceWorker?
-  do @buildFrontend
-  do @buildBackend
+  await do @buildLicense
+  await do @buildServiceWorker if @buildServiceWorker?
+  await do @buildFrontend
+  await do @buildBackend
 
 Bundinha::processAPI = (opts,apilist)->
   apis = ''; name = null
@@ -106,12 +106,6 @@ Bundinha::loadDependencies = ->
   return
 
 Bundinha::touch = require 'touch'
-
-Bundinha::parseConfig = (args...)->
-  JSON.parse $fs.readFileSync $path.join.apply($path,args), 'utf8'
-
-Bundinha::writeConfig = (cfg,args...)->
-  $fs.writeFileSync $path.join.apply($path,args), JSON.stringify(cfg,null,2),'utf8'
 
 Bundinha::symlink = (src,dst)->
   ok = -> console.log '::link'.green, $path.basename(src).yellow, '->'.yellow, dst.bold

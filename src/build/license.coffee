@@ -18,6 +18,7 @@ Bundinha::fetchLicense = -> new Promise (resolve,reject)->
     resp.on 'error ', -> do reject
 
 Bundinha::buildLicense = ->
+  @NodeLicense = await @fetchLicense()
   npms = ( for name, pkg of @npmLicenses
     [match,link,version] = name.match /(.*)@([^@]+)/
     shortName = link.split('/').pop()

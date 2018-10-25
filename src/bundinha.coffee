@@ -47,14 +47,14 @@ $$.Bundinha = class Bundinha
     $$.BUND = @ unless $$.BUND?
     @fromSource = true
     @requireScope = ['os','util','fs',['cp','child_process'],'path','level','colors',['forge','node-forge']]
-    @require 'bundinha/build/build'
-    @require 'bundinha/build/lib'
-    @require 'bundinha/build/scope'
-    @require 'bundinha/build/license'
-    @require 'bundinha/build/frontend'
-    @require 'bundinha/build/backend'
     Object.assign @, opts
     return
+
+Bundinha::parseConfig = (args...)->
+  JSON.parse $fs.readFileSync $path.join.apply($path,args), 'utf8'
+
+Bundinha::writeConfig = (cfg,args...)->
+  $fs.writeFileSync $path.join.apply($path,args), JSON.stringify(cfg,null,2),'utf8'
 
 #  ██████  ██████  ███    ███ ███    ███  █████  ███    ██ ██████
 # ██      ██    ██ ████  ████ ████  ████ ██   ██ ████   ██ ██   ██
@@ -69,22 +69,22 @@ Bundinha::cmd_handle = ->
   $$.AppPackageName = AppPackage.name.replace(/-devel$/,'')
   return do @cmd_push_clean if ( ARG.push and ARG.clean ) is true
   return do @cmd_push       if ( ARG.push is true )
-
-  $$.$forge  = require 'node-forge'
-
-  do @loadDependencies
-  @require 'bundinha/client'
-  @require 'bundinha/backend'
-
   console.log '------------------------------------'
   console.log ' ', AppPackage.name.green  + '/'.gray + AppPackage.version.gray,
               '['+ 'bundinha'.yellow + '/'.gray + BunPackage.version.gray+
               ( '/dev'.red ) + ']'
   console.log '------------------------------------'
-
-  @NodeLicense = await do @fetchLicense
-
-  do @build
+  $$.$forge  = require 'node-forge'
+  @require 'bundinha/build/build'
+  @require 'bundinha/build/lib'
+  @require 'bundinha/build/scope'
+  @require 'bundinha/build/license'
+  @require 'bundinha/build/frontend'
+  @require 'bundinha/build/backend'
+  do @loadDependencies
+  @require 'bundinha/client'
+  @require 'bundinha/backend'
+  await do @build
   process.exit 0
 
 Bundinha::cmd_init = ->
@@ -106,12 +106,12 @@ Bundinha::cmd_init = ->
   process.exit 0
 
 Bundinha::cmd_push = ->
-  $cp.execSync """
-  tar cjvf - ./ | ssh #{ARG[1]} '
-    cd /var/www/#{AppPackageName}; tar xjvf -;
-    npm rebuild; killall node;
-    PROTO=#{if ARG.secure then 'https' else 'http'} PORT=#{ARG.p || 9999} CHGID=#{ARG[2]} npm start >/dev/null 2>&1 &'
-  """; return
+  Object.assign @, JSON.parse $fs.readFileSync $path.join ConfigDir, AppPackageName + '.json'
+  [ url, user, host, path ] = @Deploy.url.match /^([^@]+)@([^:]+):(.*)$/
+  process.stderr.write 'push'.yellow + ' ' + user.red.bold + '@' + host.green + ':' + path.gray
+  result = $cp.spawnSync 'rsync',['-avzhL','build/',@Deploy.url]
+  console.log if result.status is 0 then ' success'.green.bold else ' success'.red.bold
+  process.exit result.status
 
 Bundinha::cmd_push_clean = ->
   $cp.execSync """
