@@ -14,11 +14,14 @@
   $$.debug      = no
   $$.RootDir    = process.env.APP  || __dirname
   $$.WebDir     = process.env.HTML || $path.join RootDir, 'html'
-  $$.ConfigDir  = process.env.CONF || $path.join $path.dirname(RootDir), 'config'
   $$.AppPackage = JSON.parse $fs.readFileSync ($path.join RootDir, 'package.json' ), 'utf8'
+  parentDir     = $path.join $path.dirname RootDir
+  $$.DevMode    = $fs.existsSync $path.join parentDir, AppPackage.name + '.json'
+  $$.ConfigDir  = process.env.CONF ||
+    if DevMode then $path.join parentDir, 'config'
+    else $path.join RootDir, 'config'
   return
 @serverHeader.push @arrayTools
-# @serverHeader.push @miqro
 
 $server = @server
   preinit:->
@@ -54,11 +57,12 @@ $app.loadDependencies = ->
   return
 
 $app.readEnv = ->
+  try do APP.initConfig
   $$.DEBUG     =  process.env.DEBUG || false
-  APP.chgid    =  process.env.CHGID || false
-  APP.port     =  process.env.PORT  || 9999
-  APP.addr     =  process.env.ADDR  || '127.0.0.1'
-  APP.protocol =  process.env.PROTO || 'https'
+  APP.chgid    =  $$.ChgID    || process.env.CHGID || false
+  APP.port     =  $$.Port     || process.env.PORT  || 9999
+  APP.addr     =  $$.Addr     || process.env.ADDR  || '127.0.0.1'
+  APP.protocol =  $$.Protocol || process.env.PROTO || 'https'
   return
 
 $app.splash = ->
@@ -66,7 +70,7 @@ $app.splash = ->
   console.log ' ',
     AppPackage.name.green  + '/'.gray + AppPackage.version.gray,
     '['+ 'bundinha'.yellow + '/'.gray + AppPackage.bundinha.gray +
-    ( if APP.fromSource then '/dev'.red else '/rel'.green ) + ']'
+    ( if DevMode then '/dev'.red else '/rel'.green ) + ']'
   console.log '------------------------------------'
   console.log 'RootDir  '.yellow, RootDir.green
   console.log 'WebDir   '.yellow, WebDir.green
