@@ -85,44 +85,70 @@ and concatenated. Therefore:
 
 ## Module-API
 ```CoffeeScript
-APP.script ( string path )
-  #  path: source i.e. '/path/to/jquery.js'
-  #             or URL 'https://cdn.for/jquery.js'
-  # Add javascript library to the client/webapp
-
-APP.client ( optional object ofFunctions ) return object ofFunctions
-  # Add client side functions
-
-APP.plugin ( string moduleName, object ofFunctions )
-  # Add plugins to a function defined with APP.client
-
-APP.config ( function configurationReader )
-  # Add config handler
-
-APP.global ( object ofFunctions )
+@global ( object ofFunctions )
   # Add global constant
 
-APP.headers ( function headerGenerator )
-  # Add headers
+@shared ( object ofDeclarations )
+  # Add add shared variable (global): can be a Function, Class or Constant
 
-APP.get ( string path, optional array groups, function callback )
+@plugin ( string moduleName, object ofFunctions )
+  # Add plugins to a function defined with @client / @server / @shared
+
+# ███████ ██████   ██████  ███    ██ ████████ ███████ ███    ██ ██████
+# ██      ██   ██ ██    ██ ████   ██    ██    ██      ████   ██ ██   ██
+# █████   ██████  ██    ██ ██ ██  ██    ██    █████   ██ ██  ██ ██   ██
+# ██      ██   ██ ██    ██ ██  ██ ██    ██    ██      ██  ██ ██ ██   ██
+# ██      ██   ██  ██████  ██   ████    ██    ███████ ██   ████ ██████
+
+@client ( optional object ofDeclarations ) return object ofDeclarations
+# Add add frontend variable (global): can be a Function, Class or Constant
+
+@script ( string path )
+  #  path: source i.e. '/path/to/script.js'
+  #             or URL 'https://cdn.for/script.js'
+  #             of BARE JAVASCRIPT
+  # Add javascript library to the client/webapp
+
+@css ( string path )
+#  path: source i.e. '/path/to/style.css'
+#             or URL 'https://cdn.for/style.css'
+#             of BARE CSS
+# Add css to the client/webapp
+
+@tpl ( optional boolean isglobal, object ofTemplates )
+  # Add client side template
+
+# ██████   █████   ██████ ██   ██ ███████ ███    ██ ██████
+# ██   ██ ██   ██ ██      ██  ██  ██      ████   ██ ██   ██
+# ██████  ███████ ██      █████   █████   ██ ██  ██ ██   ██
+# ██   ██ ██   ██ ██      ██  ██  ██      ██  ██ ██ ██   ██
+# ██████  ██   ██  ██████ ██   ██ ███████ ██   ████ ██████
+
+@server ( optional object ofDeclarations ) return object ofDeclarations
+# Add add backend variable (global): can be a Function, Class or Constant
+
+@config ( object ofDeclarations )
+  # Add config handler
+
+@get ( string path, optional array groups, function callback )
   # Add GET-handler
 
-APP.private ( string path, optional array groups, function callback )
+@private ( string path, optional array groups, function callback )
   # Add private (authenticated) API-handler
 
-APP.public ( string path, function callback )
+@public ( string path, function callback )
   # Add public API-handler
 
-APP.shared ( object ofVariables )
-  # Add add shared variable (global)
-
-APP.tpl ( optional boolean isglobal, object ofTemplates )
-  # Add client side template
 ```
 
 ## Client-API
 ```CoffeeScript
+# miqro
+$ query           # := document.querySelector(query)
+$.all query       # := document.querySelectorAll(query)
+$.map query       # := document.querySelectorAll(query).map
+SmoothEvents spec # add on/off/emit/kill event-wrapper to spec
+
 # call a backend function
 CALL ( object ofJsonQueries )
 yield  object ofJsonQueries
