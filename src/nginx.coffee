@@ -8,12 +8,13 @@
   SSLGateDN:    "C=com,O=#{AppPackageName}.DOMAIN,CN=gate.#{AppPackageName}.DOMAIN.com"
 
 @command 'install-nginx', ->
-  console.log 'install'.red, 'nginx'
-  await APP.initConfig()
-  # $fs.writeFileSync '/etc/nginx/sites-available/' + AppPackage.name, """
-  $fs.writeFileSync $path.join(ConfigDir,'nginx.site.conf'), NGINX.config()
-  # $fs.writeFileSync $path.join(ConfigDir,'nginx.server.conf'), NGINX.testConfig()
-  # console.log NGINX.config()
+  console.log 'install'.red, 'nginx', $$.FLAG
+  try
+    await APP.initConfig()
+    $fs.writeFileSync $path.join(ConfigDir,'nginx.site.conf'), NGINX.config()
+    # $fs.writeFileSync '/etc/nginx/sites-available/' + AppPackage.name, """
+    # $fs.writeFileSync $path.join(ConfigDir,'nginx.server.conf'), NGINX.testConfig()
+  catch e then console.log e
   process.exit 0
 
 NGINX.testConfig = ->
@@ -47,8 +48,8 @@ NGINX.config = ->
   server {
     #{NGINX.sslServer $$.ServerName || '_'}
     root #{WebDir};
-    #{if FLAGS.UseAuth then NGINX.singleFactor() else ''}
-    #{if FLAGS.HasBackend then NGINX.apiConfig() else ''}
+    #{NGINX.singleFactor()}
+    #{NGINX.apiConfig()}
   }"""
 
 NGINX.sslServer = (serverName='_',webRoot='')->
@@ -110,6 +111,7 @@ NGINX.cookieFactor = ->
   """
 
 NGINX.singleFactor = ->
+  return '' unless FLAG.UseAuth
   """
   # singleFactor
   #{NGINX.cookieFactor()}
@@ -139,8 +141,8 @@ NGINX.apiConfig = ->
     if ( $has_cert != 1 ){ return 401; }
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "Upgrade";
-    proxy_pass https://127.0.0.1:9999/api; }
-    proxy_http_version 1.1;
+    proxy_pass https://127.0.0.1:#{APP.Port || 9999}/api;
+    proxy_http_version 1.1; }
   """
 
 NGINX.debugHeaders = ->
