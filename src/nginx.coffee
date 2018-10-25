@@ -11,8 +11,13 @@
   console.log 'install'.red, 'nginx', $$.FLAG
   try
     await APP.initConfig()
-    $fs.writeFileSync $path.join(ConfigDir,'nginx.site.conf'), NGINX.config()
-    # $fs.writeFileSync '/etc/nginx/sites-available/' + AppPackage.name, """
+    available = '/' + $path.join 'etc','nginx','sites-available',AppPackage.name+'.conf'
+    enabled   = '/' + $path.join 'etc','nginx','sites-enabled',  AppPackage.name+'.conf'
+    # $fs.writeFileSync path = $path.join(ConfigDir,'nginx.site.conf'), NGINX.config()
+    $fs.writeFileSync available, NGINX.config()
+    $cp.spawnSync 'ln',['-sf',available,enabled]
+    $cp.spawnSync '/etc/init.d/nginx',['reload']
+    # $fs.writeFileSync '/etc/nginx/sites-available/' + AppPackage.name,
     # $fs.writeFileSync $path.join(ConfigDir,'nginx.server.conf'), NGINX.testConfig()
   catch e then console.log e
   process.exit 0
@@ -138,7 +143,6 @@ NGINX.apiConfig = ->
   """
   # apiConfig
   location /api {
-    if ( $has_cert != 1 ){ return 401; }
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "Upgrade";
     proxy_pass https://127.0.0.1:#{APP.port}/api;
