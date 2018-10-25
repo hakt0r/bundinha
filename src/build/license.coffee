@@ -4,6 +4,19 @@
 # ██      ██ ██      ██      ██  ██ ██      ██ ██
 # ███████ ██  ██████ ███████ ██   ████ ███████ ███████
 
+Bundinha::fetchLicense = -> new Promise (resolve,reject)->
+  _log = console.log; _err = console.error # HACK: suppress legally's verbosity
+  console.log = console.error = ->
+  @npmLicenses = await require 'legally'
+  console.log = _log; console.error = _err # HACK: suppress legally's verbosity
+  nodeLicenseURL = "https://raw.githubusercontent.com/nodejs/node/master/LICENSE"
+  data = ''
+  require 'https'
+  .get nodeLicenseURL, (resp)->
+    resp.on 'data', (chunk) -> data += chunk.toString()
+    resp.on 'end', -> resolve data
+    resp.on 'error ', -> do reject
+
 Bundinha::buildLicense = ->
   npms = ( for name, pkg of @npmLicenses
     [match,link,version] = name.match /(.*)@([^@]+)/
