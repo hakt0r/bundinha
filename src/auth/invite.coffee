@@ -1,6 +1,6 @@
 @require 'bundinha/auth/auth'
 
-@config InviteKey: 'secretKey!'
+@config InviteKey: $forge.util.bytesToHex $forge.random.getBytes 32
 
 @public "/login", (q,req,res)->
   rec = await APP.user.get q.id, rec
