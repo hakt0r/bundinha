@@ -69,6 +69,7 @@ Bundinha::cmd_handle = ->
   $$.AppPackageName = AppPackage.name.replace(/-devel$/,'')
   return do @cmd_push_clean if ( ARG.push and ARG.clean ) is true
   return do @cmd_push       if ( ARG.push is true )
+  return do @cmd_deploy     if ( ARG.deploy is true )
   console.log '------------------------------------'
   console.log ' ', AppPackage.name.green  + '/'.gray + AppPackage.version.gray,
               '['+ 'bundinha'.yellow + '/'.gray + BunPackage.version.gray+
@@ -105,13 +106,19 @@ Bundinha::cmd_init = ->
   @writeConfig p, RootDir, 'package.json'
   process.exit 0
 
-Bundinha::cmd_push = ->
+Bundinha::cmd_push = (final=yes)->
   Object.assign @, JSON.parse $fs.readFileSync $path.join ConfigDir, AppPackageName + '.json'
   [ url, user, host, path ] = @Deploy.url.match /^([^@]+)@([^:]+):(.*)$/
   process.stderr.write 'push'.yellow + ' ' + user.red.bold + '@' + host.green + ':' + path.gray
   result = $cp.spawnSync 'rsync',['-avzhL','build/',@Deploy.url]
   console.log if result.status is 0 then ' success'.green.bold else ' success'.red.bold
-  process.exit result.status
+  process.exit result.status if final
+
+Bundinha::cmd_deploy = ->
+  @cmd_push no; [ url, user, host, path ] = @Deploy.url.match /^([^@]+)@([^:]+):(.*)$/
+  $cp.spawnSync 'ssh',[user+'@'+host,"""
+  cd '#{path}'; npm i -g .; #{AppPackageName}-backend install-nginx
+  """], stdio:'inherit'
 
 Bundinha::cmd_push_clean = ->
   $cp.execSync """
