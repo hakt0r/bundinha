@@ -141,7 +141,7 @@ NGINX.apiConfig = ->
     if ( $has_cert != 1 ){ return 401; }
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "Upgrade";
-    proxy_pass https://127.0.0.1:#{APP.Port || 9999}/api;
+    proxy_pass https://127.0.0.1:#{APP.port}/api;
     proxy_http_version 1.1; }
   """
 
