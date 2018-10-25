@@ -16,7 +16,7 @@
   $$.WebDir     = process.env.HTML || $path.join RootDir, 'html'
   $$.AppPackage = JSON.parse $fs.readFileSync ($path.join RootDir, 'package.json' ), 'utf8'
   parentDir     = $path.join $path.dirname RootDir
-  $$.DevMode    = $fs.existsSync $path.join parentDir, AppPackage.name + '.json'
+  $$.DevMode    = $fs.existsSync pp = $path.join parentDir,'config',AppPackage.name + '.json'
   $$.ConfigDir  = process.env.CONF ||
     if DevMode then $path.join parentDir, 'config'
     else $path.join RootDir, 'config'
