@@ -122,7 +122,7 @@ $app.startServer = ->
   if 'http' is APP.protocol
     APP.Protocol = '::http'
     APP.server = require('http')
-    .createServer APP.web
+    .createServer APP.handleRequest
 
   else
     hasKey = $fs.existsSync keyPath = $path.join ConfigDir, 'host.key'
