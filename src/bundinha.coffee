@@ -117,7 +117,8 @@ Bundinha::cmd_push = (final=yes)->
 Bundinha::cmd_deploy = ->
   @cmd_push no; [ url, user, host, path ] = @Deploy.url.match /^([^@]+)@([^:]+):(.*)$/
   $cp.spawnSync 'ssh',[user+'@'+host,"""
-  cd '#{path}'; npm i -g .; #{AppPackageName}-backend install-nginx; /etc/init.d/nginx reload
+  cd '#{path}'; npm i -g .; #{AppPackageName}-backend install-nginx;
+  systemctl reload nginx; systemctl restart tix
   """], stdio:'inherit'
 
 Bundinha::cmd_push_clean = ->
