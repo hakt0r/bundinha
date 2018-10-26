@@ -145,7 +145,7 @@ NGINX.apiConfig = ->
   location /api {
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "Upgrade";
-    proxy_pass https://127.0.0.1:#{APP.port}/api;
+    proxy_pass #{APP.protocol}://127.0.0.1:#{APP.port}/api;
     proxy_http_version 1.1; }
   """
 
