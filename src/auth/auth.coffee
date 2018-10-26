@@ -5,37 +5,31 @@
 #      ██ ██      ██   ██  ██  ██  ██      ██   ██
 # ███████ ███████ ██   ██   ████   ███████ ██   ██
 
-@config AdminUser:'anx'
 @flag   'UseAuth'
 @db     'user'
 @db     'session'
 
-@server.GetUID = ->
-  SHA512 Date.now() + '-' + $forge.random.getBytesSync(16)
-
-@server.NewUserRecord = (opts={})->
-  opts.id = opts.id || GetUID()
-  process.emit 'user:precreate', opts
-  console.log  'user:precreate', opts
-  opts
+@server class User
+  constructor:(opts={})-> Object.assign @record = {}, User.defaults(), opts
+  commit:-> APP.user.put(@record.id,JSON.stringify @record).then => @
+User.defaults = -> id:User.getUID(), group: []
+User.getUID = -> SHA512 Date.now() + '-' + $forge.random.getBytesSync 16
 
 @server.AddAuthCookie = (res,user)->
-  cookie = GetUID()
+  cookie = User.getUID()
   res.setHeader 'Set-Cookie', "SESSION=#{cookie}; expires=#{new Date(new Date().getTime()+86409000).toUTCString()}; path=/"
   $fs.writeFileSync ( $path.join '/tmp/auth', cookie ), '' if $fs.existsSync '/tmp/auth'
   console.log 'AUTH'.yellow, user.id, user.group
   APP.session.put cookie, user.id
 
 @server.RequireAuth = (req)->
-  console.debug APP.Protocol.yellow, "headers", req.headers
   throw new Error 'Access denied: no cookie' unless cookies = req.headers.cookie
   CookieReg = /SESSION=([A-Za-z0-9+/=]+={0,3});?/
   throw new Error 'Access denied: cookie' unless match = cookies.match CookieReg
   req.COOKIE = cookie = match[1]
   id   = await APP.session.get cookie
   user = await APP.user.get req.ID = id
-  unless ( req.USER = JSON.parse user )?
-    throw new Error 'Access denied: invalid session'
+  throw new Error 'Access denied: invalid session' unless ( req.USER = JSON.parse user )?
 
 @server.RequireGroup = (req,group)->
   in_group = (access,i)-> access or has_group.includes i
