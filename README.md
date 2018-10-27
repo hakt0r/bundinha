@@ -121,6 +121,28 @@ and concatenated. Therefore:
   # Add client side template
 ```
 
+#### miqro
+```CoffeeScript
+$ query           # := document.querySelector(query)
+$.all query       # := document.querySelectorAll(query)
+$.map query       # := document.querySelectorAll(query).map
+SmoothEvents spec # add on/off/emit/kill event-wrapper to spec
+```
+
+#### call a backend function
+```CoffeeScript
+CALL ( object ofJsonQueries )
+yield  object ofJsonQueries
+return promise
+```
+
+#### force AJAX query if you enabled WebSockets
+```CoffeeScript
+AJAX ( object ofJsonQueries )
+yield  object ofJsonQueries
+return promise
+```
+
 ### Backend
 
 ```CoffeeScript
@@ -138,25 +160,6 @@ and concatenated. Therefore:
 
 @public ( string path, function callback )
   # Add public API-handler
-```
-
-## Client-API
-```CoffeeScript
-# miqro
-$ query           # := document.querySelector(query)
-$.all query       # := document.querySelectorAll(query)
-$.map query       # := document.querySelectorAll(query).map
-SmoothEvents spec # add on/off/emit/kill event-wrapper to spec
-
-# call a backend function
-CALL ( object ofJsonQueries )
-yield  object ofJsonQueries
-return promise
-
-# force AJAX query if you enabled WebSockets
-AJAX ( object ofJsonQueries )
-yield  object ofJsonQueries
-return promise
 ```
 
 ## Copyrights
