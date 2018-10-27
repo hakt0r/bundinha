@@ -97,13 +97,11 @@ and concatenated. Therefore:
 
 @plugin ( string moduleName, object ofFunctions )
   # Add plugins to a function defined with @client / @server / @shared
+```
 
-# ███████ ██████   ██████  ███    ██ ████████ ███████ ███    ██ ██████
-# ██      ██   ██ ██    ██ ████   ██    ██    ██      ████   ██ ██   ██
-# █████   ██████  ██    ██ ██ ██  ██    ██    █████   ██ ██  ██ ██   ██
-# ██      ██   ██ ██    ██ ██  ██ ██    ██    ██      ██  ██ ██ ██   ██
-# ██      ██   ██  ██████  ██   ████    ██    ███████ ██   ████ ██████
+### Frontend
 
+```CoffeeScript
 @client ( optional object ofDeclarations ) return object ofDeclarations
 # Add add frontend variable (global): can be a Function, Class or Constant
 
@@ -121,13 +119,11 @@ and concatenated. Therefore:
 
 @tpl ( optional boolean isglobal, object ofTemplates )
   # Add client side template
+```
 
-# ██████   █████   ██████ ██   ██ ███████ ███    ██ ██████
-# ██   ██ ██   ██ ██      ██  ██  ██      ████   ██ ██   ██
-# ██████  ███████ ██      █████   █████   ██ ██  ██ ██   ██
-# ██   ██ ██   ██ ██      ██  ██  ██      ██  ██ ██ ██   ██
-# ██████  ██   ██  ██████ ██   ██ ███████ ██   ████ ██████
+### Backend
 
+```CoffeeScript
 @server ( optional object ofDeclarations ) return object ofDeclarations
 # Add add backend variable (global): can be a Function, Class or Constant
 
@@ -142,7 +138,6 @@ and concatenated. Therefore:
 
 @public ( string path, function callback )
   # Add public API-handler
-
 ```
 
 ## Client-API
