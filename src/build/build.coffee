@@ -4,7 +4,7 @@
 # ██   ██ ██    ██ ██ ██      ██   ██
 # ██████   ██████  ██ ███████ ██████
 
-Bundinha::build = ->
+Bundinha::prepareBuild = ->
   @shared BuildId: SHA512 new Date
   console.log ':build'.green, ( BuildId ).yellow
   @reqdir  BuildDir
@@ -12,6 +12,8 @@ Bundinha::build = ->
   @require $path.join AppPackageName, AppPackageName
   @WebRoot  = $path.join RootDir,'build','html'
   @AssetDir = $path.join RootDir,'build','html','app'
+
+Bundinha::build = ->
   await do @buildLicense
   await do @buildServiceWorker if @buildServiceWorker?
   await do @buildFrontend

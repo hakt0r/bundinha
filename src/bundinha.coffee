@@ -45,7 +45,6 @@ $$.COM =
 $$.Bundinha = class Bundinha
   constructor:(opts)->
     $$.BUND = @ unless $$.BUND?
-    @fromSource = true
     @requireScope = ['os','util','fs',['cp','child_process'],'path','level','colors',['forge','node-forge']]
     Object.assign @, opts
     return
@@ -82,9 +81,11 @@ Bundinha::cmd_handle = ->
   @require 'bundinha/build/license'
   @require 'bundinha/build/frontend'
   @require 'bundinha/build/backend'
+  @require 'bundinha/backend/backend'
+  @require 'bundinha/backend/web'
+  @require 'bundinha/frontend'
   do @loadDependencies
-  @require 'bundinha/client'
-  @require 'bundinha/backend'
+  await do @prepareBuild
   await do @build
   process.exit 0
 

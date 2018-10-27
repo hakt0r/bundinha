@@ -7,11 +7,6 @@
 # ██ ███ ██ ██      ██   ██      ██ ██    ██ ██      ██  ██  ██         ██
 #  ███ ███  ███████ ██████  ███████  ██████   ██████ ██   ██ ███████    ██
 
-@server.AuthSuccess = (q,req,res,rec)->
-  res.json success:true, WebSockets:WebSockets
-
-@private "/authenticated", @server.AuthSuccess
-
 @server.APP.initWebSockets = ->
   wss = new ( require 'ws' ).Server noServer:true
   APP.server.on 'upgrade', (request, socket, head)->
