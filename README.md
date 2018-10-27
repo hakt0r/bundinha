@@ -20,7 +20,7 @@ is exempt from  then GPL and instead licensed under a MIT 3-Clause license.
   $ sudo npm i -g git+https://github.com/hakt0r/bundinha
   $ mkdir MY_BUNDLE
   $ cd    MY_BUNDLE
-  $ bundinha init
+  $ bundinha -init
   $ ls
 ```
 Your source files willl be in src/, your entry point would be:
