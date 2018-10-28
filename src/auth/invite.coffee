@@ -13,11 +13,6 @@
     User.create id:AdminUser, pass:hashedPass, seedSalt:seedSalt, group:['admin']
   return
 
-@server.User.create = (opts)->
-  opts.storageSalt = Buffer.from($forge.random.getBytesSync 128).toString 'base64'
-  opts.pass = SHA512 [ opts.pass, opts.storageSalt ].join ':'
-  new User(opts).commit()
-
 @public "/login", (q,req,res)->
   rec = await APP.user.get q.id
   rec = JSON.parse rec
@@ -47,3 +42,37 @@
   hashedPass = SHA512 [ hashedPass, clientSalt            ].join ':'
   CALL '/login', id:user, pass:hashedPass, salt:clientSalt
   .then LoginResult
+
+@server.User.create = (opts)->
+  opts.storageSalt = Buffer.from($forge.random.getBytesSync 128).toString 'base64'
+  opts.pass = SHA512 [ opts.pass, opts.storageSalt ].join ':'
+  new User(opts).commit()
+
+@server.User.passwd = (user,pass)->
+  u = await User.get user
+  opts = {}
+  opts.seedSalt    = Buffer.from($forge.random.getBytesSync 128).toString 'base64'
+  opts.storageSalt = Buffer.from($forge.random.getBytesSync 128).toString 'base64'
+  hashedPass       = SHA512 [ pass,       opts.seedSalt ].join ':'
+  opts.pass        = SHA512 [ hashedPass, opts.storageSalt ].join ':'
+  Object.assign u.record, opts
+  u.commit()
+
+@server.User.addGroups = (user,groups)->
+  u = await User.get user
+  u.record.group = u.record.group.concat(groups).unique
+  u.commit()
+
+@command 'user', ->
+  @APP.initConfig(); @APP.initDB(); [ user ] = process.argv.slice 1 + process.argv.indexOf 'user'
+  u = await User.get user
+  console.log if process.stdout.isTTY then u.record else JSON.stringify u.record, null, 2
+  process.exit 0
+
+@command 'passwd', ->
+  @APP.initConfig(); @APP.initDB(); [ user, pass ] = process.argv.slice 1 + process.argv.indexOf 'passwd'
+  await User.passwd user, pass; process.exit 0
+
+@command 'group', ->
+  @APP.initConfig(); @APP.initDB(); [ user ] = args = process.argv.slice 1 + process.argv.indexOf 'group'
+  await User.addGroups user, args.slice 1; process.exit 0

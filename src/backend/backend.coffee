@@ -19,6 +19,7 @@
   $$.ConfigDir  = process.env.CONF ||
     if DevMode then $path.join parentDir, 'config'
     else $path.join RootDir, 'config'
+  console.debug = ->
   return
 @serverHeader.push @arrayTools
 
@@ -26,8 +27,7 @@
   preinit:->
     do APP.loadDependencies
     do APP.readEnv
-    for name, func of APP.command when process.argv.includes name
-      func()
+    await func() for name, func of APP.command when process.argv.includes name
     return
   init:->
     await APP.preinit()
@@ -36,7 +36,6 @@
     $fs.readdir$  = $util.promisify $fs.readdir
     $fs.readFile$ = $util.promisify $fs.readFile
     $cp.spawn$    = $util.promisify $cp.spawn
-    console.debug = (->) unless DEBUG
     do APP.splash
     await do APP.startServer
     do APP.initConfig
@@ -56,11 +55,12 @@ $app.loadDependencies = ->
 
 $app.readEnv = ->
   try do APP.initConfig
-  $$.DEBUG     =  process.env.DEBUG || false
+  $$.DEBUG     =  process.env.DEBUG is 'true' || false
   APP.chgid    =  $$.ChgID    || process.env.CHGID || false
   APP.port     =  $$.Port     || process.env.PORT  || 9999
   APP.addr     =  $$.Addr     || process.env.ADDR  || '127.0.0.1'
   APP.protocol =  $$.Protocol || process.env.PROTO || 'https'
+  console.debug = if DEBUG then console.log else ->
   return
 
 $app.splash = ->
@@ -106,5 +106,5 @@ $app.writeConfig = ->
 $app.initDB = ->
   for name, opts of APP.db
     APP[name] = $level $path.join ConfigDir, name + '.db'
-    console.log '::::db', ':' + name.bold
-  console.log '::::db', 'ready'.green
+    console.debug '::::db', ':' + name.bold
+  console.debug '::::db', 'ready'.green

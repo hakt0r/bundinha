@@ -12,8 +12,10 @@
 @server class User
   constructor:(opts={})-> Object.assign @record = {}, User.defaults(), opts
   commit:-> APP.user.put(@record.id,JSON.stringify @record).then => @
+
 User.defaults = -> id:User.getUID(), group: []
 User.getUID = -> SHA512 Date.now() + '-' + $forge.random.getBytesSync 16
+User.get = (id)-> new User JSON.parse await APP.user.get id
 
 @server.AddAuthCookie = (res,user)->
   cookie = User.getUID()
