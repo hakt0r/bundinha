@@ -30,7 +30,7 @@
   unless q.inviteKey is SHA512 [ APP.InviteKey, q.inviteSalt ].join ':'
     return res.json error:'Invalid InviteKey'
   await Promise.all [
-    User.create id:q.id, pass: q.pass, seedSalt: q.salt
+    User.create id:q.id, pass:q.pass, seedSalt:q.salt
     AddAuthCookie res, q ]
   AuthSuccess q, req, res, rec
 
@@ -76,3 +76,14 @@
 @command 'group', ->
   @APP.initConfig(); @APP.initDB(); [ user ] = args = process.argv.slice 1 + process.argv.indexOf 'group'
   await User.addGroups user, args.slice 1; process.exit 0
+
+@command 'adduser', ->
+  @APP.initConfig(); @APP.initDB(); [ user, pass ] = args = process.argv.slice 1 + process.argv.indexOf 'adduser'
+  try
+    await User.get user
+    console.log 'User exists:'.bold, user
+    process.exit 1
+  seedSalt   = Buffer.from($forge.random.getBytesSync 128).toString 'base64'
+  hashedPass = SHA512 [ pass, seedSalt ].join ':'
+  User.create id:user, pass:hashedPass, seedSalt:seedSalt, group:if args.length > 0 then args else null
+  process.exit 0
