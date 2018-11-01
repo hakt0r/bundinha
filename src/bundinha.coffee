@@ -61,11 +61,15 @@ Bundinha::writeConfig = (cfg,args...)->
 # ██      ██    ██ ██  ██  ██ ██  ██  ██ ██   ██ ██  ██ ██ ██   ██
 #  ██████  ██████  ██      ██ ██      ██ ██   ██ ██   ████ ██████
 
-Bundinha::cmd_handle = ->
-  return do @cmd_init       if ( ARG.init is true )
+Bundinha::readPackage = ->
   $$.BunPackage = @parseConfig BunDir,  'package.json'
   $$.AppPackage = @parseConfig RootDir, 'package.json'
   $$.AppPackageName = AppPackage.name.replace(/-devel$/,'')
+
+Bundinha::cmd_handle = ->
+  try @readPackage()
+  return do @cmd_init       if ( ARG.init is true )
+  @readPackage()
   return do @cmd_push_clean if ( ARG.push and ARG.clean ) is true
   return do @cmd_push       if ( ARG.push is true )
   return do @cmd_deploy     if ( ARG.deploy is true )
@@ -90,11 +94,13 @@ Bundinha::cmd_handle = ->
   process.exit 0
 
 Bundinha::cmd_init = ->
+  @require 'bundinha/build/build'
+  @require 'bundinha/build/lib'
   console.log 'init'.yellow, RootDir
   @reqdir RootDir, 'src'
   @reqdir RootDir, 'config'
   unless $fs.existsSync $path.join RootDir, 'package.json'
-    $cp.execSync 'npm init'
+    $cp.execSync 'npm init', stdio:'inherit'
   p = @parseConfig RootDir, 'package.json'
   appName = p.name.replace(/-devel$/,'')
   p.bin = p.bin || {}
