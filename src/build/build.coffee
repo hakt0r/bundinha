@@ -65,7 +65,7 @@ Bundinha::compileSources = (sources)->
       source = source.join '\n'
       out += source
     else if Array.isArray source
-      source = $path.join.apply path, source if Array.isArray source
+      source = $path.join.apply $path, source if Array.isArray source
       if source.match /.coffee$/
            out += $coffee.compile ( $fs.readFileSync source, 'utf8' ), bare:on
       else out += $fs.readFileSync source, 'utf8'
@@ -115,7 +115,7 @@ Bundinha::symlink = (src,dst)->
   return do ok if $fs.symlinkSync src, dst
 
 Bundinha::reqdir = (dst...) ->
-  dst = $path.join.apply path, dst
+  dst = $path.join.apply $path, dst
   ok = -> console.log ':::dir'.green, $path.basename(dst).yellow
   return do ok if $fs.existsSync dst
   return do ok if $fs.mkdirSync dst
