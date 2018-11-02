@@ -102,6 +102,7 @@ Bundinha::cmd_init = ->
   unless $fs.existsSync $path.join RootDir, 'package.json'
     $cp.execSync 'npm init', stdio:'inherit'
   p = @parseConfig RootDir, 'package.json'
+  delete p.scripts.test
   appName = p.name.replace(/-devel$/,'')
   p.bin = p.bin || {}
   p.scripts = p.scripts || {}
