@@ -143,8 +143,8 @@ Bundinha::cmd_push_clean = ->
 #                     ▀▀
 
 Bundinha::require = (file)->
-  # unless module.paths.includes(RootDir) then module.paths = module.paths.concat [
-  #   RootDir, BunDir, RootDir + '/node_modules', BunDir + '/node_modules' ]
+  unless module.paths.includes path = $path.join RootDir,'node_modules'
+     module.paths.push path
   mod = ( rest = file.split '/' ).shift()
   switch mod
     when 'bundinha'
@@ -166,7 +166,6 @@ Bundinha::require = (file)->
       line = parseInt error.stack.split('\n')[1].split(':')[1]
       col  = try parseInt error.stack.split('\n')[1].split(':')[2].split(')')[0] catch e then 0
       console.log 'require'.red.bold, [file.bold,line,col].join ':'
-    try console.log Object.keys require.resolve.paths
     try
       console.log ' ', error.message.bold
       console.log '>',
