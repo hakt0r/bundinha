@@ -80,6 +80,7 @@ Bundinha::buildFrontend = ->
 
   $fs.writeFileSync $path.join(@AssetDir,'app.js'), scripts
   $fs.writeFileSync $path.join(@AssetDir,'app.css'), styles
+  $fs.writeFileSync $path.join(@AssetDir,'manifest.json'), JSON.stringify @manifest
 
   mainfestHash = contentHash @insert_manifest
   stylesHash   = contentHash styles
@@ -105,7 +106,7 @@ Bundinha::buildFrontend = ->
   insert_websocket = ' wss:' if WebSockets?
   @insert_policy = """<meta http-equiv="Content-Security-Policy" content="
   default-src  'self';
-  manifest-src 'self' data: '#{mainfestHash}';
+  manifest-src 'self' https:;
   connect-src  'self'#{insert_websocket};
   img-src      'self' blob: data: https:;
   media-src    'self' blob: data: https:;
