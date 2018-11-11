@@ -115,6 +115,9 @@
 
 @scope.db = (name)-> @dbScope[name] = true
 
+@scope.devConfig = (obj)->
+  Object.assign @, obj
+  Object.assign @configScope, obj
 @scope.config = (obj)->
   Object.assign @configScope, obj
 
