@@ -18,6 +18,7 @@ Bundinha::build = ->
   await do @buildServiceWorker if @buildServiceWorker?
   await do @buildFrontend
   await do @buildBackend
+  @emit 'build:post', @
 
 Bundinha::processAPI = (opts,apilist)->
   apis = ''; name = null

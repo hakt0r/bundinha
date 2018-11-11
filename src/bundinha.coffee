@@ -42,8 +42,9 @@ $$.COM =
 # ██   ██ ██    ██ ██  ██ ██ ██   ██ ██ ██  ██ ██ ██   ██ ██   ██
 # ██████   ██████  ██   ████ ██████  ██ ██   ████ ██   ██ ██   ██
 
-$$.Bundinha = class Bundinha
+$$.Bundinha = class Bundinha extends require 'events'
   constructor:(opts)->
+    super()
     $$.BUND = @ unless $$.BUND?
     @requireScope = ['os','util','fs',['cp','child_process'],'path','level','colors',['forge','node-forge']]
     Object.assign @, opts
