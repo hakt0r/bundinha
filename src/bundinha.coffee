@@ -148,10 +148,10 @@ Bundinha::require = (file)->
   mod = ( rest = file.split '/' ).shift()
   switch mod
     when 'bundinha'
-      console.log 'depend'.green.bold, file.bold
+      console.debug 'depend'.green.bold, file.bold
       file = $path.join BunDir,  'src', rest.join '/'
     when AppPackageName
-      console.log 'depend'.yellow.bold, file.bold
+      console.debug 'depend'.yellow.bold, file.bold
       file = $path.join RootDir, 'src', rest.join '/'
     else return require file
   try
@@ -165,10 +165,10 @@ Bundinha::require = (file)->
     if error.stack
       line = parseInt error.stack.split('\n')[1].split(':')[1]
       col  = try parseInt error.stack.split('\n')[1].split(':')[2].split(')')[0] catch e then 0
-      console.log 'require'.red.bold, [file.bold,line,col].join ':'
+      console.error 'require'.red.bold, [file.bold,line,col].join ':'
     try
-      console.log ' ', error.message.bold
-      console.log '>',
+      console.error ' ', error.message.bold
+      console.error '>',
         scpt.split('\n')[line-3].substring(0,col-2).yellow
         scpt.split('\n')[line-3].substring(col-1,col).red
         scpt.split('\n')[line-3].substring(col+1).yellow
