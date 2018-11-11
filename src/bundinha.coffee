@@ -92,7 +92,7 @@ Bundinha::cmd_handle = ->
   do @loadDependencies
   await do @prepareBuild
   await do @build
-  process.exit 0
+  # process.exit 0
 
 Bundinha::cmd_init = ->
   @require 'bundinha/build/build'
