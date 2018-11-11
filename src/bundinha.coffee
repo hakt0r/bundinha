@@ -166,6 +166,7 @@ Bundinha::require = (file)->
       line = parseInt error.stack.split('\n')[1].split(':')[1]
       col  = try parseInt error.stack.split('\n')[1].split(':')[2].split(')')[0] catch e then 0
       console.log 'require'.red.bold, [file.bold,line,col].join ':'
+    try console.log Object.keys require.resolve.paths
     try
       console.log ' ', error.message.bold
       console.log '>',

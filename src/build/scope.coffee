@@ -20,7 +20,7 @@
     set: doSet = (_target,_prop,_value)=>
       # console.log scope.yellow.bold, _prop.bold if scope is 'server'
       if hook.includes _prop
-           console.log _value
+           # console.log _value
            scopeObject[_prop] += _value.toBareCode()
       else scopeObject[_prop]  = _value
       true
