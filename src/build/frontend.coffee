@@ -117,6 +117,12 @@ Bundinha::buildFrontend = ->
   # style-src    'self' 'unsafe-inline' '#{stylesHash}' app/;
   ## FF is very strict about styles and csp
 
+  unless @htmlScope.body then @html 'body', """
+    <navigation></navigation>
+    <content>
+      <center>JavaScript is required.</center>
+    </content>"""
+
   $fs.writeFileSync $path.join(WebDir,'index.html'), $body = """
   <!DOCTYPE html>
   <html>
@@ -128,13 +134,9 @@ Bundinha::buildFrontend = ->
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     #{@insert_policy}
     #{@insert_manifest}
+    #{@htmlScope.head}
   </head>
-  <body>
-    <navigation></navigation>
-    <content>
-      <center>JavaScript is required.</center>
-    </content>
-  </body>
+  <body>#{@htmlScope.body}</body>
   #{insert_styles}
   #{insert_scripts}
   </html>"""

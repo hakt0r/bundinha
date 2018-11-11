@@ -80,6 +80,8 @@ Bundinha::compileSources = (sources)->
 #    ██    ██    ██ ██    ██ ██           ██
 #    ██     ██████   ██████  ███████ █████�█
 
+String::toBareCode = -> @
+
 Function::toCode = ->
   '('+ @toString().replace(/\n[ ]{4}/g,'\n') + '());\n'
 
