@@ -66,6 +66,10 @@ Bundinha::readPackage = ->
   $$.BunPackage = @parseConfig BunDir,  'package.json'
   $$.AppPackage = @parseConfig RootDir, 'package.json'
   $$.AppPackageName = AppPackage.name.replace(/-devel$/,'')
+  try
+    Object.assign @, conf = JSON.parse $fs.readFileSync $path.join ConfigDir, AppPackageName + '.json'
+    @confKeys = Object.keys conf
+    conf
 
 Bundinha::cmd_handle = ->
   try @readPackage()
@@ -116,7 +120,6 @@ Bundinha::cmd_init = ->
   process.exit 0
 
 Bundinha::cmd_push = (final=yes)->
-  Object.assign @, JSON.parse $fs.readFileSync $path.join ConfigDir, AppPackageName + '.json'
   [ url, user, host, path ] = @Deploy.url.match /^([^@]+)@([^:]+):(.*)$/
   process.stderr.write 'push'.yellow + ' ' + user.red.bold + '@' + host.green + ':' + path.gray
   result = $cp.spawnSync 'rsync',['-avzhL','build/',@Deploy.url]
@@ -124,7 +127,6 @@ Bundinha::cmd_push = (final=yes)->
   process.exit result.status if final
 
 Bundinha::cmd_deploy = ->
-  Object.assign @, JSON.parse $fs.readFileSync $path.join ConfigDir, AppPackageName + '.json'
   return $cp.spawnSync 'sh',['-c',@Deploy.command] if @Deploy.command
   @cmd_push no; [ url, user, host, path ] = @Deploy.url.match /^([^@]+)@([^:]+):(.*)$/
   $cp.spawnSync 'ssh',[user+'@'+host,"""
