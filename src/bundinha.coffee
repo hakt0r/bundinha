@@ -124,6 +124,8 @@ Bundinha::cmd_push = (final=yes)->
   process.exit result.status if final
 
 Bundinha::cmd_deploy = ->
+  Object.assign @, JSON.parse $fs.readFileSync $path.join ConfigDir, AppPackageName + '.json'
+  return $cp.spawnSync 'sh',['-c',@Deploy.command] if @Deploy.command
   @cmd_push no; [ url, user, host, path ] = @Deploy.url.match /^([^@]+)@([^:]+):(.*)$/
   $cp.spawnSync 'ssh',[user+'@'+host,"""
   cd '#{path}'; npm i -g .; #{AppPackageName}-backend install-nginx;
