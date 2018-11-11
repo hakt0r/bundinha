@@ -165,11 +165,12 @@ Bundinha::require = (file)->
       line = parseInt error.stack.split('\n')[1].split(':')[1]
       col  = try parseInt error.stack.split('\n')[1].split(':')[2].split(')')[0] catch e then 0
       console.log 'require'.red.bold, [file.bold,line,col].join ':'
-    console.log ' ', error.message.bold
-    console.log '>',
-      scpt.split('\n')[line-3].substring(0,col-2).yellow
-      scpt.split('\n')[line-3].substring(col-1,col).red
-      scpt.split('\n')[line-3].substring(col+1).yellow
+    try
+      console.log ' ', error.message.bold
+      console.log '>',
+        scpt.split('\n')[line-3].substring(0,col-2).yellow
+        scpt.split('\n')[line-3].substring(col-1,col).red
+        scpt.split('\n')[line-3].substring(col+1).yellow
     process.exit 1
 
 #  ██████  ██       ██████  ██████   █████  ██      ███████
