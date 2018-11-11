@@ -15,7 +15,9 @@ Bundinha::ServiceWorker = ->
   errorResponse = JSON.stringify error:'offline'
   self.addEventListener 'install', (event)-> event.waitUntil(
     caches.open CACHE_NAME
-    .then (cache) -> cache.addAll ['/','/app/app.css','/app/app.js'])
+    .then (cache) ->
+      cache.addAll ['/','/app/app.css','/app/app.js'].map (url)=>
+        new Request url, credentials: 'same-origin' )
   self.addEventListener 'message', (msg)->
     return unless msg.data is 'skipWaiting'
     await self.skipWaiting()
@@ -89,7 +91,7 @@ Bundinha::buildServiceWorker = ->
 
   # @insert_manifest = unless @HasServiceWorker then '' else """
   # <link rel=manifest href='data:application/manifest+json,#{@iniline_manifest}'/>"""
-  @insert_manifest = unless @HasServiceWorker then '' else """<link rel=manifest href="/app/manifest.json"/>"""
+  @insert_manifest = unless @HasServiceWorker then '' else """<link rel=manifest crossOrigin="use-credentials" href="/app/manifest.json"/>"""
 
   return unless @HasServiceWorker
 
