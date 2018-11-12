@@ -5,14 +5,20 @@
 # ██      ██   ██  ██████  ██   ████    ██    ███████ ██   ████ ██████
 
 Bundinha::buildFrontend = ->
-  console.log ':build'.green, 'frontend'.bold, @AssetDir.yellow
+  console.log ':build'.green, 'frontend'.bold, @AssetDir.replace(WebDir,'').yellow, @htmlFile.bold
   @reqdir @AssetDir
+
+  @manifest = @manifest ||
+    name: AppName
+    short_name: title
+    theme_color: "black"
+  @insert_manifest = ''
 
   scripts = @scriptScope.map (i)->
     unless $fs.existsSync i
-      console.log 'script'.red, i
+      console.debug 'script'.red, i
       return i
-    console.log 'script'.green, i
+    console.debug 'script'.green, i
     $fs.readFileSync i
 
   scripts.push """
@@ -47,7 +53,7 @@ Bundinha::buildFrontend = ->
       if plug.worker?
         setInterval plug.worker, plug.interval || 1000 * 60 * 60
         # setTimeout plug.worker # TODO: oninit
-    console.log 'plugin'.green, module, list.join ' '
+    console.debug 'plugin'.green, module, list.join ' '
 
   hook = {}
   for name in ['preinit','init'] when client[name]
@@ -60,7 +66,7 @@ Bundinha::buildFrontend = ->
     [hook.preinit,hook.init].join('\n') +
     '});'
 
-  console.log 'client'.green, apilist.join(' ').gray
+  console.debug 'client'.green, apilist.join(' ').gray
 
   { minify } = require 'uglify-es'
   scripts = scripts.join '\n'
@@ -68,7 +74,7 @@ Bundinha::buildFrontend = ->
 
   styles = ( for css, opts of @cssScope
     if opts is true
-      console.log ':::css'.green, css
+      console.debug ':::css'.green, css
       $fs.readFileSync css, 'utf8'
     else opts
   ).join '\n'
@@ -82,11 +88,11 @@ Bundinha::buildFrontend = ->
   $fs.writeFileSync $path.join(@AssetDir,'app.css'), styles
   $fs.writeFileSync $path.join(@AssetDir,'manifest.json'), JSON.stringify @manifest
 
-  mainfestHash = contentHash @insert_manifest
+  # mainfestHash = contentHash @insert_manifest if @insert_manifest
   stylesHash   = contentHash styles
   scriptHash   = contentHash scripts
   workerHash   = ''
-  workerHash   += "'" + contentHash(@serviceWorkerSource) + "'"
+  workerHash   += "'" + contentHash(@serviceWorkerSource) + "'" if @serviceWorkerSource
   workerHash   += " '" + contentHash(src) + "'" for name, src of @webWorkerScope
 
   insert_scripts = ''
@@ -123,7 +129,7 @@ Bundinha::buildFrontend = ->
       <center>JavaScript is required.</center>
     </content>"""
 
-  $fs.writeFileSync $path.join(WebDir,'index.html'), $body = """
+  $fs.writeFileSync @htmlPath, $body = """
   <!DOCTYPE html>
   <html>
   <head>
@@ -140,3 +146,4 @@ Bundinha::buildFrontend = ->
   #{insert_styles}
   #{insert_scripts}
   </html>"""
+  console.verbose 'write'.green, @htmlPath.bold

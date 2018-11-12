@@ -5,7 +5,7 @@
 # ██████  ██   ██  ██████ ██   ██ ███████ ██   ████ ██████
 
 Bundinha::buildBackend = ->
-  console.log ':build'.green, 'backend'.bold
+  console.log ':build'.green, 'backend'.bold, @backendFile.yellow
 
   out = '( function(){ ' + (
     @serverHeader.map (i)-> i.toBareCode()
@@ -38,7 +38,7 @@ Bundinha::buildBackend = ->
   for name, cons of @shared.constant
     add +="\n$$#{accessor name} = #{JSON.stringify cons};"
   scripts.push add
-  console.log 'shared'.green, Object.keys(@shared.constant).join(' ').gray
+  console.debug 'shared'.green, Object.keys(@shared.constant).join(' ').gray
 
   plugins = ''; declaredPlugins = ['APP']
   for module, plugs of @pluginScope
@@ -49,7 +49,7 @@ Bundinha::buildBackend = ->
         plugins += "\n$$#{accessor module}.plugin[#{JSON.stringify name}] = #{plug.server.toString()};"
       if plug.worker?
         plugins += "\nsetInterval(#{plug.worker.toString()},#{plug.interval || 1000 * 60 * 60});"
-    console.log 'plugin'.green, module, list.join ' '
+    console.debug 'plugin'.green, module, list.join ' '
 
   apis = ''; apilist = []
   apis += @processAPI @shared.function, apilist
@@ -62,7 +62,7 @@ Bundinha::buildBackend = ->
   for name, value of @configScope
     add +="""\nAPP.defaultConfig#{accessor name} = #{JSON.stringify value};"""
   scripts.push add
-  console.log 'config'.green, Object.keys(@configScope).join(' ').gray
+  console.debug 'config'.green, Object.keys(@configScope).join(' ').gray
 
   for scope in ['db','get','public','private','group','command']
     add = "\nAPP#{accessor scope} = {};"
@@ -70,9 +70,9 @@ Bundinha::buildBackend = ->
       value = if typeof func is 'function' then func.toString() else JSON.stringify func
       add +="\nAPP#{accessor scope}#{accessor name} = #{value};"
     scripts.push add
-    console.log scope.red, Object.keys(@[scope+'Scope']).join(' ').gray
+    console.debug scope.red, Object.keys(@[scope+'Scope']).join(' ').gray
 
-  console.log 'server'.green, apilist.join(' ').gray
+  console.debug 'server'.green, apilist.join(' ').gray
 
   { minify } = require 'uglify-es'
 
@@ -103,7 +103,7 @@ Bundinha::buildBackend = ->
   AppPackage.bin[AppPackageName + '-backend'] = './backend.js'
   # AppPackage.scripts['install-systemd'] = """sudo npm -g i .; #{} install-systemd"""
 
-  $fs.writeFileSync $path.join(RootDir,'build','backend.js'), out
+  $fs.writeFileSync $path.join(RootDir,'build', @backendFile ), out
   $fs.writeFileSync $path.join(RootDir,'build','package.json'), JSON.stringify AppPackage, null, 2
 
   unless $fs.existsSync $path.join BuildDir, 'node_modules'

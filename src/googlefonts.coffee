@@ -11,4 +11,4 @@ Bundinha::font = (name,weight=400)->
     css = css.replace m[1], 'data:font/woff2;base64,' + r.stdout.toString 'base64'
   p = $path.join WebDir, name.toLowerCase() + '_' + weight + '.css'
   $fs.writeFileSync p, css
-  console.log 'font'.green, name.bold, weight, ( css.length / 1024 ).toFixed 2
+  console.debug 'font'.green, name.bold, weight, ( css.length / 1024 ).toFixed 2

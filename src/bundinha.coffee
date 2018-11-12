@@ -28,6 +28,13 @@ $$.BuildDir  = ENV.BASE     || $path.join RootDir, 'build'
 $$.BunDir    = ENV.BUNDINHA || $path.dirname $path.dirname __filename
 $$.WebDir    = ENV.HTML     || $path.join BuildDir, 'html'
 
+console.verbose = ->
+unless $$.DEBUG = ENV.DEBUG is 'true'
+  console.debug = ->
+if $$.VERBOSE = ENV.VERBOSE is 'true'
+  console.verbose = console.error
+
+
 $$.COM =
   build: "bundinha"
   prepublish: "bundinha"
@@ -152,10 +159,10 @@ Bundinha::require = (file)->
   mod = ( rest = file.split '/' ).shift()
   switch mod
     when 'bundinha'
-      console.debug 'depend'.green.bold, file.bold
+      console.verbose 'depend'.green.bold, file.bold
       file = $path.join BunDir,  'src', rest.join '/'
     when AppPackageName
-      console.debug 'depend'.yellow.bold, file.bold
+      console.verbose 'depend'.yellow.bold, file.bold
       file = $path.join RootDir, 'src', rest.join '/'
     else return require file
   try

@@ -32,4 +32,4 @@ css = """
 
 APP.css true, 'fontawesome', css
 
-console.log ':icons'.green, Object.keys(ICON).join(' ').gray
+console.debug ':icons'.green, Object.keys(ICON).join(' ').gray

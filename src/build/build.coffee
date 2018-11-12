@@ -51,10 +51,9 @@ Bundinha::processAPI = (opts,apilist)->
       members = []
       out = _process_members_ out, members, api::, '.prototype'
       out = _process_members_ out, members, api
-      console.log name.bold, members.join ' ' if members.length > 0
+      console.debug name.bold, members.join ' ' if members.length > 0
     apis += out
     apilist.push name
-  debugger
   apis
 
 Bundinha::compileSources = (sources)->
@@ -92,7 +91,6 @@ Function::toBareCode = ->
   .replace(/\n[ ]{4}/g,'\n')
   .replace(/^return /,'')
   .replace(/}$/,'')
-  # console.log '###',code,'###'
   code
 
 $$.contentHash = (data)->
@@ -113,12 +111,12 @@ Bundinha::loadDependencies = ->
 Bundinha::touch = require 'touch'
 
 Bundinha::symlink = (src,dst)->
-  ok = -> console.log '::link'.green, $path.basename(src).yellow, '->'.yellow, dst.bold
+  ok = -> console.debug '::link'.green, $path.basename(src).yellow, '->'.yellow, dst.bold
   return do ok if $fs.existsSync dst
   return do ok if $fs.symlinkSync src, dst
 
 Bundinha::reqdir = (dst...) ->
   dst = $path.join.apply $path, dst
-  ok = -> console.log ':::dir'.green, $path.basename(dst).yellow
+  ok = -> console.debug ':::dir'.green, $path.basename(dst).yellow
   return do ok if $fs.existsSync dst
   return do ok if $fs.mkdirSync dst
