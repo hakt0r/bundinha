@@ -133,7 +133,7 @@
 @arrayScope.script = (args...)->
   if $fs.existsSync p = $path.join.apply path, [RootDir].concat args
     @scriptScope.push p
-  else if $fs.existsSync p = $path.join.apply path, [BunDir ].concat args
+  else if $fs.existsSync p = $path.join.apply path, [BunDir].concat args
     @scriptScope.push p
   else @scriptScope.push args[0]
 
