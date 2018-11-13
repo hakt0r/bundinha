@@ -62,10 +62,9 @@ Bundinha::buildFrontend = ->
     console.debug 'plugin'.green, module, list.join ' '
 
   hook = {}
-  for name in ['preinit','init'] when client[name]
-    hook[name] = client[name]
+  for name in ['preinit','init']
+    hook[name] = client[name] || ''
     delete client[name]
-
   scripts.push @processAPI @shared.function, apilist = []
   scripts.push @processAPI client, apilist
   scripts.push 'setTimeout(async ()=>{' +
