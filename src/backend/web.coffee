@@ -1,5 +1,25 @@
 
-{ APP } = @server
+#  ██████ ██      ██ ███████ ███    ██ ████████
+# ██      ██      ██ ██      ████   ██    ██
+# ██      ██      ██ █████   ██ ██  ██    ██
+# ██      ██      ██ ██      ██  ██ ██    ██
+#  ██████ ███████ ██ ███████ ██   ████    ██
+
+@client.CALL = @client.AJAX = (call,data)->
+  new Promise (resolve,reject)->
+    xhr = new XMLHttpRequest
+    xhr.open ( if data then 'POST' else 'GET' ), '/api'
+    if data
+      xhr.setRequestHeader "Content-Type","application/json"
+      xhr.send JSON.stringify [call,data]
+    else xhr.send()
+    xhr.onload = ->
+      try result = JSON.parse @response
+      catch e then reject "JSON Error: " + e
+      unless result.error
+           resolve result
+      else reject result.error
+    null
 
 # ██     ██ ███████ ██████  ███████ ██████  ██    ██
 # ██     ██ ██      ██   ██ ██      ██   ██ ██    ██
@@ -7,8 +27,9 @@
 # ██ ███ ██ ██      ██   ██      ██ ██   ██  ██  ██
 #  ███ ███  ███████ ██████  ███████ ██   ██   ████
 
-APP.startServer = ->
+{ APP } = @server
 
+APP.startServer = ->
   if 'http' is APP.protocol
     APP.Protocol = '::http'
     APP.server = require('http')
