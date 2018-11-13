@@ -41,6 +41,7 @@
     do APP.initConfig
     do APP.initDB
     return
+  SHA512:SHA512
 
 @server.APP = class $app
 
