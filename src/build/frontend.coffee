@@ -121,13 +121,15 @@ Bundinha::buildFrontend = ->
   .filter (i)-> i isnt false
   .join '\n'
 
-  $fs.writeFileSync $path.join(@AssetDir,'app.css'), styles
+  console.log @htmlFile, styles
+  @cssFile = @cssFile || @htmlFile.replace(/.html$/,'') + '.css'
+  $fs.writeFileSync $path.join(@AssetDir,@cssFile), styles
 
   insert_styles += (
     if @inlineScripts then """<styles>#{styles}</styles>"""
-    else """<link rel=stylesheet href="app/app.css"/>""" )
+    else """<link rel=stylesheet href="app/#{@cssFile}"/>""" )
 
-  contentHash styles
+  stylesHash = contentHash styles
 
   #  ██████ ███████ ██████
   # ██      ██      ██   ██
