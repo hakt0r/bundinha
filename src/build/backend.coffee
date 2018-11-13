@@ -114,3 +114,5 @@ Bundinha::buildBackend = ->
 
   unless $fs.existsSync $path.join BuildDir, 'node_modules'
     $cp.execSync 'cd build; npm i'
+
+  return
