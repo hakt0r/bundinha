@@ -1,8 +1,14 @@
+
 # ███████ ██████   ██████  ███    ██ ████████ ███████ ███    ██ ██████
 # ██      ██   ██ ██    ██ ████   ██    ██    ██      ████   ██ ██   ██
 # █████   ██████  ██    ██ ██ ██  ██    ██    █████   ██ ██  ██ ██   ██
 # ██      ██   ██ ██    ██ ██  ██ ██    ██    ██      ██  ██ ██ ██   ██
 # ██      ██   ██  ██████  ██   ████    ██    ███████ ██   ████ ██████
+
+@phase 'build',9999, =>
+  return if @frontend is false
+  await do @buildFrontend
+  return
 
 Bundinha::buildFrontend = ->
   console.log ':build'.green, 'frontend'.bold, @AssetDir.replace(WebDir,'').yellow, @htmlFile.bold
@@ -72,12 +78,6 @@ Bundinha::buildFrontend = ->
   scripts = scripts.join '\n'
   # scripts = minify(scripts).code
 
-  styles = ( for css, opts of @cssScope
-    if opts is true
-      console.debug ':::css'.green, css
-      $fs.readFileSync css, 'utf8'
-    else opts
-  ).join '\n'
 
   workers = ( for name, src of @webWorkerScope
     # src = minify(src).code
@@ -85,11 +85,9 @@ Bundinha::buildFrontend = ->
   ).join '\n'
 
   $fs.writeFileSync $path.join(@AssetDir,'app.js'), scripts
-  $fs.writeFileSync $path.join(@AssetDir,'app.css'), styles
   $fs.writeFileSync $path.join(@AssetDir,'manifest.json'), JSON.stringify @manifest
 
   # mainfestHash = contentHash @insert_manifest if @insert_manifest
-  stylesHash   = contentHash styles
   scriptHash   = contentHash scripts
   workerHash   = ''
   workerHash   += "'" + contentHash(@serviceWorkerSource) + "'" if @serviceWorkerSource
@@ -102,11 +100,40 @@ Bundinha::buildFrontend = ->
          """<script>#{scripts}</script>"""
     else """<script src="app/app.js"></script>""" )
 
+  #  ██████ ███████ ███████
+  # ██      ██      ██
+  # ██      ███████ ███████
+  # ██           ██      ██
+  #  ██████ ███████ ███████
+
+  stylesHash = ''
   insert_styles = ''
+
+  styles = ( for css, opts of @cssScope
+    if opts is true
+      console.log ':::css'.green, css
+      $fs.readFileSync css, 'utf8'
+    else if opts is 'href'
+      insert_styles += """<link rel=stylesheet href="#{css}"/>"""
+      false
+    else opts
+  )
+  .filter (i)-> i isnt false
+  .join '\n'
+
+  $fs.writeFileSync $path.join(@AssetDir,'app.css'), styles
+
   insert_styles += (
-    if @inlineScripts
-         """<script>#{styles}</script>"""
+    if @inlineScripts then """<styles>#{styles}</styles>"""
     else """<link rel=stylesheet href="app/app.css"/>""" )
+
+  contentHash styles
+
+  #  ██████ ███████ ██████
+  # ██      ██      ██   ██
+  # ██      ███████ ██████
+  # ██           ██ ██
+  #  ██████ ███████ ██
 
   insert_websocket = ''
   insert_websocket = ' wss:' if WebSockets?

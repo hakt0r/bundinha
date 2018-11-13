@@ -1,3 +1,9 @@
+
+@phase 'build',0,=>
+  @NodeLicense = await @fetchLicense()
+  await @buildLicense()
+  return
+
 # ██      ██  ██████ ███████ ███    ██ ███████ ███████
 # ██      ██ ██      ██      ████   ██ ██      ██
 # ██      ██ ██      █████   ██ ██  ██ ███████ █████
@@ -5,10 +11,9 @@
 # ███████ ██  ██████ ███████ ██   ████ ███████ ███████
 
 Bundinha::fetchLicense = -> new Promise (resolve,reject)->
-  _log = console.log; _err = console.error # HACK: suppress legally's verbosity
-  console.log = console.error = ->
+  console.log = console.error = -> # HACK: suppress legally's verbosity
   @npmLicenses = await require 'legally'
-  console.log = _log; console.error = _err # HACK: suppress legally's verbosity
+  console.log = console._log; console.error = console._err # HACK: suppress legally's verbosity
   nodeLicenseURL = "https://raw.githubusercontent.com/nodejs/node/master/LICENSE"
   data = ''
   require 'https'
@@ -18,7 +23,6 @@ Bundinha::fetchLicense = -> new Promise (resolve,reject)->
     resp.on 'error ', -> do reject
 
 Bundinha::buildLicense = ->
-  @NodeLicense = await @fetchLicense()
   npms = ( for name, pkg of @npmLicenses
     [match,link,version] = name.match /(.*)@([^@]+)/
     shortName = link.split('/').pop()
@@ -58,4 +62,4 @@ Bundinha::buildLicense = ->
   html += out
   tpl = @tpl()
   tpl.AppPackageLicense = html
-  console.log 'format'.green, 'license'
+  console.verbose 'format'.green, 'license'.bold

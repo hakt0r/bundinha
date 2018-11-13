@@ -154,11 +154,13 @@
     return
   @webWorkerScope[name] = @compileSources sources
 
-@scope.css = (argsForPath...)->
-  if argsForPath[0] is true
-    @cssScope[argsForPath[1]] = argsForPath[2]
+@scope.css = (args...)->
+  if args[0].match and args[0].match /^href:/
+    @cssScope[args[0].substring 5] = 'href'
+  else if args[0] is true
+    @cssScope[args[1]] = args[2]
   else
-    p = $path.join.apply path, argsForPath
+    p = $path.join.apply path, args
     @cssScope[p] = true
 
 # ██████  ██    ██ ██ ██   ████████ ██ ███    ██ ███████

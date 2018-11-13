@@ -33,7 +33,8 @@ unless $$.DEBUG = ENV.DEBUG is 'true'
   console.debug = ->
 if $$.VERBOSE = ENV.VERBOSE is 'true'
   console.verbose = console.error
-
+console._log = console.log
+console._err = console.error
 
 $$.COM =
   build: "bundinha"
@@ -55,6 +56,8 @@ $$.Bundinha = class Bundinha extends require 'events'
     $$.BUND = @ unless $$.BUND?
     @requireScope = ['os','util','fs',['cp','child_process'],'path','level','colors',['forge','node-forge']]
     Object.assign @, opts
+    @phaseList = []
+    @require 'bundinha/scope'
     return
 
 Bundinha::parseConfig = (args...)->
@@ -78,6 +81,56 @@ Bundinha::readPackage = ->
     @confKeys = Object.keys conf
     conf
 
+Bundinha::phase = (key,prio,func)->
+  ( func = prio; prio = 1 ) unless func?
+  @phaseList.push k:key,p:prio,f:func
+
+Bundinha::emphase = (key)->
+  list = @phaseList
+    .filter (o)-> o.k is key
+    .sort (a,b)-> a.p - b.p
+  for o in list
+    console.debug ':phase'.yellow, key.bold, o.p, o.f.toBareCode().trim().split('\n')[0].gray
+    await o.f.call @
+    console.debug ':phase'.green, key.bold, o.p, o.f.toBareCode().trim().split('\n')[0].gray
+  return
+
+Bundinha::build = ->
+  @require 'bundinha/build/build'
+  @require 'bundinha/build/lib'
+  unless @frontend is false
+    @require 'bundinha/build/license'
+    @require 'bundinha/build/frontend'
+    @require 'bundinha/frontend'
+  unless @backend is false
+    @require 'bundinha/build/backend'
+    @require 'bundinha/backend/backend'
+    @require 'bundinha/backend/web'
+  do @loadDependencies
+
+  @htmlFile = @htmlFile || 'index.html'
+  @htmlPath = $path.join WebDir, @htmlFile
+  @backendFile = @backendFile || 'backend.js'
+  console.verbose ':build'.green, @htmlFile
+
+  @reqdir  BuildDir
+  @reqdir  $path.join BuildDir, 'html'
+  @require @sourceFile || $path.join AppPackageName, AppPackageName
+  @WebRoot  = $path.join RootDir,'build','html'
+  @AssetDir = $path.join RootDir,'build','html','app'
+
+  await @emphase 'build:pre'
+  await @emphase 'build'
+  await @emphase 'build:post'
+
+Bundinha::page = (opts={}) ->
+  opts.backend = no
+  opts.BuildId = @BuildId
+  b = new Bundinha
+  b.readPackage()
+  Object.assign b, opts
+  await do b.build
+
 Bundinha::cmd_handle = ->
   try @readPackage()
   return do @cmd_init       if ( ARG.init is true )
@@ -85,25 +138,18 @@ Bundinha::cmd_handle = ->
   return do @cmd_push_clean if ( ARG.push and ARG.clean ) is true
   return do @cmd_push       if ( ARG.push is true )
   return do @cmd_deploy     if ( ARG.deploy is true )
-  console.log '------------------------------------'
-  console.log ' ', AppPackage.name.green  + '/'.gray + AppPackage.version.gray,
-              '['+ 'bundinha'.yellow + '/'.gray + BunPackage.version.gray+
-              ( '/dev'.red ) + ']'
-  console.log '------------------------------------'
+
   $$.$forge  = require 'node-forge'
-  @require 'bundinha/build/build'
-  @require 'bundinha/build/lib'
-  @require 'bundinha/build/scope'
-  @require 'bundinha/build/license'
-  @require 'bundinha/build/frontend'
-  @require 'bundinha/build/backend'
-  @require 'bundinha/backend/backend'
-  @require 'bundinha/backend/web'
-  @require 'bundinha/frontend'
-  do @loadDependencies
-  await do @prepareBuild
-  await do @build
-  # process.exit 0
+  @shared BuildId: @BuildId || SHA512 new Date
+  @BuildLog = BuildId.substring(0,6).yellow
+
+  nameLength = AppPackage.name.length
+  console.log '--------------------------------------' + ''.padStart(nameLength,'-')
+  console.log ' ', AppPackage.name.green  + '/'.gray + AppPackage.version.gray + '/' + BuildId.substring(0,7).magenta +
+              '['+ 'bundinha'.yellow + '/'.gray + BunPackage.version.gray +
+              ( '/dev'.red ) + ']'
+  console.log '--------------------------------------' + ''.padStart(nameLength,'-')
+  do @build
 
 Bundinha::cmd_init = ->
   @require 'bundinha/build/build'

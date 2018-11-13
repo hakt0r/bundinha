@@ -1,8 +1,14 @@
+
 # ██████   █████   ██████ ██   ██ ███████ ███    ██ ██████
 # ██   ██ ██   ██ ██      ██  ██  ██      ████   ██ ██   ██
 # ██████  ███████ ██      █████   █████   ██ ██  ██ ██   ██
 # ██   ██ ██   ██ ██      ██  ██  ██      ██  ██ ██ ██   ██
 # ██████  ██   ██  ██████ ██   ██ ███████ ██   ████ ██████
+
+@phase 'build',9999,=>
+  return if @backend is false
+  await do @buildBackend
+  return
 
 Bundinha::buildBackend = ->
   console.log ':build'.green, 'backend'.bold, @backendFile.yellow
