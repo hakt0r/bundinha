@@ -193,10 +193,10 @@ Bundinha::require = (file)->
 
 Bundinha.global = {}
 
-Bundinha.global.SHA512 = (value)->
+Bundinha.global.SHA512 = $$.SHA512 = (value)->
   $forge.md.sha512.create().update( value ).digest().toHex()
 
-Bundinha.global.SHA1 = (value)->
+Bundinha.global.SHA1 = $$.SHA1 = (value)->
   $forge.md.sha1.create().update( value ).digest().toHex()
 
 Bundinha.global.escapeHTML = (str)->
