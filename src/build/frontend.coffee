@@ -14,11 +14,23 @@ Bundinha::buildFrontend = ->
   console.log ':build'.green, 'frontend'.bold, @AssetDir.replace(WebDir,'').yellow, @htmlFile.bold
   @reqdir @AssetDir
 
+  # ███    ███  █████  ██ ███    ██ ███████ ███████ ███████ ████████
+  # ████  ████ ██   ██ ██ ████   ██ ██      ██      ██         ██
+  # ██ ████ ██ ███████ ██ ██ ██  ██ █████   █████   ███████    ██
+  # ██  ██  ██ ██   ██ ██ ██  ██ ██ ██      ██           ██    ██
+  # ██      ██ ██   ██ ██ ██   ████ ██      ███████ ███████    ██
+
   @manifest = @manifest ||
     name: AppName
     short_name: title
     theme_color: "black"
   @insert_manifest = ''
+
+  # ██      ██ ██████
+  # ██      ██ ██   ██
+  # ██      ██ ██████
+  # ██      ██ ██   ██
+  # ███████ ██ ██████
 
   scripts = @scriptScope.map (i)->
     unless $fs.existsSync i
@@ -33,9 +45,14 @@ Bundinha::buildFrontend = ->
     $$.debug = false;
   """
 
+  # ████████ ██████  ██      ███████
+  #    ██    ██   ██ ██      ██
+  #    ██    ██████  ██      ███████
+  #    ██    ██      ██           ██
+  #    ██    ██      ███████ ███████
+
   template = {}
   Object.assign template, tpl for tpl in @tplScope
-
   tpls  = '\n$$.$tpl = {};'
   for name, tpl of template
     if typeof tpl is 'function'
@@ -44,7 +61,13 @@ Bundinha::buildFrontend = ->
   tpls += "\n$$.#{name} = #{JSON.stringify tpl};" for name, tpl of @shared.constant
   tpls += "\n$$.BunWebWorker = #{JSON.stringify Object.keys(@webWorkerScope)};"
 
-  scripts.push tpls
+  scripts.push tpls unless @noTpl is true
+
+  # ███████  ██████ ██████  ██ ██████  ████████
+  # ██      ██      ██   ██ ██ ██   ██    ██
+  # ███████ ██      ██████  ██ ██████     ██
+  #      ██ ██      ██   ██ ██ ██         ██
+  # ███████  ██████ ██   ██ ██ ██         ██
 
   client = @clientScope
 
@@ -75,8 +98,7 @@ Bundinha::buildFrontend = ->
 
   { minify } = require 'uglify-es'
   scripts = scripts.join '\n'
-  # scripts = minify(scripts).code
-
+  scripts = minify(scripts).code if @minifyScripts is true
 
   workers = ( for name, src of @webWorkerScope
     # src = minify(src).code
@@ -87,16 +109,15 @@ Bundinha::buildFrontend = ->
   $fs.writeFileSync $path.join(@AssetDir,'manifest.json'), JSON.stringify @manifest
 
   # mainfestHash = contentHash @insert_manifest if @insert_manifest
-  scriptHash   = contentHash scripts
-  workerHash   = ''
-  workerHash   += "'" + contentHash(@serviceWorkerSource) + "'" if @serviceWorkerSource
-  workerHash   += " '" + contentHash(src) + "'" for name, src of @webWorkerScope
+  scriptHash = contentHash scripts
+  workerHash = ''
+  workerHash += "'" + contentHash(@serviceWorkerSource) + "'" if @serviceWorkerSource
+  workerHash += " '" + contentHash(src) + "'" for name, src of @webWorkerScope
 
   insert_scripts = ''
   insert_scripts += workers if workers
   insert_scripts += (
-    if @inlineScripts
-         """<script>#{scripts}</script>"""
+    if @inlineScripts then """<script>#{scripts}</script>"""
     else """<script src="app/app.js"></script>""" )
 
   #  ██████ ███████ ███████
@@ -105,7 +126,7 @@ Bundinha::buildFrontend = ->
   # ██           ██      ██
   #  ██████ ███████ ███████
 
-  stylesHash = ''
+  stylesHash = []
   insert_styles = ''
 
   styles = ( for css, opts of @cssScope
@@ -120,15 +141,19 @@ Bundinha::buildFrontend = ->
   .filter (i)-> i isnt false
   .join '\n'
 
-  console.log @htmlFile, styles
-  @cssFile = @cssFile || @htmlFile.replace(/.html$/,'') + '.css'
-  $fs.writeFileSync $path.join(@AssetDir,@cssFile), styles
+  if @minifyScripts is true
+    CleanCSS = require 'clean-css'
+    styles = (new CleanCSS {}).minify(styles).styles
 
-  insert_styles += (
-    if @inlineScripts then """<styles>#{styles}</styles>"""
-    else """<link rel=stylesheet href="app/#{@cssFile}"/>""" )
+  if styles.trim() isnt ''
+    @cssFile = @cssFile || @htmlFile.replace(/.html$/,'') + '.css'
+    $fs.writeFileSync $path.join(@AssetDir,@cssFile), styles
+    insert_styles += (
+      if @inlineStyles then """<styles>#{styles}</styles>"""
+      else """<link rel=stylesheet href="app/#{@cssFile}"/>""" )
+    stylesHash.push "''" + ( contentHash styles ) + "'"
 
-  stylesHash = contentHash styles
+  stylesHash = stylesHash.join ' '
 
   #  ██████ ███████ ██████
   # ██      ██      ██   ██

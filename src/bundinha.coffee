@@ -97,15 +97,14 @@ Bundinha::emphase = (key)->
 
 Bundinha::build = ->
   @require 'bundinha/build/build'
-  @require 'bundinha/build/lib'
   unless @frontend is false
-    @require 'bundinha/build/license'
     @require 'bundinha/build/frontend'
-    @require 'bundinha/frontend'
+    # @require 'bundinha/build/license'
+    # @require 'bundinha/frontend'
   unless @backend is false
     @require 'bundinha/build/backend'
     @require 'bundinha/backend/backend'
-    @require 'bundinha/backend/web'
+    # @require 'bundinha/backend/web'
   do @loadDependencies
 
   @htmlFile = @htmlFile || 'index.html'
@@ -231,6 +230,28 @@ Bundinha::require = (file)->
         scpt.split('\n')[line-3].substring(col+1).yellow
     process.exit 1
 
+#  █████  ██████  ██████   █████  ██    ██ ████████  ██████   ██████  ██      ███████
+# ██   ██ ██   ██ ██   ██ ██   ██  ██  ██     ██    ██    ██ ██    ██ ██      ██
+# ███████ ██████  ██████  ███████   ████      ██    ██    ██ ██    ██ ██      ███████
+# ██   ██ ██   ██ ██   ██ ██   ██    ██       ██    ██    ██ ██    ██ ██           ██
+# ██   ██ ██   ██ ██   ██ ██   ██    ██       ██     ██████   ██████  ███████ ███████
+
+Bundinha::arrayTools = ->
+  Object.defineProperties Array::,
+    trim:    get: -> return ( @filter (i)-> i? and i isnt false ) || []
+    random:  get: -> @[Math.round Math.random()*(@length-1)]
+    unique:  get: -> u={}; @filter (i)-> return u[i] = on unless u[i]; no
+    uniques: get: ->
+      u={}; result = @slice()
+      @forEach (i)->
+        result.remove i if u[i]
+        u[i] = on
+      result
+    remove:     enumerable:no, value: (v) -> @splice i, 1 if i = @indexOf v; @
+    pushUnique: enumerable:no, value: (v) -> @push v if -1 is @indexOf v
+    common:     enumerable:no, value: (b) -> @filter (i)-> -1 isnt b.indexOf i
+  return
+
 #  ██████  ██       ██████  ██████   █████  ██      ███████
 # ██       ██      ██    ██ ██   ██ ██   ██ ██      ██
 # ██   ███ ██      ██    ██ ██████  ███████ ██      ███████
@@ -239,13 +260,13 @@ Bundinha::require = (file)->
 
 Bundinha.global = {}
 
-Bundinha.global.SHA512 = $$.SHA512 = (value)->
+$$.SHA512 = (value)->
   $forge.md.sha512.create().update( value ).digest().toHex()
 
-Bundinha.global.SHA1 = $$.SHA1 = (value)->
+$$.SHA1 = (value)->
   $forge.md.sha1.create().update( value ).digest().toHex()
 
-Bundinha.global.escapeHTML = (str)->
+$$.escapeHTML = (str)->
   String(str)
   .replace /&/g,  '&amp;'
   .replace /</g,  '&lt;'
@@ -254,7 +275,7 @@ Bundinha.global.escapeHTML = (str)->
   .replace /'/g,  '&x27;'
   .replace /\//g, '&x2F;'
 
-Bundinha.global.toAttr = (str)->
+$$.toAttr = (str)->
   alphanumeric = /[a-zA-Z0-9]/
   ( for char in str
       if char.match alphanumeric then char
