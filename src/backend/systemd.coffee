@@ -1,5 +1,7 @@
 
 @command 'install-systemd', ->
+  try $cp.execSync('which systemctl')
+  catch e then return APP.command["install-initd"]()
   console.log 'install'.red, 'systemd.service'
   $fs.writeFileSync '/etc/systemd/system/' + AppPackage.name + '.service', """
     [Unit]
@@ -45,17 +47,21 @@
 
     case "$1" in
       start|restart)
+        test -f /run/#{AppPackage.name}.pid &&
         /etc/init.d/#{AppPackage.name} stop
         #{process.execPath} #{__filename} >/dev/null 2>&1 &
         echo $? > /run/#{AppPackage.name}.pid;;
       stop)
-        kill $(cat /run/#{AppPackage.name}.pid);;
+        kill $(cat /run/#{AppPackage.name}.pid 2>/dev/null) 2>/dev/null
+        rm /run/#{AppPackage.name}.pid
+        ;;
       *) echo "Usage: /etc/init.d/cinv {start|stop|restart}"; exit 1;;
     esac
     exit 0
   """
   $cp.execSync """
-    systemctl enable  #{AppPackage.name}
-    systemctl restart #{AppPackage.name}
+    chmod a+x /etc/init.d/#{AppPackage.name}
+    update-rc.d #{AppPackage.name} enable
+    /etc/init.d/#{AppPackage.name} restart
   """
   process.exit 0

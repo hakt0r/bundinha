@@ -106,7 +106,8 @@ Bundinha::buildBackend = ->
   p.bundinha = BunPackage.version
   p.name = p.name.replace /-devel$/,''
 
-  AppPackage.bin[AppPackageName + '-backend'] = './backend.js'
+  AppPackage.main = './backend.js'
+  AppPackage.bin[AppPackageName+'-backend'] = './backend.js'
   # AppPackage.scripts['install-systemd'] = """sudo npm -g i .; #{} install-systemd"""
 
   $fs.writeFileSync $path.join(RootDir,'build', @backendFile ), out

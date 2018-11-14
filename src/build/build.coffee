@@ -28,7 +28,7 @@ Bundinha::processAPI = (opts,apilist)->
         members.push sym.gray + key
     out
   for name, api of opts
-    debugger if name is 'MIME'
+    # debugger if name is 'MIME'
     func = api.toString()
     out = "\n$$.#{name} = #{func};"
     if api::? and typeof api is 'function'

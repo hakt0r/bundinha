@@ -20,11 +20,12 @@ Bundinha::buildFrontend = ->
   # ██  ██  ██ ██   ██ ██ ██  ██ ██ ██      ██           ██    ██
   # ██      ██ ██   ██ ██ ██   ████ ██      ███████ ███████    ██
 
-  @manifest = @manifest ||
-    name: AppName
-    short_name: title
-    theme_color: "black"
-  @insert_manifest = ''
+  unless @insert_manifest
+    @manifest = @manifest ||
+      name: AppName
+      short_name: title
+      theme_color: "black"
+    @insert_manifest = ''
 
   # ██      ██ ██████
   # ██      ██ ██   ██
@@ -79,8 +80,8 @@ Bundinha::buildFrontend = ->
         client.init += "\n(#{plug.clientInit.toString()})()"
       if plug.client?
         client.init += "\n#{module}.plugin[#{JSON.stringify name}] = #{plug.client.toString()};"
-      if plug.worker?
-        setInterval plug.worker, plug.interval || 1000 * 60 * 60
+      # if plug.worker?
+        # setInterval plug.worker, plug.interval || 1000 * 60 * 60
         # setTimeout plug.worker # TODO: oninit
     console.debug 'plugin'.green, module, list.join ' '
 

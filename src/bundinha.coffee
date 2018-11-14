@@ -148,7 +148,7 @@ Bundinha::cmd_handle = ->
               '['+ 'bundinha'.yellow + '/'.gray + BunPackage.version.gray +
               ( '/dev'.red ) + ']'
   console.log '--------------------------------------' + ''.padStart(nameLength,'-')
-  do @build
+  await do @build
 
 Bundinha::cmd_init = ->
   @require 'bundinha/build/build'
@@ -174,17 +174,23 @@ Bundinha::cmd_init = ->
 Bundinha::cmd_push = (final=yes)->
   [ url, user, host, path ] = @Deploy.url.match /^([^@]+)@([^:]+):(.*)$/
   process.stderr.write 'push'.yellow + ' ' + user.red.bold + '@' + host.green + ':' + path.gray
-  result = $cp.spawnSync 'rsync',['-avzhL','build/',@Deploy.url]
-  console.log if result.status is 0 then ' success'.green.bold else ' success'.red.bold
+  console.debug ['rsync','-avzhL','--exclude','node_modules/','build/',@Deploy.url].join(' ')
+  result = $cp.spawnSync 'rsync',['-avzhL','--exclude','node_modules/','build/',@Deploy.url] ,stdio:'inherit'
+  console.log if result.status is 0 then ' success'.green.bold else ' error'.red.bold
   process.exit result.status if final
 
 Bundinha::cmd_deploy = ->
   return $cp.spawnSync 'sh',['-c',@Deploy.command] if @Deploy.command
   @cmd_push no; [ url, user, host, path ] = @Deploy.url.match /^([^@]+)@([^:]+):(.*)$/
-  $cp.spawnSync 'ssh',[user+'@'+host,"""
-  cd '#{path}'; npm i -g .; #{AppPackageName}-backend install-nginx;
-  systemctl reload nginx; systemctl restart tix
+  process.stderr.write 'deploy'.yellow + ' ' + user.red.bold + '@' + host.green + ':' + path.gray
+  result = $cp.spawnSync 'ssh',[user+'@'+host,"""
+  cd '#{path}'; npm i -g .;
+  #{AppPackageName}-backend install-systemd;
+  #{AppPackageName}-backend install-nginx;
+  /etc/init.d/nginx restart;
+  which systemctl >/dev/null 2>&1 && systemctl restart #{AppPackageName} || /etc/init.d/#{AppPackageName} restart
   """], stdio:'inherit'
+  console.log if result.status is 0 then ' success'.green.bold else ' error'.red.bold
 
 Bundinha::cmd_push_clean = ->
   $cp.execSync """

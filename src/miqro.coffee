@@ -32,3 +32,5 @@ Bundinha::miqro = -> # aka. Vquery, VanillaJ and jFlat
     spec.findAll = (query)-> Array::slice.call @querySelectorAll query
     spec.map = (query,fn)-> Array::slice.call(@querySelectorAll query).map fn
   return
+
+@client init:@miqro
