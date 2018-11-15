@@ -42,6 +42,7 @@
     do APP.initDB
     return
   SHA512:SHA512
+  escapeHTML:escapeHTML
 
 @server.APP = class $app
 
