@@ -17,7 +17,7 @@ Bundinha::processAPI = (opts,apilist)->
         add = if code.match /^async / then 'async ' else ''
         xdd = if selector is '' then 'static ' + add else add
         regex = new RegExp "  #{xdd}#{key}\\("
-        if func.match regex
+        if code.match regex
           members.push sym.green + key
           continue
         code = code.replace /^[^(]+/, 'function ' + key
