@@ -1,4 +1,6 @@
 
+@require 'bundinha/build/frontend'
+
 Bundinha::font = (name,weight=400)->
   n = encodeURIComponent name
   w = encodeURIComponent weight

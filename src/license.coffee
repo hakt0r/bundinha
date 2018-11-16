@@ -1,4 +1,6 @@
 
+@require 'bundinha/build/frontend'
+
 @phase 'build',0,=>
   @NodeLicense = await @fetchLicense()
   await @buildLicense()

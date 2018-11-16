@@ -1,12 +1,8 @@
 
-# ██████   █████   ██████ ██   ██ ███████ ███    ██ ██████
-# ██   ██ ██   ██ ██      ██  ██  ██      ████   ██ ██   ██
-# ██████  ███████ ██      █████   █████   ██ ██  ██ ██   ██
-# ██   ██ ██   ██ ██      ██  ██  ██      ██  ██ ██ ██   ██
-# ██████  ██   ██  ██████ ██   ██ ███████ ██   ████ ██████
+return if @HasBackend is false
+@HasBackend = true
 
 @phase 'build',9999,=>
-  return if @backend is false
   await do @buildBackend
   return
 

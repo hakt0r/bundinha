@@ -1,12 +1,8 @@
 
-# ███████ ██████   ██████  ███    ██ ████████ ███████ ███    ██ ██████
-# ██      ██   ██ ██    ██ ████   ██    ██    ██      ████   ██ ██   ██
-# █████   ██████  ██    ██ ██ ██  ██    ██    █████   ██ ██  ██ ██   ██
-# ██      ██   ██ ██    ██ ██  ██ ██    ██    ██      ██  ██ ██ ██   ██
-# ██      ██   ██  ██████  ██   ████    ██    ███████ ██   ████ ██████
+return if @HasFrontend is false
+@HasFrontend = true
 
 @phase 'build',9999, =>
-  return if @frontend is false
   await do @buildFrontend
   return
 

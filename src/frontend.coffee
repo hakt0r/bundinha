@@ -7,9 +7,11 @@
 
 @client.init = ->
   try $$.$forge = forge
-  CONT = $ 'content'; NAVI = $ 'navigation'
-  $$$.body.append CONT = $.make '<content>'    unless CONT
-  $$$.body.append NAVI = $.make '<navigation>' unless NAVI
+  CONT = $ 'content'
+  NAVI = $ 'navigation'
+  BODY = $$$.body
+  BODY.append CONT = $.make '<content>'    unless CONT
+  BODY.append NAVI = $.make '<navigation>' unless NAVI
   return
 
 @require 'bundinha/button'

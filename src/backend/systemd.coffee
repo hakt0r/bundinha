@@ -1,4 +1,6 @@
 
+@require 'bundinha/backend/backend'
+
 @command 'install-systemd', ->
   try $cp.execSync('which systemctl')
   catch e then return APP.command["install-initd"]()

@@ -1,5 +1,6 @@
+
 @require 'bundinha/auth/auth'
-# a9883e62aeadf6709049ddda434e3d3ec041fec15b182c3f52609aa7ed50682d
+
 @config
   AdminUser: 'admin'
   AdminPassword: $forge.util.bytesToHex $forge.random.getBytes 32

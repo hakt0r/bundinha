@@ -1,4 +1,6 @@
 
+@require 'bundinha/frontend'
+
 @client.init = ->
   QR.write = qrcode
   QR.read  = jsQR

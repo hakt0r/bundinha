@@ -1,4 +1,6 @@
 
+@require 'bundinha/backend/web'
+
 @shared WebSockets:true
 
 # ██     ██ ███████ ██████  ███████  ██████   ██████ ██   ██ ███████ ████████

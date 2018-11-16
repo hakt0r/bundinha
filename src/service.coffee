@@ -1,4 +1,6 @@
 
+@require 'bundinha/build/frontend'
+
 @phase 'build',0, =>
   await do @buildServiceWorker
   return

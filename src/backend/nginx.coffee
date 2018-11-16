@@ -1,3 +1,7 @@
+
+@require 'bundinha/backend/backend'
+@require 'bundinha/backend/web'
+
 @server class NGINX
 
 @config

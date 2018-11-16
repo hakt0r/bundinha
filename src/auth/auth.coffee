@@ -5,9 +5,10 @@
 #      ██ ██      ██   ██  ██  ██  ██      ██   ██
 # ███████ ███████ ██   ██   ████   ███████ ██   ██
 
-@flag   'UseAuth'
-@db     'user'
-@db     'session'
+@require 'bundinha/db/level'
+@flag 'UseAuth'
+@db   'user'
+@db   'session'
 
 @server class User
   constructor:(opts={})-> Object.assign @record = {}, User.defaults(), opts

@@ -1,3 +1,4 @@
+
 @require 'bundinha/auth/auth'
 
 @public "/register", APP.denyAuth
