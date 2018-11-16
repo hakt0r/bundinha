@@ -53,6 +53,7 @@ $$.COM =
 $$.Bundinha = class Bundinha extends require 'events'
   constructor:(opts)->
     super()
+    @module = {}
     $$.BUND = @ unless $$.BUND?
     @requireScope = ['os','util','fs',['cp','child_process'],'path','level','colors',['forge','node-forge']]
     Object.assign @, opts
@@ -204,9 +205,11 @@ Bundinha::cmd_push_clean = ->
 # ██   ██ ███████  ██████   ██████  ██ ██   ██ ███████
 #                     ▀▀
 
-Bundinha::require = (file)->
+Bundinha::require = (query)->
+  file = query
+  return mod if mod = @module[query]
   unless module.paths.includes path = $path.join RootDir,'node_modules'
-     module.paths.push path
+    module.paths.push path
   mod = ( rest = file.split '/' ).shift()
   switch mod
     when 'bundinha'
@@ -222,8 +225,10 @@ Bundinha::require = (file)->
          scpt = $coffee.compile scpt, bare:on, filename:cfile
     else scpt = $fs.readFileSync file + '.js', 'utf8'
     func = new Function 'APP','require','__filename','__dirname',scpt
-    func.call @, @, require, file, $path.dirname file
+    @module[query] = => func.call @, @, require, file, $path.dirname file
+    do @module[query]
   catch error
+    @module[query] = false
     if error.stack
       line = parseInt error.stack.split('\n')[1].split(':')[1]
       col  = try parseInt error.stack.split('\n')[1].split(':')[2].split(')')[0] catch e then 0
