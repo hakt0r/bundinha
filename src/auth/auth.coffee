@@ -34,22 +34,24 @@ User.get = (id)-> new User JSON.parse await APP.user.get id
   user = await APP.user.get req.ID = id
   throw new Error 'Access denied: invalid session' unless ( req.USER = JSON.parse user )?
 
+@server.RequireGroupBare = (hasGroup,needsGroup)->
+  needsGroup.reduce ( (access,i)-> access or hasGroup.includes i ), no
+
 @server.RequireGroup = (req,group)->
-  in_group = (access,i)-> access or has_group.includes i
   user_id = req.USER.id
   if user_id is AdminUser and not req.USER.group
     req.USER.group = ['admin']
     APP.user.put user_id, JSON.stringify req.USER
-  has_group = req.USER.group
-  console.debug 'GROUP'.yellow, user_id, 'has:', has_group, 'needs:', group
-  DenyAuth 'Access denied: no groups'     unless has_group
-  DenyAuth 'Access denied: invalid group' unless group.reduce in_group, no
+  hasGroup = req.USER.group
+  console.debug 'GROUP'.yellow, user_id, 'has:', hasGroup, 'needs:', group
+  DenyAuth ': no groups'     unless hasGroup
+  DenyAuth ': invalid group' unless RequireGroupBare hasGroup, group
 
 @server.AuthSuccess = (q,req,res)->
   res.json success:true
 
-@server.DenyAuth = (reason)->
-  throw new Error 'Access Denied'
+@server.DenyAuth = (reason='')->
+  throw new Error 'Access Denied' + reason
 
 @server.Logout = (q,req,res)->
   try APP.session.del req.COOKIE

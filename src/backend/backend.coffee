@@ -104,9 +104,3 @@ $app.writeConfig = ->
     o = {}
     o[k] = $$[k] for k in @configKeys
     o ), null, 2
-
-$app.initDB = ->
-  for name, opts of APP.db
-    APP[name] = $level $path.join ConfigDir, name + '.db'
-    console.debug '::::db', ':' + name.bold
-  console.debug '::::db', 'ready'.green
