@@ -197,3 +197,47 @@ Bundinha::buildFrontend = ->
   #{insert_scripts}
   </html>"""
   console.verbose 'write'.green, @htmlPath.bold
+
+# ███████  ██████  ██████  ██████  ███████ ███████
+# ██      ██      ██    ██ ██   ██ ██      ██
+# ███████ ██      ██    ██ ██████  █████   ███████
+#      ██ ██      ██    ██ ██      ██           ██
+# ███████  ██████  ██████  ██      ███████ ███████
+
+@collectorScope 'client',  ['preinit','init']
+@collectorScope 'html',    ['head','body']
+
+@arrayScope.script = (args...)->
+  if $fs.existsSync p = $path.join.apply path, [RootDir].concat args
+    @scriptScope.push p
+  else if $fs.existsSync p = $path.join.apply path, [BunDir].concat args
+    @scriptScope.push p
+  else @scriptScope.push args[0]
+
+@arrayScope.tpl = (isglobal,objOfTemplates)->
+  if true is isglobal then Object.assign $$, objOfTemplates
+  else objOfTemplates = isglobal
+  objOfTemplates = {} unless objOfTemplates?
+  @tplScope.push objOfTemplates
+  objOfTemplates
+
+@scope.webWorker = (name,sources...)->
+  @client.init = ->
+    loadWorker = (name)->
+      src = document.getElementById(name).textContent
+      blob = new Blob [src], type: 'text/javascript'
+      $$[name] = new Worker window.URL.createObjectURL blob
+    loadWorker name for name in BunWebWorker
+    return
+  @webWorkerScope[name] = @compileSources sources
+
+@scope.css = (args...)->
+  if args[0].match and args[0].match /^href:/
+    @cssScope[args[0].substring 5] = 'href'
+  else if args[0] is true
+    @cssScope[args[1]] = args[2]
+  else
+    p = $path.join.apply path, args
+    @cssScope[p] = true
+
+@require 'bundinha/build/shared' if @HasBackend

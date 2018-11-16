@@ -1,3 +1,62 @@
+
+# ███████  ██████  ██████  ██████  ███████ ███████
+# ██      ██      ██    ██ ██   ██ ██      ██
+# ███████ ██      ██    ██ ██████  █████   ███████
+#      ██ ██      ██    ██ ██      ██           ██
+# ███████  ██████  ██████  ██      ███████ ███████
+
+@scopeScope = {}
+@collectorScope = (scope,hook,doSet)->
+  unless doSet or Array.isArray hook
+    doSet = hook
+    hook = []
+  @[hookName = scope + 'Hook'] = hook
+  scopeObject = @[scopeName = scope + 'Scope'] = {}
+  scopeObject[cat] = '' for cat in hook
+  @[scope] = new Proxy (->),
+    get: (_target,_prop)=>
+      return hook if _prop is '_hook'
+      scopeObject[_prop]
+    set: doSet = (_target,_prop,_value)=>
+      # console.log scope.yellow.bold, _prop.bold if scope is 'server'
+      if hook.includes _prop
+           # console.log _value
+           scopeObject[_prop] += _value.toBareCode()
+      else scopeObject[_prop]  = _value
+      true
+    apply: (_target,_this,_args)=>
+      [ obj ] = _args
+      return @[scope] unless obj?
+      name = obj.name
+      if obj::?
+           doSet null, name, @[scope][name] = obj
+      else doSet null, k,    v     for k,v of obj
+      @[scope]
+
+@scope = new Proxy(
+  (name, addFunction)=>
+    scopeName = name + 'Scope'
+    addFunction = addFunction || ( (key,value)=> @[scopeName][key] = value )
+    @scopeScope[name] = scopeObject = @[scopeName] = @[scopeName] || {}
+    @[name] = new Proxy addFunction,
+      get: (_target,_prop)=> @[scopeName][_prop]
+      set: (_target,_prop,_value)=> @[name] _prop, _value; true
+  get: (_target,_prop)=> @[_prop + 'Scope']
+  set: (_target,_prop,_value)=> @scope _prop, _value; true )
+
+@arrayScope = new Proxy(
+  (name, pushFunction)->
+    scopeName = name + 'Scope'
+    pushFunction = pushFunction || ( (value)=> @[scopeName].push value )
+    @scopeScope[name] = @[scopeName] = @[scopeName] || []
+    @[name] = pushFunction
+  get: (_target,_prop)=> @[_prop + 'Scope']
+  set: (_target,_prop,_value)=> @arrayScope _prop, _value; true )
+
+@require 'bundinha/build/backend'
+@require 'bundinha/build/frontend'
+@require 'bundinha/build/shared'
+
 # ██████  ██    ██ ██ ██      ██████
 # ██   ██ ██    ██ ██ ██      ██   ██
 # ██████  ██    ██ ██ ██      ██   ██

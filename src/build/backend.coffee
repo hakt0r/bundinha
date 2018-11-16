@@ -113,3 +113,43 @@ Bundinha::buildBackend = ->
     $cp.execSync 'cd build; npm i'
 
   return
+
+# ███████  ██████  ██████  ██████  ███████ ███████
+# ██      ██      ██    ██ ██   ██ ██      ██
+# ███████ ██      ██    ██ ██████  █████   ███████
+#      ██ ██      ██    ██ ██      ██           ██
+# ███████  ██████  ██████  ██      ███████ ███████
+
+@collectorScope 'server', ['preinit','init']
+@scope 'command'
+@scope 'group'
+
+@scope.get = (path,group,callback)->
+  unless callback
+    callback = group
+    group = false
+  path = path.toString() if path.exec?
+  @getScope[path] = callback
+  @groupScope[path]   = group
+
+@scope.public = (path,callback)->
+  @publicScope[path] = callback
+  @groupScope[path]  = false
+
+@scope.private = (path,group,callback)->
+  unless callback
+    callback = group
+    group = false
+  @privateScope[path] = callback
+  @groupScope[path]   = group
+
+@scope.group = (path,group)->
+  @groupScope[path] = group
+
+@scope.devConfig = (obj)->
+  Object.assign @, obj
+  Object.assign @configScope, obj
+@scope.config = (obj)->
+  Object.assign @configScope, obj
+
+@require 'bundinha/build/shared' if @HasFrontend

@@ -58,7 +58,7 @@ $$.Bundinha = class Bundinha extends require 'events'
     @requireScope = ['os','util','fs',['cp','child_process'],'path','level','colors',['forge','node-forge']]
     Object.assign @, opts
     @phaseList = []
-    @require 'bundinha/scope'
+    @require 'bundinha/build/build'
     return
 
 Bundinha::parseConfig = (args...)->
@@ -97,15 +97,7 @@ Bundinha::emphase = (key)->
   return
 
 Bundinha::build = ->
-  @require 'bundinha/build/build'
-  unless @frontend is false
-    @require 'bundinha/build/frontend'
-    # @require 'bundinha/build/license'
-    # @require 'bundinha/frontend'
-  unless @backend is false
-    @require 'bundinha/build/backend'
-    @require 'bundinha/backend/backend'
-    # @require 'bundinha/backend/web'
+  @require 'bundinha/backend/backend' unless @backend  is false
   do @loadDependencies
 
   @htmlFile = @htmlFile || 'index.html'
