@@ -2,7 +2,7 @@
 repo = $path.join BunDir,'node_modules','@fortawesome','fontawesome-free','svgs'
 dest = $path.join BuildDir,'fontawesome.css'
 
-css = """
+@css """
 .fa,.faw { position: relative; min-width:2.5em; }
 .fa span, .faw span { display:none; }
 .fa:before,.faw:before {
@@ -29,7 +29,5 @@ css = """
     .trim()
   ).toString('utf8') + '\'); }'
 ).join '\n'
-
-APP.css true, 'fontawesome', css
 
 console.debug ':icons'.green, Object.keys(ICON).join(' ').gray

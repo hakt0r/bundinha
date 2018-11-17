@@ -6,8 +6,8 @@
   QR.read  = jsQR
   return
 
-@script $path.join BunDir,'node_modules','qrcode-generator','qrcode.js'
-@script $path.join BunDir,'node_modules','jsqr','dist','jsQR.js'
+@script [[BunDir,'node_modules','qrcode-generator','qrcode.js']]
+@script [[BunDir,'node_modules','jsqr','dist','jsQR.js']]
 
 #  ██████  ██████  ██      ██ ██████
 # ██    ██ ██   ██ ██      ██ ██   ██

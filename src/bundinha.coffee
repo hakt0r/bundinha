@@ -12,10 +12,12 @@ require 'colors'
 
 global.$$ = global
 
-$$.$fs   = require 'fs'
-$$.$cp   = require 'child_process'
-$$.$path = require 'path'
-$$.$util = require 'util'
+$$.$os    = require 'os'
+$$.$fs    = require 'fs'
+$$.$cp    = require 'child_process'
+$$.$path  = require 'path'
+$$.$util  = require 'util'
+$$.$forge = require 'node-forge'
 
 $$.ENV = process.env
 $$.ARG = process.argv.filter (v)-> not v.match /^-/
@@ -25,6 +27,7 @@ for v in ( process.argv.filter (v)-> v.match /^-/ )
 $$.RootDir   = ENV.APP      || process.cwd()
 $$.ConfigDir = ENV.CONF     || $path.join RootDir, 'config'
 $$.BuildDir  = ENV.BASE     || $path.join RootDir, 'build'
+$$.TempDir   = ENV.TEMP     || $path.join $os.tmpdir(), 'bundinha'
 $$.BunDir    = ENV.BUNDINHA || $path.dirname $path.dirname __filename
 $$.WebDir    = ENV.HTML     || $path.join BuildDir, 'html'
 
@@ -58,6 +61,8 @@ $$.Bundinha = class Bundinha extends require 'events'
     @requireScope = ['os','util','fs',['cp','child_process'],'path','level','colors',['forge','node-forge']]
     Object.assign @, opts
     @phaseList = []
+    @reqdir  TempDir
+    @reqdir  BuildDir
     @require 'bundinha/build/build'
     return
 
@@ -90,10 +95,8 @@ Bundinha::emphase = (key)->
   list = @phaseList
     .filter (o)-> o.k is key
     .sort (a,b)-> a.p - b.p
-  for o in list
-    console.debug ':phase'.yellow, key.bold, o.p, o.f.toBareCode().trim().split('\n')[0].gray
-    await o.f.call @
-    console.debug ':phase'.green, key.bold, o.p, o.f.toBareCode().trim().split('\n')[0].gray
+  console.debug ':phase'.green, key.bold
+  await Promise.all list.map (o)-> new Promise (r)-> r await o.f.call @
   return
 
 Bundinha::build = ->
@@ -104,12 +107,11 @@ Bundinha::build = ->
   @htmlPath = $path.join WebDir, @htmlFile
   @backendFile = @backendFile || 'backend.js'
   console.verbose ':build'.green, @htmlFile
-
-  @reqdir  BuildDir
   @reqdir  $path.join BuildDir, 'html'
   @require @sourceFile || $path.join AppPackageName, AppPackageName
   @WebRoot  = $path.join RootDir,'build','html'
-  @AssetDir = $path.join RootDir,'build','html','app'
+  @AssetURL = '/app'
+  @AssetDir = $path.join RootDir,'build','html', @AssetURL
 
   await @emphase 'build:pre'
   await @emphase 'build'
@@ -131,7 +133,6 @@ Bundinha::cmd_handle = ->
   return do @cmd_push       if ( ARG.push is true )
   return do @cmd_deploy     if ( ARG.deploy is true )
 
-  $$.$forge  = require 'node-forge'
   @shared BuildId: @BuildId || SHA512 new Date
   @BuildLog = BuildId.substring(0,6).yellow
 
@@ -212,13 +213,26 @@ Bundinha::require = (query)->
       file = $path.join RootDir, 'src', rest.join '/'
     else return require file
   try
-    if $fs.existsSync cfile = file + '.coffee'
-         scpt = $fs.readFileSync cfile, 'utf8'
-         scpt = $coffee.compile scpt, bare:on, filename:cfile
-    else scpt = $fs.readFileSync file + '.js', 'utf8'
+    compile = =>
+      console.debug "::brew".yellow, cfile.bold
+      scpt = $fs.readFileSync cfile, 'utf8'
+      scpt = $coffee.compile scpt, bare:on, filename:cfile
+      $fs.writeFileSync cache, scpt
+      @touch.sync cache, ref:cfile
+      scpt
+    scpt = (
+      cacheExists = $fs.existsSync cache = $path.join TempDir, hash = SHA1 cfile = file + '.coffee'
+      sourceExists = $fs.existsSync cfile
+      if cacheExists and sourceExists
+        c = $fs.statSync cache
+        s = $fs.statSync cfile
+        if c.mtime.toString().trim() is s.mtime.toString().trim()
+          $fs.readFileSync cache, 'utf8'
+        else compile()
+      else if sourceExists then compile()
+      else $fs.readFileSync file + '.js', 'utf8' )
     func = new Function 'APP','require','__filename','__dirname',scpt
-    @module[query] = => func.call @, @, require, file, $path.dirname file
-    do @module[query]
+    do @module[query] = => func.call @, @, require, file, $path.dirname file
   catch error
     @module[query] = false
     if error.stack
@@ -231,43 +245,34 @@ Bundinha::require = (query)->
         scpt.split('\n')[line-3].substring(0,col-2).yellow
         scpt.split('\n')[line-3].substring(col-1,col).red
         scpt.split('\n')[line-3].substring(col+1).yellow
+      console.error ' ', error
+    catch e then console.error error
     process.exit 1
 
-#  █████  ██████  ██████   █████  ██    ██ ████████  ██████   ██████  ██      ███████
-# ██   ██ ██   ██ ██   ██ ██   ██  ██  ██     ██    ██    ██ ██    ██ ██      ██
-# ███████ ██████  ██████  ███████   ████      ██    ██    ██ ██    ██ ██      ███████
-# ██   ██ ██   ██ ██   ██ ██   ██    ██       ██    ██    ██ ██    ██ ██           ██
-# ██   ██ ██   ██ ██   ██ ██   ██    ██       ██     ██████   ██████  ███████ ███████
-
-Bundinha::arrayTools = ->
-  Object.defineProperties Array::,
-    trim:    get: -> return ( @filter (i)-> i? and i isnt false ) || []
-    random:  get: -> @[Math.round Math.random()*(@length-1)]
-    unique:  get: -> u={}; @filter (i)-> return u[i] = on unless u[i]; no
-    uniques: get: ->
-      u={}; result = @slice()
-      @forEach (i)->
-        result.remove i if u[i]
-        u[i] = on
-      result
-    remove:     enumerable:no, value: (v) -> @splice i, 1 if i = @indexOf v; @
-    pushUnique: enumerable:no, value: (v) -> @push v if -1 is @indexOf v
-    common:     enumerable:no, value: (b) -> @filter (i)-> -1 isnt b.indexOf i
-  return
-
-#  ██████  ██       ██████  ██████   █████  ██      ███████
-# ██       ██      ██    ██ ██   ██ ██   ██ ██      ██
-# ██   ███ ██      ██    ██ ██████  ███████ ██      ███████
-# ██    ██ ██      ██    ██ ██   ██ ██   ██ ██           ██
-#  ██████  ███████  ██████  ██████  ██   ██ ███████ ███████
-
-Bundinha.global = {}
+# ████████  ██████   ██████  ██      ███████
+#    ██    ██    ██ ██    ██ ██      ██
+#    ██    ██  █ ██ ██ █  ██ ██      ███████
+#    ██    ██    ██ ██    ██ ██           ██
+#    ██     ██████   ██████  ███████ ███████
 
 $$.SHA512 = (value)->
   $forge.md.sha512.create().update( value ).digest().toHex()
 
 $$.SHA1 = (value)->
   $forge.md.sha1.create().update( value ).digest().toHex()
+
+String::toBareCode = -> @
+
+Function::toCode = ->
+  '('+ @toString().replace(/\n[ ]{4}/g,'\n') + '());\n'
+
+Function::toBareCode = ->
+  code = @toString()
+  .replace(/^[^\{]+{/,'')
+  .replace(/\n[ ]{4}/g,'\n')
+  .replace(/^return /,'')
+  .replace(/}$/,'')
+  code
 
 $$.escapeHTML = (str)->
   String(str)
@@ -284,3 +289,101 @@ $$.toAttr = (str)->
       if char.match alphanumeric then char
       else '&#' + char.charCodeAt(0).toString(16) + ';'
   ).join ''
+$$.contentHash = (data)->
+  # """sha256-#{$forge.util.encode64 $forge.md.sha256.create().update(data).digest().bytes()}"""
+  """sha256-#{require('crypto').createHash('sha256').update(data).digest().toString 'base64'}"""
+
+$$.contentHashFile = (path)->
+  contentHash $fs.readFileSync path, 'utf8'
+
+$$.accessor = (key)->
+  return ".#{key}" if key.match /^[a-z0-9_]+$/i
+  return "[#{JSON.stringify key}]"
+
+do Bundinha::arrayTools = ->
+  Object.defineProperties Array::,
+    trim:    get: -> return ( @filter (i)-> i? and i isnt false ) || []
+    random:  get: -> @[Math.round Math.random()*(@length-1)]
+    unique:  get: -> u={}; @filter (i)-> return u[i] = on unless u[i]; no
+    uniques: get: ->
+      u={}; result = @slice()
+      @forEach (i)->
+        result.remove i if u[i]
+        u[i] = on
+      result
+    remove:     enumerable:no, value: (v) -> @splice i, 1 if i = @indexOf v; @
+    pushUnique: enumerable:no, value: (v) -> @push v if -1 is @indexOf v
+    common:     enumerable:no, value: (b) -> @filter (i)-> -1 isnt b.indexOf i
+  return
+
+Bundinha::loadDependencies = ->
+  for dep in @requireScope
+    if Array.isArray dep
+      $$[dep[0]] = require dep[1]
+    else $$[dep] = require dep
+  return
+
+Bundinha::touch = require 'touch'
+
+Bundinha::symlink = (src,dst)->
+  ok = -> console.debug '::link'.green, $path.basename(src).yellow, '->'.yellow, dst.bold
+  return do ok if $fs.existsSync dst
+  return do ok if $fs.symlinkSync src, dst
+
+Bundinha::linkFile = (src,dest)->
+  $fs.linkSync src, dest unless $fs.existsSync dest
+  console.debug '::link'.green, $path.basename(dest).bold
+
+Bundinha::reqdir = (dst...) ->
+  dst = $path.join.apply $path, dst
+  ok = -> console.debug ':::dir'.green, $path.basename(dst).yellow
+  return do ok if $fs.existsSync dst
+  return do ok if $fs.mkdirSync dst
+
+Bundinha::compileSources = (sources)->
+  out = ''
+  for source in sources
+    if typeof source is 'function'
+      source = source.toString().split '\n'
+      source.shift(); source.pop(); source.pop()
+      source = source.join '\n'
+      out += source
+    else if Array.isArray source
+      source = $path.join.apply $path, source if Array.isArray source
+      if source.match /.coffee$/
+           out += $coffee.compile ( $fs.readFileSync source, 'utf8' ), bare:on
+      else out += $fs.readFileSync source, 'utf8'
+    else if typeof source is 'string'
+      out += source;
+    else throw new Error 'source of unhandled type', typeof source
+  out
+
+Bundinha::fetchAsset = (file,url)->
+  if $fs.existsSync file
+    console.debug ":asset".green, file.bold, url.gray
+    Promise.resolve $fs.readFileSync file, 'utf8'
+  else new Promise (resolve,reject)->
+    console.debug ":asset".yellow, file.bold, url.gray
+    data = ''
+    require('https').get url, (resp)->
+      resp.on 'data', (chunk) -> data += chunk.toString()
+      resp.on 'end', ->
+        $fs.writeFileSync file, data
+        resolve data
+      resp.on 'error ', -> do reject
+
+Bundinha::loadAsset = (path)->
+  path = $path.join.apply $path, path if Array.isArray path
+  throw new Error 'NOT IMPLEMENTED YET' if path.match /https?:/
+  file = $path.join @AssetURL, $path.basename path
+  dest = $path.join @AssetDir, $path.basename path
+  console.debug ' LOAD '.red.inverse,  file path
+  $fs.readFileSync path, 'utf8'
+
+Bundinha::linkAsset = (path)->
+  path = $path.join.apply $path, path if Array.isArray path
+  throw new Error 'NOT IMPLEMENTED YET' if path.match /https?:/
+  file = $path.join @AssetURL, $path.basename path
+  dest = $path.join @AssetDir, $path.basename path
+  @linkFile path, $path.join WebDir, file
+  [ file, $fs.readFileSync dest, 'utf8' ]

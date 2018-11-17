@@ -1,30 +1,19 @@
 
-@require 'bundinha/build/frontend'
-
-@phase 'build',0,=>
-  @NodeLicense = await @fetchLicense()
-  await @buildLicense()
-  return
-
 # ██      ██  ██████ ███████ ███    ██ ███████ ███████
 # ██      ██ ██      ██      ████   ██ ██      ██
 # ██      ██ ██      █████   ██ ██  ██ ███████ █████
 # ██      ██ ██      ██      ██  ██ ██      ██ ██
 # ███████ ██  ██████ ███████ ██   ████ ███████ ███████
 
-Bundinha::fetchLicense = -> new Promise (resolve,reject)->
+@phase 'build:pre',0, @fetchLicense = =>
   console.log = console.error = -> # HACK: suppress legally's verbosity
   @npmLicenses = await require 'legally'
   console.log = console._log; console.error = console._err # HACK: suppress legally's verbosity
-  nodeLicenseURL = "https://raw.githubusercontent.com/nodejs/node/master/LICENSE"
-  data = ''
-  require 'https'
-  .get nodeLicenseURL, (resp)->
-    resp.on 'data', (chunk) -> data += chunk.toString()
-    resp.on 'end', -> resolve data
-    resp.on 'error ', -> do reject
+  @nodeLicenses = await @fetchAsset(
+    $path.join BuildDir,'LICENSE.node'
+    "https://raw.githubusercontent.com/nodejs/node/master/LICENSE" )
 
-Bundinha::buildLicense = ->
+@phase 'build',0, @buildLicense = =>
   npms = ( for name, pkg of @npmLicenses
     [match,link,version] = name.match /(.*)@([^@]+)/
     shortName = link.split('/').pop()
@@ -42,7 +31,7 @@ Bundinha::buildLicense = ->
     <table class="npms">#{npms}</table>
     <h2>nodejs and dependencies</h2>
   """
-  data = @NodeLicense
+  data = @nodeLicenses
   data = data.replace /</g, '&lt;'
   data = data.replace />/g, '&gt;'
   data = data.replace /, is licensed as follows/g, ''
@@ -62,6 +51,6 @@ Bundinha::buildLicense = ->
       out += segment.trim().replace(/^ *- */,'')
       mode = off
   html += out
-  tpl = @tpl()
-  tpl.AppPackageLicense = html
+
+  @client.AppPackageLicense = html
   console.verbose 'format'.green, 'license'.bold

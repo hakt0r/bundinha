@@ -2,224 +2,66 @@
 return if @HasFrontend is false
 @HasFrontend = true
 
-@phase 'build',9999, =>
-  await do @buildFrontend
-  return
+# ██████  ██    ██ ██ ██      ██████
+# ██   ██ ██    ██ ██ ██      ██   ██
+# ██████  ██    ██ ██ ██      ██   ██
+# ██   ██ ██    ██ ██ ██      ██   ██
+# ██████   ██████  ██ ███████ ██████
 
-Bundinha::buildFrontend = ->
-  console.log ':build'.green, 'frontend'.bold, @AssetDir.replace(WebDir,'').yellow, @htmlFile.bold
+@phase 'build',0, =>
+  @reqdir WebDir
   @reqdir @AssetDir
-
-  # ███    ███  █████  ██ ███    ██ ███████ ███████ ███████ ████████
-  # ████  ████ ██   ██ ██ ████   ██ ██      ██      ██         ██
-  # ██ ████ ██ ███████ ██ ██ ██  ██ █████   █████   ███████    ██
-  # ██  ██  ██ ██   ██ ██ ██  ██ ██ ██      ██           ██    ██
-  # ██      ██ ██   ██ ██ ██   ████ ██      ███████ ███████    ██
-
-  unless @insert_manifest
-    @manifest = @manifest ||
-      name: AppName
-      short_name: title
-      theme_color: "black"
-    @insert_manifest = ''
-
-  # ██      ██ ██████
-  # ██      ██ ██   ██
-  # ██      ██ ██████
-  # ██      ██ ██   ██
-  # ███████ ██ ██████
-
-  scripts = @scriptScope.map (i)->
-    unless $fs.existsSync i
-      console.debug 'script'.red, i
-      return i
-    console.debug 'script'.green, i
-    $fs.readFileSync i
-
-  scripts.push """
-    window.$$ = window;
-    $$.isServer = ! ( $$.isClient = true );
-    $$.debug = false;
-  """
-
-  # ████████ ██████  ██      ███████
-  #    ██    ██   ██ ██      ██
-  #    ██    ██████  ██      ███████
-  #    ██    ██      ██           ██
-  #    ██    ██      ███████ ███████
-
-  template = {}
-  Object.assign template, tpl for tpl in @tplScope
-  tpls  = '\n$$.$tpl = {};'
-  for name, tpl of template
-    if typeof tpl is 'function'
-         tpls += "\n$tpl.#{name} = #{tpl.toString()};"
-    else tpls += "\n$tpl.#{name} = #{JSON.stringify tpl};"
-  tpls += "\n$$.#{name} = #{JSON.stringify tpl};" for name, tpl of @shared.constant
-  tpls += "\n$$.BunWebWorker = #{JSON.stringify Object.keys(@webWorkerScope)};"
-
-  scripts.push tpls unless @noTpl is true
-
-  # ███████  ██████ ██████  ██ ██████  ████████
-  # ██      ██      ██   ██ ██ ██   ██    ██
-  # ███████ ██      ██████  ██ ██████     ██
-  #      ██ ██      ██   ██ ██ ██         ██
-  # ███████  ██████ ██   ██ ██ ██         ██
-
-  client = @clientScope
-
-  for module, plugs of @pluginScope
-    list = []
-    client.init += "\n#{module}.plugin = {};"
-    for name, plug of plugs
-      if plug.clientInit
-        client.init += "\n(#{plug.clientInit.toString()})()"
-      if plug.client?
-        client.init += "\n#{module}.plugin[#{JSON.stringify name}] = #{plug.client.toString()};"
-      # if plug.worker?
-        # setInterval plug.worker, plug.interval || 1000 * 60 * 60
-        # setTimeout plug.worker # TODO: oninit
-    console.debug 'plugin'.green, module, list.join ' '
-
-  hook = {}
-  for name in ['preinit','init']
-    hook[name] = client[name] || ''
-    delete client[name]
-  scripts.push @processAPI @shared.function, apilist = []
-  scripts.push @processAPI client, apilist
-  scripts.push 'setTimeout(async ()=>{' +
-    [hook.preinit,hook.init].join('\n') +
-    '});'
-
-  console.debug 'client'.green, apilist.join(' ').gray
-
-  { minify } = require 'uglify-es'
-  scripts = scripts.join '\n'
-  scripts = minify(scripts).code if @minifyScripts is true
-
-  workers = ( for name, src of @webWorkerScope
-    # src = minify(src).code
-    """<script id="#{name}" type="text/js-worker">#{src}</script>"""
-  ).join '\n'
-
-  $fs.writeFileSync $path.join(@AssetDir,'app.js'), scripts
-  $fs.writeFileSync $path.join(@AssetDir,'manifest.json'), JSON.stringify @manifest
-
-  # mainfestHash = contentHash @insert_manifest if @insert_manifest
-  scriptHash = contentHash scripts
-  workerHash = ''
-  workerHash += "'" + contentHash(@serviceWorkerSource) + "'" if @serviceWorkerSource
-  workerHash += " '" + contentHash(src) + "'" for name, src of @webWorkerScope
-
-  insert_scripts = ''
-  insert_scripts += workers if workers
-  insert_scripts += (
-    if @inlineScripts then """<script>#{scripts}</script>"""
-    else """<script src="app/app.js"></script>""" )
-
-  #  ██████ ███████ ███████
-  # ██      ██      ██
-  # ██      ███████ ███████
-  # ██           ██      ██
-  #  ██████ ███████ ███████
-
-  stylesHash = []
-  insert_styles = ''
-
-  styles = ( for css, opts of @cssScope
-    if opts is true
-      console.log ':::css'.green, css
-      $fs.readFileSync css, 'utf8'
-    else if opts is 'href'
-      insert_styles += """<link rel=stylesheet href="#{css}"/>"""
-      false
-    else opts
-  )
-  .filter (i)-> i isnt false
-  .join '\n'
-
-  if @minifyScripts is true
-    CleanCSS = require 'clean-css'
-    styles = (new CleanCSS {}).minify(styles).styles
-
-  if styles.trim() isnt ''
-    @cssFile = @cssFile || @htmlFile.replace(/.html$/,'') + '.css'
-    $fs.writeFileSync $path.join(@AssetDir,@cssFile), styles
-    insert_styles += (
-      if @inlineStyles then """<styles>#{styles}</styles>"""
-      else """<link rel=stylesheet href="app/#{@cssFile}"/>""" )
-    stylesHash.push "''" + ( contentHash styles ) + "'"
-
-  stylesHash = stylesHash.join ' '
-
-  #  ██████ ███████ ██████
-  # ██      ██      ██   ██
-  # ██      ███████ ██████
-  # ██           ██ ██
-  #  ██████ ███████ ██
-
-  insert_websocket = ''
-  insert_websocket = ' wss:' if WebSockets?
+@phase 'build',9999, =>
+  console.log ':build'.green, 'frontend'.bold, @AssetURL.yellow, @htmlFile.bold
+  await @emphase 'build:frontend:pre'
+  await @emphase 'build:frontend'
+  @insertWebsocket = ''
+  @insertWebsocket = ' wss:' if WebSockets?
   @insert_policy = """<meta http-equiv="Content-Security-Policy" content="
   default-src  'self';
   manifest-src 'self' https:;
-  connect-src  'self'#{insert_websocket};
+  connect-src  'self'#{@insertWebsocket};
   img-src      'self' blob: data: https:;
   media-src    'self' blob: data: https:;
   style-src    'self' 'unsafe-inline';
-  script-src   'self' '#{scriptHash}' https:;
-  worker-src   'self' #{workerHash} blob: https:;
+  script-src   'self' #{@scriptHash} https:;
+  worker-src   'self' #{@workerHash} blob: https:;
   frame-src    'self' ;"/>"""
-  # style-src    'self' 'unsafe-inline' '#{stylesHash}' app/;
+  # style-src    'self' 'unsafe-inline' '#{@stylesHash}' app/;
   ## FF is very strict about styles and csp
-
-  unless @htmlScope.body then @html 'body', """
-    <navigation></navigation>
-    <content>
-      <center>JavaScript is required.</center>
-    </content>"""
-
+  unless @htmlScope.body then @html.body = """
+    <navigation></navigation><content><center>JavaScript is required.</center></content>"""
   $fs.writeFileSync @htmlPath, $body = """
-  <!DOCTYPE html>
-  <html>
-  <head>
+  <!DOCTYPE html><html><head>
     <meta charset="utf-8"/>
     <title>#{AppName}</title>
     <meta name="description" content="#{@description}"/>
     <meta name="theme-color" content="#{@manifest.theme_color}"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    #{@insert_policy}
-    #{@insert_manifest}
-    #{@htmlScope.head}
-  </head>
-  <body>#{@htmlScope.body}</body>
-  #{insert_styles}
-  #{insert_scripts}
-  </html>"""
+  #{@insert_policy}#{@insertManifest}#{@htmlScope.head}#{@insertStyles}#{@insertWorkers}#{@insertScripts}
+  </head><body>#{@htmlScope.body}</body></html>"""
   console.verbose 'write'.green, @htmlPath.bold
 
-# ███████  ██████  ██████  ██████  ███████ ███████
-# ██      ██      ██    ██ ██   ██ ██      ██
-# ███████ ██      ██    ██ ██████  █████   ███████
-#      ██ ██      ██    ██ ██      ██           ██
-# ███████  ██████  ██████  ██      ███████ ███████
+# ██   ██ ████████ ███    ███ ██
+# ██   ██    ██    ████  ████ ██
+# ███████    ██    ██ ████ ██ ██
+# ██   ██    ██    ██  ██  ██ ██
+# ██   ██    ██    ██      ██ ███████
 
-@collectorScope 'client',  ['preinit','init']
-@collectorScope 'html',    ['head','body']
+@collectorScope 'html', ['head','body'],
+  (scopeObject, hook)->
+    (target,prop,value)=>
+      console.log 'html'.yellow.bold, scopeObject, prop.bold, value
+      value = ( await @loadAsset path for path in value ).join '\n' if Array.isArray value
+      if hook.includes prop then scopeObject[prop] += value
+      else                        scopeObject[prop]  = value
+      true
 
-@arrayScope.script = (args...)->
-  if $fs.existsSync p = $path.join.apply path, [RootDir].concat args
-    @scriptScope.push p
-  else if $fs.existsSync p = $path.join.apply path, [BunDir].concat args
-    @scriptScope.push p
-  else @scriptScope.push args[0]
-
-@arrayScope.tpl = (isglobal,objOfTemplates)->
-  if true is isglobal then Object.assign $$, objOfTemplates
-  else objOfTemplates = isglobal
-  objOfTemplates = {} unless objOfTemplates?
-  @tplScope.push objOfTemplates
-  objOfTemplates
+# ██     ██  ██████  ██████  ██   ██ ███████ ██████
+# ██     ██ ██    ██ ██   ██ ██  ██  ██      ██   ██
+# ██  █  ██ ██    ██ ██████  █████   █████   ██████
+# ██ ███ ██ ██    ██ ██   ██ ██  ██  ██      ██   ██
+#  ███ ███   ██████  ██   ██ ██   ██ ███████ ██   ██
 
 @scope.webWorker = (name,sources...)->
   @client.init = ->
@@ -231,13 +73,143 @@ Bundinha::buildFrontend = ->
     return
   @webWorkerScope[name] = @compileSources sources
 
-@scope.css = (args...)->
-  if args[0].match and args[0].match /^href:/
-    @cssScope[args[0].substring 5] = 'href'
-  else if args[0] is true
-    @cssScope[args[1]] = args[2]
-  else
-    p = $path.join.apply path, args
-    @cssScope[p] = true
+@phase 'build:frontend',0,=>
+  @insertWorkers = ( for name, src of @webWorkerScope
+    # src = minify(src).code
+    """<script id="#{name}" type="text/js-worker">#{src}</script>"""
+  ).join '\n'
+  @workerHash = ''
+  @workerHash += "'" + contentHash(@serviceWorkerSource) + "'" if @serviceWorkerSource
+  @workerHash += " '" + contentHash(src) + "'" for name, src of @webWorkerScope
 
-@require 'bundinha/build/shared' if @HasBackend
+# ███████  ██████ ██████  ██ ██████  ████████
+# ██      ██      ██   ██ ██ ██   ██    ██
+# ███████ ██      ██████  ██ ██████     ██
+#      ██ ██      ██   ██ ██ ██         ██
+# ███████  ██████ ██   ██ ██ ██         ██
+
+@collectorScope 'script', {}, (target,prop,value)=>
+  prop = 'asset' if Array.isArray value
+  prop = 'app'   if 'string' is typeof value
+  @scriptScope[prop] = @scriptScope[prop] || []
+  @scriptScope[prop].push value
+  console.log '  SCRIPT '.yellow.bold.inverse, prop.bold, value
+  true
+
+@phase 'build:frontend:pre',0,=>
+  @scriptHash = []
+  @insertScripts = ''
+  @concatScripts = if @concatScripts? then @concatScrits  else no
+  @inlineScripts = if @inlineScripts? then @inlineScripts else no
+  @scriptFile = @scriptFile || @htmlFile.replace(/.html$/,'') + '.js'
+@phase 'build:frontend',9999,=>
+  { minify } = require 'uglify-es' if @minifyScripts is true
+  apilist = []
+  scripts = []
+  scripts.push """window.$$ = window; $$.isServer = ! ( $$.isClient = true ); $$.debug = false;"""
+  scripts.push "$$.#{name} = #{JSON.stringify tpl};" for name, tpl of @shared.constant
+  scripts.push "$$.BunWebWorker = #{JSON.stringify Object.keys(@webWorkerScope)};"
+  await do =>
+    # @script references
+    for href in @scriptScope.asset when href.match and url = href.match /^href:(.*)$/
+      @insertScripts += """<script src="#{url[1]}"></script>"""
+    if @concatScripts
+      scripts.push ( await @loadAsset href ) + '\n' for href     in @scriptScope.asset when href.match and not href.match /^href:(.*)$/
+      scripts.push ( script.join '\n'      ) + '\n' for k,script of @scriptScope       when k isnt 'asset'
+    else
+      for href in @scriptScope.asset
+        [file,data] = await @linkAsset href
+        @insertScripts += """<script src="#{file}"></script>"""
+        @scriptHash.push "'" + ( contentHash data ) + "'"
+      scripts.concat ( data for dest, data of @scriptScope when dest isnt 'asset' )
+    # @plugin and @client references
+    client = @clientScope
+    for module, plugs of @pluginScope
+      list = []
+      client.init += "\n#{module}.plugin = {};"
+      for name, plug of plugs
+        if plug.clientInit
+          client.init += "\n(#{plug.clientInit.toString()})()"
+        if plug.client?
+          client.init += "\n#{module}.plugin[#{JSON.stringify name}] = #{plug.client.toString()};"
+        # if plug.clientWorker? TODO
+      console.debug '::plug'.green, module, list.join ' '
+    hook = {}
+    for name in ['preinit','init']
+      hook[name] = client[name] || ''
+      delete client[name]
+    scripts.push @processAPI @shared.function, apilist
+    scripts.push @processAPI client, apilist
+    scripts.push 'setTimeout(async ()=>{' + [hook.preinit,hook.init].join('\n') + '});'
+    scripts = scripts.join '\n'
+    scripts = minify(scripts).code                   if @minifyScripts is true
+    return                                           if scripts.trim() is ''
+    @scriptHash.push "'" + ( contentHash scripts ) + "'"
+    if @inlineScripts is false
+         $fs.writeFileSync $path.join(@AssetDir,@scriptFile), scripts
+         @insertScripts += """<script src="#{$path.join @AssetURL,@scriptFile}"></script>"""
+         console.debug ':write'.green, @scriptFile.bold
+    else @insertScripts += """<script>#{scripts}"</script>"""
+  @scriptHash = @scriptHash.join ' '
+  console.debug 'client'.green, apilist.join(' ').gray
+
+#  ██████ ███████ ███████
+# ██      ██      ██
+# ██      ███████ ███████
+# ██           ██      ██
+#  ██████ ███████ ███████
+
+@collectorScope 'css', {}, (target,prop,value)=>
+  prop = 'asset' if Array.isArray value
+  prop = 'app'   if 'string' is typeof value
+  @cssScope[prop] = @cssScope[prop] || []
+  @cssScope[prop].push value
+  # console.log '  CSS '.yellow.bold.inverse, prop.bold, value
+  true
+
+@phase 'build:frontend:pre',0,=>
+  @stylesHash = []
+  @insertStyles = ''
+  @concatStyles = if @concatStyles? then @concatStyles else no
+  @inlineStyles = if @inlineStyles? then @inlineStyles else no
+  @cssFile = @cssFile || @htmlFile.replace(/.html$/,'') + '.css'
+@phase 'build:frontend',9999,=>
+  await do =>
+    # console.log "  CSS ".red.bold.inverse, @cssScope
+    CleanCSS = require 'clean-css' if @minifyScripts is true
+    styles = ''
+    for href in @cssScope.asset when href.match and url = href.match /^href:(.*)$/
+      @insertStyles += """<link rel=stylesheet href="#{url[1]}"/>"""
+    if @concatStyles
+      styles += ( await @loadAsset href ) + '\n' for href     in @cssScope.asset when href.match and not href.match /^href:(.*)$/
+      styles += ( styles.join '\n'      ) + '\n' for k,styles of @cssScope       when k isnt 'asset'
+    else
+      for href in @cssScope.asset
+        [file,data] = await @linkAsset href
+        @insertStyles += """<link rel=stylesheet href="#{file}"/>"""
+        @stylesHash.push "'" + ( contentHash data ) + "'"
+      styles += data + '\n' for dest, data of @cssScope when dest isnt 'asset'
+    styles = (new CleanCSS {}).minify(styles).styles if @minifyScripts is true
+    return                                           if styles.trim() is ''
+    @stylesHash.push "'" + ( contentHash styles ) + "'"
+    if @inlineStyles is false
+         $fs.writeFileSync $path.join(@AssetDir,@cssFile), styles
+         @insertStyles += """<link rel=stylesheet href="#{$path.join @AssetURL,@cssFile}"/>"""
+         console.debug ':write'.green, @cssFile.bold
+    else @insertStyles += """<styles>#{styles}"</styles>"""
+  @stylesHash = @stylesHash.join ' '
+
+# ███    ███  █████  ███    ██ ██ ███████ ███████ ███████ ████████
+# ████  ████ ██   ██ ████   ██ ██ ██      ██      ██         ██
+# ██ ████ ██ ███████ ██ ██  ██ ██ █████   █████   ███████    ██
+# ██  ██  ██ ██   ██ ██  ██ ██ ██ ██      ██           ██    ██
+# ██      ██ ██   ██ ██   ████ ██ ██      ███████ ███████    ██
+
+@phase 'build:frontend',0,=>
+  unless @insertManifest
+    @manifest = @manifest ||
+      name: AppName
+      short_name: title
+      theme_color: "black"
+    @insertManifest = ''
+  $fs.writeFileSync $path.join(@AssetDir,'manifest.json'), JSON.stringify @manifest
