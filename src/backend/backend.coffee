@@ -21,11 +21,9 @@
     else $path.join RootDir, 'config'
   console.debug = ->
   return
-
-@phase 'build:pre',9999,=>
-  @serverHeader.push """
-    $$.AssetDir = $path.join(WebDir,"#{@AssetDir.replace(WebDir,'')}");
-  """
+@serverHeader.push """
+  $$.AssetDir = $path.join(WebDir,"#{@AssetDir.replace(WebDir,'')}");
+"""
 
 @server
   preinit:->

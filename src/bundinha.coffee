@@ -80,19 +80,20 @@ Bundinha::readPackage = ->
     conf
 
 Bundinha::build = ->
-  @reqdir  TempDir
-  @reqdir  BuildDir
-  @require 'bundinha/backend/backend'
-  do @loadDependencies
-
-  @htmlFile = @htmlFile || 'index.html'
-  @htmlPath = $path.join WebDir, @htmlFile
-  @backendFile = @backendFile || 'backend.js'
-  console.verbose ':build'.green, @htmlFile
-  @reqdir  $path.join BuildDir, 'html'
   @WebRoot  = $path.join RootDir,'build','html'
   @AssetURL = '/app'
   @AssetDir = $path.join RootDir,'build','html', @AssetURL
+  @htmlFile = @htmlFile || 'index.html'
+  @htmlPath = $path.join WebDir, @htmlFile
+  @backendFile = @backendFile || 'backend.js'
+  @reqdir  TempDir
+  @reqdir  BuildDir
+  @reqdir  WebDir
+  @reqdir  @AssetDir
+  @require 'bundinha/backend/backend'
+  do @loadDependencies
+  # console.verbose ':build'.green, @htmlFile
+  @reqdir  $path.join BuildDir, 'html'
   @require @sourceFile || $path.join AppPackageName, AppPackageName
   await @emphase 'build:pre'
   await @emphase 'build'
