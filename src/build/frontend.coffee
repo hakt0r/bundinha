@@ -94,7 +94,7 @@
   prop = 'app'   if 'string' is typeof value
   @scriptScope[prop] = @scriptScope[prop] || []
   @scriptScope[prop].push value
-  console.log '  SCRIPT '.yellow.bold.inverse, prop.bold, value
+  # console.debug 'script'.yellow, prop.bold, value
   true
 
 @phase 'build:frontend:pre',0,=>
