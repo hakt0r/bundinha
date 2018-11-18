@@ -69,7 +69,7 @@ User.get = (id)-> new User JSON.parse await APP.user.get id
 # ██      ██      ██ ██      ██  ██ ██    ██
 #  ██████ ███████ ██ ███████ ██   ████    ██
 
-@script 'node_modules','node-forge','dist','forge.min.js'
+@script [[BunDir,'node_modules','node-forge','dist','forge.min.js']]
 
 @client.RequestLogin = ->
   Promise.reject()
@@ -107,12 +107,14 @@ User.get = (id)-> new User JSON.parse await APP.user.get id
 # ██      ██    ██ ██    ██ ██ ██  ██ ██
 # ███████  ██████   ██████  ██ ██   ████
 
-@client.GetAppLogo = ->
-  return null unless AppLogo?
-  i = new Image
-  i.src = URL.createObjectURL new Blob [AppLogo], filename:'AppLogo', type:'image/svg+xml'
-  i.draggable = false
-  i
+if @AppLogo
+  @client.AppLogo = $fs.readUTF8Sync @AppLogo
+  @client.GetAppLogo = ->
+    return '' unless AppLogo?
+    i = new Image
+    i.src = URL.createObjectURL new Blob [AppLogo], filename:'AppLogo', type:'image/svg+xml'
+    i.draggable = false
+    i
 
 @client.LoginForm = -> requestAnimationFrame ->
   document.querySelector('content').innerHTML = """

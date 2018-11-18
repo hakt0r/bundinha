@@ -83,28 +83,11 @@ Bundinha::ServiceWorker = ->
 
 Bundinha::ServiceHeader = ''
 Bundinha::buildServiceWorker = ->
-  @manifest =
-    name: AppName
-    short_name: title
-    start_url: BaseUrl
-    display: "standalone"
-    icons: [
-      { src: "data:image/png;base64,#{AppIconPNG}", density: "1", sizes: "512x512", type: "image/png"  }
-      { src: "data:image/svg+xml;base64,#{AppIcon}", density: "1", sizes: "any", type: "image/svg+xml" }
-    ]
-    theme_color: "black"
-    background_color: "#231f27"
-
-  # @insert_manifest = unless @HasServiceWorker then '' else """
-  # <link rel=manifest href='data:application/manifest+json,#{@iniline_manifest}'/>"""
-  @insert_manifest = unless @HasServiceWorker then '' else """<link rel=manifest crossOrigin="use-credentials" href="/app/manifest.json"/>"""
-
   return unless @HasServiceWorker
-
+  @manifest = start_url: BaseUrl, display: "standalone"
   @ServiceHeader = """
   AppName = '#{AppName}';
   BuildId = '#{BuildId}';
   """ + @ServiceHeader
-
   @serviceWorkerSource = @compileSources [ @ServiceHeader, @ServiceWorker ]
   $fs.writeFileSync $path.join(@WebRoot,'service.js'), @serviceWorkerSource

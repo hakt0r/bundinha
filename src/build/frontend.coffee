@@ -20,7 +20,7 @@
   @insertWebsocket = ' wss:' if WebSockets?
   @insert_policy = """<meta http-equiv="Content-Security-Policy" content="
   default-src  'self';
-  manifest-src 'self' https:;
+  manifest-src #{@manifestPolicy};
   connect-src  'self'#{@insertWebsocket};
   img-src      'self' blob: data: https:;
   media-src    'self' blob: data: https:;
@@ -209,11 +209,30 @@
 # ██  ██  ██ ██   ██ ██  ██ ██ ██ ██      ██           ██    ██
 # ██      ██ ██   ██ ██   ████ ██ ██      ███████ ███████    ██
 
+@phase 'build:frontend:pre',0,=>
+  @inlineManifest      = if @inlineManifest?      then @inlineManifest      else no
+  @inlineManifestIcons = if @inlineManifestIcons? then @inlineManifestIcons else no
 @phase 'build:frontend',0,=>
-  unless @insertManifest
-    @manifest = @manifest ||
-      name: AppName
-      short_name: title
-      theme_color: "black"
-    @insertManifest = ''
-  $fs.writeFileSync $path.join(@AssetDir,'manifest.json'), JSON.stringify @manifest
+  @manifest = Object.assign (
+    name: AppName
+    short_name: AppPackageName
+    theme_color:      @themeColor || "black"
+    background_color: @themeBg    || "#231f27"
+  ), @manifest || {}
+  if @inlineManifestIcons is yes
+    @manifest.icons = [
+      { src: "data:image/png;base64,#{$fs.readBase64Sync @AppIconPNG}", density: "1", sizes: "512x512", type: "image/png"  }
+      { src: "data:image/svg+xml;base64,#{$fs.readBase64Sync @AppIcon}", density: "1", sizes: "any", type: "image/svg+xml" } ]
+  else
+    @manifest.icons = [
+      { src: "#{@AppIconPNG}", density: "1", sizes: "512x512", type: "image/png"  }
+      { src: "#{@AppIcon}", density: "1", sizes: "any", type: "image/svg+xml" } ]
+  if false and @inlineManifest is no
+    $fs.writeFileSync $path.join(@AssetDir,'manifest.json'), JSON.stringify @manifest
+    @insertManifest = """<link rel=manifest href="#{$path.join @AssetURL,'manifest.json'}"/>"""
+    @manifestPolicy = "'self' https:"
+  else
+    @insertManifest = """<link rel=manifest href='data:application/manifest+json,#{
+      JSON.stringify(@manifest).replace(/#/g,'%23')
+    }'/>"""
+    @manifestPolicy = 'data:'

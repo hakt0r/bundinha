@@ -61,8 +61,6 @@ $$.Bundinha = class Bundinha extends require 'events'
     @requireScope = ['os','util','fs',['cp','child_process'],'path','level','colors',['forge','node-forge']]
     Object.assign @, opts
     @phaseList = []
-    @reqdir  TempDir
-    @reqdir  BuildDir
     @require 'bundinha/build/build'
     return
 
@@ -71,12 +69,6 @@ Bundinha::parseConfig = (args...)->
 
 Bundinha::writeConfig = (cfg,args...)->
   $fs.writeFileSync $path.join.apply($path,args), JSON.stringify(cfg,null,2),'utf8'
-
-#  ██████  ██████  ███    ███ ███    ███  █████  ███    ██ ██████
-# ██      ██    ██ ████  ████ ████  ████ ██   ██ ████   ██ ██   ██
-# ██      ██    ██ ██ ████ ██ ██ ████ ██ ███████ ██ ██  ██ ██   ██
-# ██      ██    ██ ██  ██  ██ ██  ██  ██ ██   ██ ██  ██ ██ ██   ██
-#  ██████  ██████  ██      ██ ██      ██ ██   ██ ██   ████ ██████
 
 Bundinha::readPackage = ->
   $$.BunPackage = @parseConfig BunDir,  'package.json'
@@ -87,24 +79,10 @@ Bundinha::readPackage = ->
     @confKeys = Object.keys conf
     conf
 
-Bundinha::phase = (key,prio,func)->
-  ( func = prio; prio = 1 ) unless func?
-  @phaseList.push k:key,p:prio,f:func
-
-Bundinha::emphase = (key)->
-  list = @phaseList
-    .filter (o)-> o.k is key
-    .sort (a,b)-> a.p - b.p
-  await Promise.all list.map (o)-> new Promise (r)->
-    try r await o.f.call @
-    catch error
-      console.error ':phase'.red,   (key+':'+o.p).bold, error
-      console.debug o.f.toCode().gray
-      process.exit 1
-  return
-
 Bundinha::build = ->
-  @require 'bundinha/backend/backend' unless @backend  is false
+  @reqdir  TempDir
+  @reqdir  BuildDir
+  @require 'bundinha/backend/backend'
   do @loadDependencies
 
   @htmlFile = @htmlFile || 'index.html'
@@ -128,6 +106,12 @@ Bundinha::page = (opts={}) ->
   b.readPackage()
   Object.assign b, opts
   await do b.build
+
+#  ██████  ██████  ███    ███ ███    ███  █████  ███    ██ ██████
+# ██      ██    ██ ████  ████ ████  ████ ██   ██ ████   ██ ██   ██
+# ██      ██    ██ ██ ████ ██ ██ ████ ██ ███████ ██ ██  ██ ██   ██
+# ██      ██    ██ ██  ██  ██ ██  ██  ██ ██   ██ ██  ██ ██ ██   ██
+#  ██████  ██████  ██      ██ ██      ██ ██   ██ ██   ████ ██████
 
 Bundinha::cmd_handle = ->
   try @readPackage()
@@ -304,29 +288,6 @@ $$.accessor = (key)->
   return ".#{key}" if key.match /^[a-z0-9_]+$/i
   return "[#{JSON.stringify key}]"
 
-do Bundinha::nodePromises = ->
-  $fs.stat$     = $util.promisify $fs.stat
-  $fs.exists$   = $util.promisify $fs.exists
-  $fs.readdir$  = $util.promisify $fs.readdir
-  $fs.readFile$ = $util.promisify $fs.readFile
-  $cp.spawn$    = $util.promisify $cp.spawn
-
-do Bundinha::arrayTools = ->
-  Object.defineProperties Array::,
-    trim:    get: -> return ( @filter (i)-> i? and i isnt false ) || []
-    random:  get: -> @[Math.round Math.random()*(@length-1)]
-    unique:  get: -> u={}; @filter (i)-> return u[i] = on unless u[i]; no
-    uniques: get: ->
-      u={}; result = @slice()
-      @forEach (i)->
-        result.remove i if u[i]
-        u[i] = on
-      result
-    remove:     enumerable:no, value: (v) -> @splice i, 1 if i = @indexOf v; @
-    pushUnique: enumerable:no, value: (v) -> @push v if -1 is @indexOf v
-    common:     enumerable:no, value: (b) -> @filter (i)-> -1 isnt b.indexOf i
-  return
-
 Bundinha::loadDependencies = ->
   for dep in @requireScope
     if Array.isArray dep
@@ -398,3 +359,66 @@ Bundinha::linkAsset = (path)->
   dest = $path.join @AssetDir, $path.basename path
   @linkFile path, $path.join WebDir, file
   [ file, $fs.readFileSync dest, 'utf8' ]
+
+# ███████ ██   ██ ████████ ███████ ███    ██ ███████ ██  ██████  ███    ██ ███████
+# ██       ██ ██     ██    ██      ████   ██ ██      ██ ██    ██ ████   ██ ██
+# █████     ███      ██    █████   ██ ██  ██ ███████ ██ ██    ██ ██ ██  ██ ███████
+# ██       ██ ██     ██    ██      ██  ██ ██      ██ ██ ██    ██ ██  ██ ██      ██
+# ███████ ██   ██    ██    ███████ ██   ████ ███████ ██  ██████  ██   ████ ███████
+
+$fs.readUTF8Sync = (path)->
+  path = $path.join path if Array.isArray path
+  $fs.readFileSync path, 'utf8'
+
+$fs.readBase64Sync = (path)->
+  path = $path.join path if Array.isArray path
+  $fs.readFileSync path, 'base64'
+
+do Bundinha::nodePromises = ->
+  $fs.stat$     = $util.promisify $fs.stat
+  $fs.exists$   = $util.promisify $fs.exists
+  $fs.readdir$  = $util.promisify $fs.readdir
+  $fs.readFile$ = $util.promisify $fs.readFile
+  $cp.spawn$    = $util.promisify $cp.spawn
+
+do Bundinha::arrayTools = ->
+  Object.defineProperties Array::,
+    trim:    get: -> return ( @filter (i)-> i? and i isnt false ) || []
+    random:  get: -> @[Math.round Math.random()*(@length-1)]
+    unique:  get: -> u={}; @filter (i)-> return u[i] = on unless u[i]; no
+    uniques: get: ->
+      u={}; result = @slice()
+      @forEach (i)->
+        result.remove i if u[i]
+        u[i] = on
+      result
+    remove:     enumerable:no, value: (v) -> @splice i, 1 if i = @indexOf v; @
+    pushUnique: enumerable:no, value: (v) -> @push v if -1 is @indexOf v
+    common:     enumerable:no, value: (b) -> @filter (i)-> -1 isnt b.indexOf i
+  return
+
+# ██████  ██   ██  █████  ███████ ███████ ██████
+# ██   ██ ██   ██ ██   ██ ██      ██      ██   ██
+# ██████  ███████ ███████ ███████ █████   ██████
+# ██      ██   ██ ██   ██      ██ ██      ██   ██
+# ██      ██   ██ ██   ██ ███████ ███████ ██   ██
+
+$$.Phaser = (Spec)->
+  Spec.phase = (key,prio,func)->
+    ( func = prio; prio = 1 ) unless func?
+    @phaseList.push k:key,p:prio,f:func
+    return @
+  Spec.emphase = (key)->
+    list = @phaseList
+      .filter (o)-> o.k is key
+      .sort (a,b)-> a.p - b.p
+    await Promise.all list.map (o)-> new Promise (r)->
+      try r await o.f.call @
+      catch error
+        console.error ':phase'.red,   (key+':'+o.p).bold, error
+        console.debug o.f.toCode().gray
+        process.exit 1
+    return @
+  Spec
+
+Phaser Bundinha::
