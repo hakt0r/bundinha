@@ -1,7 +1,10 @@
 
 @require 'bundinha/build/frontend'
 
-@phase 'build',0, =>
+@phase 'build:pre',0,=>
+  @ServiceHeader = ''
+  @asset = ['/']
+@phase 'build:post',0,=>
   await do @buildServiceWorker
   return
 
@@ -22,7 +25,7 @@ Bundinha::ServiceWorker = ->
   self.addEventListener 'install', (event)-> event.waitUntil(
     caches.open CACHE_NAME
     .then (cache) ->
-      cache.addAll ['/','/app/app.css','/app/app.js'].map (url)=>
+      cache.addAll Assets.map (url)=>
         new Request url, credentials: 'same-origin' )
   self.addEventListener 'message', (msg)->
     return unless msg.data is 'skipWaiting'
@@ -81,13 +84,13 @@ Bundinha::ServiceWorker = ->
 # ██   ██ ██    ██ ██ ██      ██   ██
 # ██████   ██████  ██ ███████ ██████
 
-Bundinha::ServiceHeader = ''
 Bundinha::buildServiceWorker = ->
   return unless @HasServiceWorker
   @manifest = start_url:@BaseUrl, display: "standalone"
   @ServiceHeader = """
   AppName = '#{AppName}';
   BuildId = '#{BuildId}';
+  Assets  = #{JSON.stringify @asset};
   """ + @ServiceHeader
   @serviceWorkerSource = @compileSources [ @ServiceHeader, @ServiceWorker ]
   $fs.writeFileSync $path.join(@WebRoot,'service.js'), @serviceWorkerSource

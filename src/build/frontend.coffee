@@ -103,6 +103,7 @@
   @concatScripts = if @concatScripts? then @concatScrits  else no
   @inlineScripts = if @inlineScripts? then @inlineScripts else no
   @scriptFile = @scriptFile || @htmlFile.replace(/.html$/,'') + '.js'
+  @scriptURI  = $path.join @AssetURL, @scriptFile
 @phase 'build:frontend',9999,=>
   console.debug ':build'.green, 'scripts'.yellow.bold
   { minify } = require 'uglify-es' if @minifyScripts is true
@@ -121,9 +122,11 @@
       scripts.push ( script.join '\n'      ) + '\n' for k,script of @scriptScope       when k isnt 'asset'
     else
       for href in @scriptScope.asset
+        continue if href.match and href.match /^href:/
         [file,data] = await @linkAsset href
         @insertScripts += """<script src="#{file}"></script>"""
         @scriptHash.push "'" + ( contentHash data ) + "'"
+        @asset.push file
       scripts.concat ( data for dest, data of @scriptScope when dest isnt 'asset' )
     # @plugin and @client references
     client = @clientScope
@@ -150,7 +153,8 @@
     @scriptHash.push "'" + ( contentHash scripts ) + "'"
     if @inlineScripts is false
          $fs.writeFileSync $path.join(@AssetDir,@scriptFile), scripts
-         @insertScripts += """<script src="#{$path.join @AssetURL,@scriptFile}"></script>"""
+         @insertScripts += """<script src="#{@scriptURI}"></script>"""
+         @asset.push @scriptURI
          console.debug ':write'.green, @scriptFile.bold
     else @insertScripts += """<script>#{scripts}"</script>"""
   @scriptHash = @scriptHash.join ' '
@@ -176,6 +180,7 @@
   @concatStyles = if @concatStyles? then @concatStyles else no
   @inlineStyles = if @inlineStyles? then @inlineStyles else no
   @cssFile = @cssFile || @htmlFile.replace(/.html$/,'') + '.css'
+  @cssURI  = $path.join @AssetURL, @cssFile
 @phase 'build:frontend',9999,=>
   @cssScope.asset = @cssScope.asset || []
   await do =>
@@ -189,16 +194,19 @@
       styles += ( styles.join '\n'      ) + '\n' for k,styles of @cssScope       when k isnt 'asset'
     else
       for href in @cssScope.asset
+        continue if href.match and href.match /^href:/
         [file,data] = await @linkAsset href
         @insertStyles += """<link rel=stylesheet href="#{file}"/>"""
         @stylesHash.push "'" + ( contentHash data ) + "'"
+        @asset.push file
       styles += data + '\n' for dest, data of @cssScope when dest isnt 'asset'
     styles = (new CleanCSS {}).minify(styles).styles if @minifyScripts is true
     return                                           if styles.trim() is ''
     @stylesHash.push "'" + ( contentHash styles ) + "'"
     if @inlineStyles is false
          $fs.writeFileSync $path.join(@AssetDir,@cssFile), styles
-         @insertStyles += """<link rel=stylesheet href="#{$path.join @AssetURL,@cssFile}"/>"""
+         @insertStyles += """<link rel=stylesheet href="#{@cssURI}"/>"""
+         @asset.push @cssURI
          console.debug ':write'.green, @cssFile.bold
     else @insertStyles += """<styles>#{styles}"</styles>"""
   @stylesHash = @stylesHash.join ' '
