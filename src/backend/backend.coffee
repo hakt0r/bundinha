@@ -21,7 +21,6 @@
     else $path.join RootDir, 'config'
   console.debug = ->
   return
-@serverHeader.push @arrayTools
 
 @server
   preinit:->
@@ -31,11 +30,8 @@
     return
   init:->
     await APP.preinit()
-    $fs.stat$     = $util.promisify $fs.stat
-    $fs.exists$   = $util.promisify $fs.exists
-    $fs.readdir$  = $util.promisify $fs.readdir
-    $fs.readFile$ = $util.promisify $fs.readFile
-    $cp.spawn$    = $util.promisify $cp.spawn
+    do APP.nodePromises
+    do APP.arrayTools
     do APP.splash
     await do APP.startServer
     do APP.initConfig
@@ -46,7 +42,9 @@
 
 @server.APP = class $app
 
-$app.require = @requireScope
+$app.arrayTools   = @arrayTools
+$app.nodePromises = @nodePromises
+$app.require      = @requireScope
 
 $app.loadDependencies = ->
   for dep in @require

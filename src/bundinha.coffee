@@ -304,6 +304,13 @@ $$.accessor = (key)->
   return ".#{key}" if key.match /^[a-z0-9_]+$/i
   return "[#{JSON.stringify key}]"
 
+do Bundinha::nodePromises = ->
+  $fs.stat$     = $util.promisify $fs.stat
+  $fs.exists$   = $util.promisify $fs.exists
+  $fs.readdir$  = $util.promisify $fs.readdir
+  $fs.readFile$ = $util.promisify $fs.readFile
+  $cp.spawn$    = $util.promisify $cp.spawn
+
 do Bundinha::arrayTools = ->
   Object.defineProperties Array::,
     trim:    get: -> return ( @filter (i)-> i? and i isnt false ) || []
