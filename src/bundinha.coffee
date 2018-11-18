@@ -95,8 +95,12 @@ Bundinha::emphase = (key)->
   list = @phaseList
     .filter (o)-> o.k is key
     .sort (a,b)-> a.p - b.p
-  console.debug ':phase'.green, key.bold
-  await Promise.all list.map (o)-> new Promise (r)-> r await o.f.call @
+  await Promise.all list.map (o)-> new Promise (r)->
+    try r await o.f.call @
+    catch error
+      console.error ':phase'.red,   (key+':'+o.p).bold, error
+      console.debug o.f.toCode().gray
+      process.exit 1
   return
 
 Bundinha::build = ->
@@ -118,7 +122,7 @@ Bundinha::build = ->
   await @emphase 'build:post'
 
 Bundinha::page = (opts={}) ->
-  opts.backend = no
+  opts.HasBackend = no
   opts.BuildId = @BuildId
   b = new Bundinha
   b.readPackage()

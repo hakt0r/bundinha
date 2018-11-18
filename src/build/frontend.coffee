@@ -1,6 +1,5 @@
 
-return if @HasFrontend is false
-@HasFrontend = true
+@HasFrontend = if @HasFrontend? then @HasFrontend else true
 
 # ██████  ██    ██ ██ ██      ██████
 # ██   ██ ██    ██ ██ ██      ██   ██
@@ -9,9 +8,11 @@ return if @HasFrontend is false
 # ██████   ██████  ██ ███████ ██████
 
 @phase 'build',0, =>
+  return if @HasFrontend is false
   @reqdir WebDir
   @reqdir @AssetDir
 @phase 'build',9999, =>
+  return if @HasFrontend is false
   console.log ':build'.green, 'frontend'.bold, @AssetURL.yellow, @htmlFile.bold
   await @emphase 'build:frontend:pre'
   await @emphase 'build:frontend'
@@ -103,6 +104,7 @@ return if @HasFrontend is false
   @inlineScripts = if @inlineScripts? then @inlineScripts else no
   @scriptFile = @scriptFile || @htmlFile.replace(/.html$/,'') + '.js'
 @phase 'build:frontend',9999,=>
+  console.debug ':build'.green, 'scripts'.yellow.bold
   { minify } = require 'uglify-es' if @minifyScripts is true
   apilist = []
   scripts = []
@@ -111,6 +113,7 @@ return if @HasFrontend is false
   scripts.push "$$.BunWebWorker = #{JSON.stringify Object.keys(@webWorkerScope)};"
   await do =>
     # @script references
+    @scriptScope.asset = @scriptScope.asset || []
     for href in @scriptScope.asset when href.match and url = href.match /^href:(.*)$/
       @insertScripts += """<script src="#{url[1]}"></script>"""
     if @concatScripts
@@ -174,6 +177,7 @@ return if @HasFrontend is false
   @inlineStyles = if @inlineStyles? then @inlineStyles else no
   @cssFile = @cssFile || @htmlFile.replace(/.html$/,'') + '.css'
 @phase 'build:frontend',9999,=>
+  @cssScope.asset = @cssScope.asset || []
   await do =>
     # console.log "  CSS ".red.bold.inverse, @cssScope
     CleanCSS = require 'clean-css' if @minifyScripts is true

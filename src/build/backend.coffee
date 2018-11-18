@@ -1,10 +1,9 @@
 
-return if @HasBackend is false
-@HasBackend = true
+@HasBackend = if @HasBackend? then @HasBackend else true
 
 @phase 'build',9999,=>
+  return if @HasBackend is false
   await do @buildBackend
-  return
 
 # ███████  ██████  ██████  ██████  ███████ ███████
 # ██      ██      ██    ██ ██   ██ ██      ██
@@ -51,7 +50,7 @@ return if @HasBackend is false
 
 Bundinha::buildBackend = ->
   console.log ':build'.green, 'backend'.bold, @backendFile.yellow
-
+  console.log ' @ '.red.bold.inverse, @HasBackend
   out = '( function(){ ' + (
     @serverHeader.map (i)-> i.toBareCode()
     .join('\n')
