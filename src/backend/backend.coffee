@@ -22,6 +22,11 @@
   console.debug = ->
   return
 
+@phase 'build:pre',9999,=>
+  @serverHeader.push """
+    $$.AssetDir = $path.join(WebDir,"#{@AssetDir.replace(WebDir,'')}");
+  """
+
 @server
   preinit:->
     do APP.loadDependencies

@@ -90,11 +90,10 @@ Bundinha::build = ->
   @backendFile = @backendFile || 'backend.js'
   console.verbose ':build'.green, @htmlFile
   @reqdir  $path.join BuildDir, 'html'
-  @require @sourceFile || $path.join AppPackageName, AppPackageName
   @WebRoot  = $path.join RootDir,'build','html'
   @AssetURL = '/app'
   @AssetDir = $path.join RootDir,'build','html', @AssetURL
-
+  @require @sourceFile || $path.join AppPackageName, AppPackageName
   await @emphase 'build:pre'
   await @emphase 'build'
   await @emphase 'build:post'

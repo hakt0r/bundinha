@@ -209,10 +209,10 @@
 # ██  ██  ██ ██   ██ ██  ██ ██ ██ ██      ██           ██    ██
 # ██      ██ ██   ██ ██   ████ ██ ██      ███████ ███████    ██
 
-@phase 'build:frontend:pre',0,=>
+@phase 'build:pre',0,=>
   @inlineManifest      = if @inlineManifest?      then @inlineManifest      else no
   @inlineManifestIcons = if @inlineManifestIcons? then @inlineManifestIcons else no
-@phase 'build:frontend',0,=>
+@phase 'build',100,=>
   @manifest = Object.assign (
     name: AppName
     short_name: AppPackageName
@@ -224,15 +224,28 @@
       { src: "data:image/png;base64,#{$fs.readBase64Sync @AppIconPNG}", density: "1", sizes: "512x512", type: "image/png"  }
       { src: "data:image/svg+xml;base64,#{$fs.readBase64Sync @AppIcon}", density: "1", sizes: "any", type: "image/svg+xml" } ]
   else
+    p1 = $path.join @AssetURL, b1 = $path.basename @AppIcon
+    p2 = $path.join @AssetURL, b2 = $path.basename @AppIconPNG
     @manifest.icons = [
-      { src: "#{@AppIconPNG}", density: "1", sizes: "512x512", type: "image/png"  }
-      { src: "#{@AppIcon}", density: "1", sizes: "any", type: "image/svg+xml" } ]
-  if false and @inlineManifest is no
+      { src: "#{p1}", density: "1", sizes: "any", type: "image/svg+xml" }
+      { src: "#{p2}", density: "1", sizes: "512x512", type: "image/png"  } ]
+    @linkAsset @AppIcon,    $path.join @AssetDir, p1
+    @linkAsset @AppIconPNG, $path.join @AssetDir, p2
+
+  return do @buildInlineManifest if @inlineManifest is yes
+  @manifestPolicy = "'self' https:"
+  @insertManifest = """<link rel=manifest href="#{$path.join @AssetURL,'manifest.json'}"/>"""
+  if @HasBackend is no
     $fs.writeFileSync $path.join(@AssetDir,'manifest.json'), JSON.stringify @manifest
-    @insertManifest = """<link rel=manifest href="#{$path.join @AssetURL,'manifest.json'}"/>"""
-    @manifestPolicy = "'self' https:"
-  else
-    @insertManifest = """<link rel=manifest href='data:application/manifest+json,#{
-      JSON.stringify(@manifest).replace(/#/g,'%23')
-    }'/>"""
-    @manifestPolicy = 'data:'
+    return
+  @server.AppManifest = @manifest
+  @server.init = ->
+    AppManifest.start_url = BaseUrl if AppManifest.start_url
+    $fs.writeFileSync $path.join(AssetDir,'manifest.json'), JSON.stringify AppManifest
+    return
+
+@buildInlineManifest = ->
+  @manifestPolicy = 'data:'
+  @insertManifest = """<link rel=manifest href='data:application/manifest+json,#{
+    JSON.stringify(@manifest).replace(/#/g,'%23')
+  }'/>"""

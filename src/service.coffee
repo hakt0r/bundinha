@@ -84,7 +84,7 @@ Bundinha::ServiceWorker = ->
 Bundinha::ServiceHeader = ''
 Bundinha::buildServiceWorker = ->
   return unless @HasServiceWorker
-  @manifest = start_url: BaseUrl, display: "standalone"
+  @manifest = start_url:@BaseUrl, display: "standalone"
   @ServiceHeader = """
   AppName = '#{AppName}';
   BuildId = '#{BuildId}';
