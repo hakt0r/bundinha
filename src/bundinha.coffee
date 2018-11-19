@@ -61,6 +61,7 @@ $$.Bundinha = class Bundinha extends require 'events'
     @requireScope = ['os','util','fs',['cp','child_process'],'path','level','colors',['forge','node-forge']]
     Object.assign @, opts
     @phaseList = []
+    @reqdir  TempDir
     @require 'bundinha/build/build'
     @require 'bundinha/build/backend'
     @require 'bundinha/build/frontend'
@@ -89,7 +90,6 @@ Bundinha::build = ->
   @htmlFile = @htmlFile || 'index.html'
   @htmlPath = $path.join WebDir, @htmlFile
   @backendFile = @backendFile || 'backend.js'
-  @reqdir  TempDir
   @reqdir  BuildDir
   @reqdir  WebDir
   @reqdir  @AssetDir
