@@ -33,29 +33,27 @@
 
 APP.startServer = ->
   if 'http' is APP.protocol
+    APP.server = require('http').createServer APP.handleRequest
     APP.Protocol = '::http'
-    APP.server = require('http')
-    .createServer APP.handleRequest
-
   else
-    hasKey = $fs.existsSync keyPath = $path.join ConfigDir, 'host.key'
-    hasCrt = $fs.existsSync crtPath = $path.join ConfigDir, 'host.crt'
-
+    APP.Protocol = ':https'
+    if APP.getCerts then do APP.getCerts
+    keyPath = $path.join ConfigDir, 'host.key'
+    crtPath = $path.join ConfigDir, 'host.crt'
+    hasKey = $fs.existsSync keyPath
+    hasCrt = $fs.existsSync crtPath
     unless hasKey and hasCrt
       console.log 'SSL'.red, 'HOST crt missing:', crtPath
       console.log 'SSL'.red, 'HOST key missing:', keyPath
       process.exit 1
-
-    APP.Protocol = ':https'
-    options =
-      key:  $fs.readFileSync keyPath
+    APP.httpsContext = require('tls').createSecureContext
+      key: $fs.readFileSync keyPath
       cert: $fs.readFileSync crtPath
-
-    APP.server = require('https')
-    .createServer options, APP.handleRequest
-
+    options = SNICallback:(servername,cb)-> cb null, APP.httpsContext
+    APP.server = require('https').createServer options, APP.handleRequest
   do APP.initWebSockets if WebSockets?
-  new Promise (resolve)-> APP.server.listen APP.port, APP.addr, ->
+  _addr_ = if APP.addr is '0.0.0.0' then null else APP.addr
+  new Promise (resolve)-> APP.server.listen APP.port, _addr_, ->
     console.log APP.Protocol, 'online'.green, APP.addr.red + ':' + APP.port.toString().magenta
     return resolve() unless APP.chgid
     console.log APP.Protocol, 'dropping privileges'.green, APP.chgid.toString().yellow

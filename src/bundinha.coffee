@@ -290,7 +290,19 @@ $$.accessor = (key)->
   return ".#{key}" if key.match /^[a-z0-9_]+$/i
   return "[#{JSON.stringify key}]"
 
+Bundinha::npm = (spec)->
+  @requireScope.push spec
+
 Bundinha::loadDependencies = ->
+  missing = @requireScope
+  .map (spec)-> if Array.isArray spec then spec[1] else spec
+  .filter (spec)->
+    return false if module.constructor.builtinModules.includes spec
+    try require.resolve spec; false catch e then true
+  if missing.length > 0
+    console.log ':::npm', missing
+    process.chdir RootDir
+    $cp.spawnSync 'npm',['i','--save'].concat(missing),stdio:'inherit'
   for dep in @requireScope
     if Array.isArray dep
       $$[dep[0]] = require dep[1]

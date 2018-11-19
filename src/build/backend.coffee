@@ -50,6 +50,7 @@
 
 Bundinha::buildBackend = ->
   console.log ':build'.green, 'backend'.bold, @backendFile.yellow
+  @loadDependencies()
   out = '( function(){ ' + (
     @serverHeader.map (i)-> i.toBareCode()
     .join('\n')
