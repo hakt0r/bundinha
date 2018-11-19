@@ -3,7 +3,6 @@
 
 @phase 'build:pre',0,=>
   @ServiceHeader = ''
-  @asset = ['/']
 @phase 'build:post',0,=>
   await do @buildServiceWorker
   return

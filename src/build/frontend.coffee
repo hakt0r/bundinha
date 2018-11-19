@@ -1,11 +1,32 @@
 
-@HasFrontend = if @HasFrontend? then @HasFrontend else true
+@HasFrontend         = if @HasFrontend?         then @HasFrontend         else true
+@inlineManifest      = if @inlineManifest?      then @inlineManifest      else no
+@inlineManifestIcons = if @inlineManifestIcons? then @inlineManifestIcons else no
+@concatScripts       = if @concatScripts?       then @concatScripts       else no
+@inlineScripts       = if @inlineScripts?       then @inlineScripts       else no
+@concatStyles        = if @concatStyles?        then @concatStyles        else no
+@inlineStyles        = if @inlineStyles?        then @inlineStyles        else no
 
-# ██████  ██    ██ ██ ██      ██████
-# ██   ██ ██    ██ ██ ██      ██   ██
-# ██████  ██    ██ ██ ██      ██   ██
-# ██   ██ ██    ██ ██ ██      ██   ██
-# ██████   ██████  ██ ███████ ██████
+@asset = ['/']
+@scriptHash = []
+@stylesHash = []
+@insertStyles = ''
+@insertScripts = ''
+
+# ██   ██ ████████ ███    ███ ██
+# ██   ██    ██    ████  ████ ██
+# ███████    ██    ██ ████ ██ ██
+# ██   ██    ██    ██  ██  ██ ██
+# ██   ██    ██    ██      ██ ███████
+
+@collectorScope 'html',{},(target,prop,value)=>
+  prop = 'body' if prop is null
+  prop = 'body' if prop is '0'
+  value = value[0] if Array.isArray value
+  @htmlScope[prop] = @htmlScope[prop] || []
+  @htmlScope[prop].push value
+  # console.log '::html'.yellow, prop.bold, value
+  true
 
 @phase 'build',0, =>
   return if @HasFrontend is false
@@ -16,9 +37,14 @@
   console.log ':build'.green, 'frontend'.bold, @AssetURL.yellow, @htmlFile.bold
   await @emphase 'build:frontend:pre'
   await @emphase 'build:frontend'
+  @insertHtml = head:'',body:''
+  for hook in ['head','body'] when list = @htmlScope[hook]
+    for item in list
+      if Array.isArray item then @insertHtml[hook] += ( await @loadAsset item )+'\n'
+      else @insertHtml[hook] += item + '\n'
   @insertWebsocket = ''
   @insertWebsocket = ' wss:' if WebSockets?
-  @insert_policy = """<meta http-equiv="Content-Security-Policy" content="
+  @insertPolicy = """<meta http-equiv="Content-Security-Policy" content="
   default-src  'self';
   manifest-src #{@manifestPolicy};
   connect-src  'self'#{@insertWebsocket};
@@ -30,7 +56,7 @@
   frame-src    'self' ;"/>"""
   # style-src    'self' 'unsafe-inline' '#{@stylesHash}' app/;
   ## FF is very strict about styles and csp
-  unless @htmlScope.body then @html.body = """
+  if @insertHtml.body is '' then @insertHtml.body = """
     <navigation></navigation><content><center>JavaScript is required.</center></content>"""
   $fs.writeFileSync @htmlPath, $body = """
   <!DOCTYPE html><html><head>
@@ -39,24 +65,9 @@
     <meta name="description" content="#{@description}"/>
     <meta name="theme-color" content="#{@manifest.theme_color}"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  #{@insert_policy}#{@insertManifest}#{@htmlScope.head}#{@insertStyles}#{@insertWorkers}#{@insertScripts}
-  </head><body>#{@htmlScope.body}</body></html>"""
-  console.verbose 'write'.green, @htmlPath.bold
-
-# ██   ██ ████████ ███    ███ ██
-# ██   ██    ██    ████  ████ ██
-# ███████    ██    ██ ████ ██ ██
-# ██   ██    ██    ██  ██  ██ ██
-# ██   ██    ██    ██      ██ ███████
-
-@collectorScope 'html', ['head','body'],
-  (scopeObject, hook)->
-    (target,prop,value)=>
-      console.log 'html'.yellow.bold, scopeObject, prop.bold, value
-      value = ( await @loadAsset path for path in value ).join '\n' if Array.isArray value
-      if hook.includes prop then scopeObject[prop] += value
-      else                        scopeObject[prop]  = value
-      true
+  #{@insertHtml.head}#{@insertPolicy}#{@insertManifest}#{@insertStyles}#{@insertWorkers}#{@insertScripts}
+  </head><body>#{@insertHtml.body}</body></html>"""
+  console.debug ':write'.green, @htmlPath.bold
 
 # ██     ██  ██████  ██████  ██   ██ ███████ ██████
 # ██     ██ ██    ██ ██   ██ ██  ██  ██      ██   ██
@@ -91,20 +102,17 @@
 
 @collectorScope 'script', {}, (target,prop,value)=>
   prop = 'asset' if Array.isArray value
-  prop = 'app'   if 'string' is typeof value
+  value = value[0] if Array.isArray value
+  prop = 'app' if 'string' is typeof value
   @scriptScope[prop] = @scriptScope[prop] || []
   @scriptScope[prop].push value
   # console.debug 'script'.yellow, prop.bold, value
   true
 
-@phase 'build:frontend:pre',0,=>
-  @scriptHash = []
-  @insertScripts = ''
-  @concatScripts = if @concatScripts? then @concatScrits  else no
-  @inlineScripts = if @inlineScripts? then @inlineScripts else no
+@phase 'build:frontend:pre',0,@buildFrontendScriptsPre = =>
   @scriptFile = @scriptFile || @htmlFile.replace(/.html$/,'') + '.js'
   @scriptURI  = $path.join @AssetURL, @scriptFile
-@phase 'build:frontend',9999,=>
+@phase 'build:frontend',9999,@buildFrontendScripts = =>
   console.debug ':build'.green, 'scripts'.yellow.bold
   { minify } = require 'uglify-es' if @minifyScripts is true
   apilist = []
@@ -116,7 +124,7 @@
     # @script references
     @scriptScope.asset = @scriptScope.asset || []
     for href in @scriptScope.asset when href.match and url = href.match /^href:(.*)$/
-      @insertScripts += """<script src="#{url[1]}"></script>"""
+      @insertScripts += """<script src="#{url[1].replace /^\//,''}"></script>"""
     if @concatScripts
       scripts.push ( await @loadAsset href ) + '\n' for href     in @scriptScope.asset when href.match and not href.match /^href:(.*)$/
       scripts.push ( script.join '\n'      ) + '\n' for k,script of @scriptScope       when k isnt 'asset'
@@ -124,7 +132,7 @@
       for href in @scriptScope.asset
         continue if href.match and href.match /^href:/
         [file,data] = await @linkAsset href
-        @insertScripts += """<script src="#{file}"></script>"""
+        @insertScripts += """<script src="#{file.replace /^\//,''}"></script>"""
         @scriptHash.push "'" + ( contentHash data ) + "'"
         @asset.push file
       scripts.concat ( data for dest, data of @scriptScope when dest isnt 'asset' )
@@ -153,7 +161,7 @@
     @scriptHash.push "'" + ( contentHash scripts ) + "'"
     if @inlineScripts is false
          $fs.writeFileSync $path.join(@AssetDir,@scriptFile), scripts
-         @insertScripts += """<script src="#{@scriptURI}"></script>"""
+         @insertScripts += """<script src="#{@scriptURI.replace /^\//,''}"></script>"""
          @asset.push @scriptURI
          console.debug ':write'.green, @scriptFile.bold
     else @insertScripts += """<script>#{scripts}"</script>"""
@@ -167,27 +175,24 @@
 #  ██████ ███████ ███████
 
 @collectorScope 'css', {}, (target,prop,value)=>
-  prop = 'asset' if Array.isArray value
-  prop = 'app'   if 'string' is typeof value
+  prop = 'asset'   if Array.isArray value
+  value = value[0] if Array.isArray value
+  prop = 'app'     if 'string' is typeof value
   @cssScope[prop] = @cssScope[prop] || []
   @cssScope[prop].push value
   # console.log '  CSS '.yellow.bold.inverse, prop.bold, value
   true
 
-@phase 'build:frontend:pre',0,=>
-  @stylesHash = []
-  @insertStyles = ''
-  @concatStyles = if @concatStyles? then @concatStyles else no
-  @inlineStyles = if @inlineStyles? then @inlineStyles else no
+@phase 'build:frontend:pre',0,@buildFrontendStylesPre = =>
   @cssFile = @cssFile || @htmlFile.replace(/.html$/,'') + '.css'
   @cssURI  = $path.join @AssetURL, @cssFile
-@phase 'build:frontend',9999,=>
+@phase 'build:frontend',9999,@buildFrontendStyles = =>
   @cssScope.asset = @cssScope.asset || []
   await do =>
     # console.log "  CSS ".red.bold.inverse, @cssScope
     CleanCSS = require 'clean-css' if @minifyScripts is true
     styles = ''
-    for href in @cssScope.asset when href.match and url = href.match /^href:(.*)$/
+    for href in @cssScope.asset when href.match and url = href.match /^href:\/(.*)$/
       @insertStyles += """<link rel=stylesheet href="#{url[1]}"/>"""
     if @concatStyles
       styles += ( await @loadAsset href ) + '\n' for href     in @cssScope.asset when href.match and not href.match /^href:(.*)$/
@@ -196,7 +201,7 @@
       for href in @cssScope.asset
         continue if href.match and href.match /^href:/
         [file,data] = await @linkAsset href
-        @insertStyles += """<link rel=stylesheet href="#{file}"/>"""
+        @insertStyles += """<link rel=stylesheet href="#{file.replace /^\//,''}"/>"""
         @stylesHash.push "'" + ( contentHash data ) + "'"
         @asset.push file
       styles += data + '\n' for dest, data of @cssScope when dest isnt 'asset'
@@ -205,7 +210,7 @@
     @stylesHash.push "'" + ( contentHash styles ) + "'"
     if @inlineStyles is false
          $fs.writeFileSync $path.join(@AssetDir,@cssFile), styles
-         @insertStyles += """<link rel=stylesheet href="#{@cssURI}"/>"""
+         @insertStyles += """<link rel=stylesheet href="#{@cssURI.replace /^\//,''}"/>"""
          @asset.push @cssURI
          console.debug ':write'.green, @cssFile.bold
     else @insertStyles += """<styles>#{styles}"</styles>"""
@@ -217,9 +222,6 @@
 # ██  ██  ██ ██   ██ ██  ██ ██ ██ ██      ██           ██    ██
 # ██      ██ ██   ██ ██   ████ ██ ██      ███████ ███████    ██
 
-@phase 'build:pre',0,=>
-  @inlineManifest      = if @inlineManifest?      then @inlineManifest      else no
-  @inlineManifestIcons = if @inlineManifestIcons? then @inlineManifestIcons else no
 @phase 'build',100,=>
   @manifest = Object.assign (
     name: AppName
@@ -231,7 +233,7 @@
     @manifest.icons = [
       { src: "data:image/png;base64,#{$fs.readBase64Sync @AppIconPNG}", density: "1", sizes: "512x512", type: "image/png"  }
       { src: "data:image/svg+xml;base64,#{$fs.readBase64Sync @AppIcon}", density: "1", sizes: "any", type: "image/svg+xml" } ]
-  else
+  else if @AppIcon? and @AppIconPNG?
     p1 = $path.join @AssetURL, b1 = $path.basename @AppIcon
     p2 = $path.join @AssetURL, b2 = $path.basename @AppIconPNG
     @manifest.icons = [
@@ -239,10 +241,9 @@
       { src: "#{p2}", density: "1", sizes: "512x512", type: "image/png"  } ]
     @linkAsset @AppIcon,    $path.join @AssetDir, p1
     @linkAsset @AppIconPNG, $path.join @AssetDir, p2
-
   return do @buildInlineManifest if @inlineManifest is yes
   @manifestPolicy = "'self' https:"
-  @insertManifest = """<link rel=manifest href="#{$path.join @AssetURL,'manifest.json'}"/>"""
+  @insertManifest = """<link rel=manifest crossorigin="use-credentials" href="#{$path.join @AssetURL,'manifest.json'}"/>"""
   if @HasBackend is no
     $fs.writeFileSync $path.join(@AssetDir,'manifest.json'), JSON.stringify @manifest
     return

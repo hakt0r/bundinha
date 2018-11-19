@@ -62,6 +62,9 @@ $$.Bundinha = class Bundinha extends require 'events'
     Object.assign @, opts
     @phaseList = []
     @require 'bundinha/build/build'
+    @require 'bundinha/build/backend'
+    @require 'bundinha/build/frontend'
+    @require 'bundinha/build/api'
     return
 
 Bundinha::parseConfig = (args...)->
@@ -80,9 +83,9 @@ Bundinha::readPackage = ->
     conf
 
 Bundinha::build = ->
-  @WebRoot  = $path.join RootDir,'build','html'
+  @WebRoot  = $path.join BuildDir,'html'
   @AssetURL = '/app'
-  @AssetDir = $path.join RootDir,'build','html', @AssetURL
+  @AssetDir = $path.join BuildDir,'html', @AssetURL
   @htmlFile = @htmlFile || 'index.html'
   @htmlPath = $path.join WebDir, @htmlFile
   @backendFile = @backendFile || 'backend.js'
@@ -121,7 +124,7 @@ Bundinha::cmd_handle = ->
   return do @cmd_push       if ( ARG.push is true )
   return do @cmd_deploy     if ( ARG.deploy is true )
 
-  @shared BuildId: @BuildId || SHA512 new Date
+  @shared BuildId: @BuildId = @BuildId || SHA512 new Date
   @BuildLog = BuildId.substring(0,6).yellow
 
   nameLength = AppPackage.name.length
@@ -186,56 +189,55 @@ Bundinha::cmd_push_clean = ->
 # ██   ██ ███████  ██████   ██████  ██ ██   ██ ███████
 #                     ▀▀
 
+$$._BUND_INSTANCE_ = false
+stripBOM = (input)->
+  input = input.slice 1 if input.charCodeAt(0) is 0xFEFF
+  input = input.replace /#!\/[^\n]+\n/g,''
+  input
+
+require.extensions['.js'] = (module,filename)->
+  content = $fs.readFileSync filename, 'utf8'
+  content = '( function(){\n' + stripBOM(content) + '\n}).apply(_BUND_INSTANCE_);\n'
+  module._compile content, filename
+
+require.extensions['.coffee'] = (module,filename)=>
+  options = Object.assign (
+    bare:on, filename:filename, inlineMap:yes, sourceMap:yes
+  ), module.options || {}
+  cacheExists = $fs.existsSync cache = $path.join TempDir, hash = SHA1 filename
+  compile = =>
+    console.log "::brew".yellow, filename.bold
+    { js, sourceMap } = $coffee._compileFile filename, options
+    $coffee.sourceMap = $coffee.sourceMap || {}
+    $coffee.sourceMap[filename] = sourceMap
+    scpt = js
+    $fs.writeFileSync cache, scpt
+    $fs.touch.sync cache, ref:filename
+    scpt
+  scpt = (
+    if cacheExists
+      c = $fs.statSync cache
+      s = $fs.statSync filename
+      if c.mtime.toString().trim() is s.mtime.toString().trim()
+        $fs.readUTF8Sync cache
+      else compile()
+    else compile() )
+  scpt = '( function(){\n' + scpt + '\n}).apply(_BUND_INSTANCE_);\n'
+  delete require.cache[filename]
+  return module._compile scpt, filename
+
 Bundinha::require = (query)->
   file = query
-  return mod if mod = @module[query]
+  return true if @module[query]?
   unless module.paths.includes path = $path.join RootDir,'node_modules'
     module.paths.push path
   mod = ( rest = file.split '/' ).shift()
   switch mod
-    when 'bundinha'
-      console.verbose 'depend'.green.bold, file.bold
-      file = $path.join BunDir,  'src', rest.join '/'
-    when AppPackageName
-      console.verbose 'depend'.yellow.bold, file.bold
-      file = $path.join RootDir, 'src', rest.join '/'
+    when 'bundinha'     then file = $path.join BunDir,  'src', rest.join '/'
+    when AppPackageName then file = $path.join RootDir, 'src', rest.join '/'
     else return require file
-  try
-    compile = =>
-      console.debug "::brew".yellow, cfile.bold
-      scpt = $fs.readFileSync cfile, 'utf8'
-      scpt = $coffee.compile scpt, bare:on, filename:cfile
-      $fs.writeFileSync cache, scpt
-      @touch.sync cache, ref:cfile
-      scpt
-    scpt = (
-      cacheExists = $fs.existsSync cache = $path.join TempDir, hash = SHA1 cfile = file + '.coffee'
-      sourceExists = $fs.existsSync cfile
-      if cacheExists and sourceExists
-        c = $fs.statSync cache
-        s = $fs.statSync cfile
-        if c.mtime.toString().trim() is s.mtime.toString().trim()
-          $fs.readFileSync cache, 'utf8'
-        else compile()
-      else if sourceExists then compile()
-      else $fs.readFileSync file + '.js', 'utf8' )
-    func = new Function 'APP','require','__filename','__dirname',scpt
-    do @module[query] = => func.call @, @, require, file, $path.dirname file
-  catch error
-    @module[query] = false
-    if error.stack
-      line = parseInt error.stack.split('\n')[1].split(':')[1]
-      col  = try parseInt error.stack.split('\n')[1].split(':')[2].split(')')[0] catch e then 0
-      console.error 'require'.red.bold, [file.bold,line,col].join ':'
-    try
-      console.error ' ', error.message.bold
-      console.error '>',
-        scpt.split('\n')[line-3].substring(0,col-2).yellow
-        scpt.split('\n')[line-3].substring(col-1,col).red
-        scpt.split('\n')[line-3].substring(col+1).yellow
-      console.error ' ', error
-    catch e then console.error error
-    process.exit 1
+  @module[query] = @module[file] = true
+  $$._BUND_INSTANCE_ = @; require file; $$._BUND_INSTANCE_ = false
 
 # ████████  ██████   ██████  ██      ███████
 #    ██    ██    ██ ██    ██ ██      ██
@@ -295,8 +297,6 @@ Bundinha::loadDependencies = ->
     else $$[dep] = require dep
   return
 
-Bundinha::touch = require 'touch'
-
 Bundinha::symlink = (src,dst)->
   ok = -> console.debug '::link'.green, $path.basename(src).yellow, '->'.yellow, dst.bold
   return do ok if $fs.existsSync dst
@@ -349,7 +349,7 @@ Bundinha::loadAsset = (path)->
   throw new Error 'NOT IMPLEMENTED YET' if path.match /https?:/
   file = $path.join @AssetURL, $path.basename path
   dest = $path.join @AssetDir, $path.basename path
-  console.debug ' LOAD '.red.inverse,  file path
+  # console.debug ' LOAD '.red.inverse, file, path
   $fs.readFileSync path, 'utf8'
 
 Bundinha::linkAsset = (path)->
@@ -366,12 +366,14 @@ Bundinha::linkAsset = (path)->
 # ██       ██ ██     ██    ██      ██  ██ ██      ██ ██ ██    ██ ██  ██ ██      ██
 # ███████ ██   ██    ██    ███████ ██   ████ ███████ ██  ██████  ██   ████ ███████
 
+$fs.touch = Bundinha::touch = require 'touch'
+
 $fs.readUTF8Sync = (path)->
-  path = $path.join path if Array.isArray path
+  path = $path.join.apply $path,path if Array.isArray path
   $fs.readFileSync path, 'utf8'
 
 $fs.readBase64Sync = (path)->
-  path = $path.join path if Array.isArray path
+  path = $path.join.apply $path,path if Array.isArray path
   $fs.readFileSync path, 'base64'
 
 do Bundinha::nodePromises = ->
@@ -415,8 +417,9 @@ $$.Phaser = (Spec)->
     await Promise.all list.map (o)-> new Promise (r)->
       try r await o.f.call @
       catch error
-        console.error ':phase'.red,   (key+':'+o.p).bold, error
-        console.debug o.f.toCode().gray
+        console.error ':phase'.red, (key+':'+o.p).bold
+        console.error error
+        console.debug "[phase-handler]", error, o.f.toCode().gray
         process.exit 1
     return @
   Spec

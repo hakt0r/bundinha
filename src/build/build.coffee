@@ -25,9 +25,10 @@
     apply: (_target,_this,_args)=>
       [ obj ] = _args
       return @[scope] unless obj?
-      if obj::? then                      doSet null, ( name = obj.name ), @[scope][name] = obj
-      else if 'string' is typeof obj then doSet null, 'app',               obj
-      else                                doSet null, k,                   v for k,v of obj
+      if 'string' is typeof obj then doSet null, null, obj
+      else if Array.isArray obj then doSet null, null, obj
+      else if obj::?            then doSet null, ( name = obj.name ), @[scope][name] = obj
+      else                           doSet null, k,                   v for k,v of obj
       @[scope]
   @[scope] = new Proxy ( -> ), proxy
 
@@ -50,7 +51,3 @@
     @[name] = pushFunction
   get: (_target,_prop)=> @[_prop + 'Scope']
   set: (_target,_prop,_value)=> @arrayScope _prop, _value; true )
-
-@require 'bundinha/build/backend'
-@require 'bundinha/build/frontend'
-@require 'bundinha/build/api'

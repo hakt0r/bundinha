@@ -128,6 +128,16 @@ Bundinha::buildBackend = ->
 
   out = "#!#{process.execPath}\n" + out # add shebang
 
+  # AppPackage.scripts['install-systemd'] = """sudo npm -g i .; #{} install-systemd"""
+
+  $fs.writeFileSync $path.join(BuildDir,@backendFile), out
+
+  unless $fs.existsSync $path.join BuildDir,'node_modules'
+    $cp.execSync 'cd build; npm i'
+
+  return
+
+@buildPackageJSON = ->
   p = AppPackage
   delete p.devDependencies
   p.dependencies = {} unless p.dependencies
@@ -142,15 +152,12 @@ Bundinha::buildBackend = ->
     p.dependencies[k] = v
   p.bundinha = BunPackage.version
   p.name = p.name.replace /-devel$/,''
-
-  AppPackage.main = './backend.js'
-  AppPackage.bin[AppPackageName+'-backend'] = './backend.js'
-  # AppPackage.scripts['install-systemd'] = """sudo npm -g i .; #{} install-systemd"""
-
-  $fs.writeFileSync $path.join(RootDir,'build', @backendFile ), out
-  $fs.writeFileSync $path.join(RootDir,'build','package.json'), JSON.stringify AppPackage, null, 2
-
-  unless $fs.existsSync $path.join BuildDir, 'node_modules'
-    $cp.execSync 'cd build; npm i'
-
-  return
+  if @HasBackend is true
+    AppPackage.main = './backend.js'
+    AppPackage.bin[AppPackageName+'-backend'] = './backend.js'
+  else
+    delete AppPackage.main = './backend.js'
+    if 1 < Object.keys(AppPackage.bin).length
+      delete AppPackage.bin[AppPackageName+'-backend']
+    else delete AppPackage.bin
+  $fs.writeFileSync $path.join(BuildDir,'package.json'), JSON.stringify AppPackage, null, 2
