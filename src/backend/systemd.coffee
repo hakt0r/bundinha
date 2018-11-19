@@ -10,6 +10,7 @@
     Description=#{AppPackage.name} backend
 
     [Service]
+    #{$$.SystemdServiceExtra||''}
     Environment=PROTO=#{APP.protocol}
     Environment=ADDR=#{APP.addr}
     Environment=PORT=#{APP.port}

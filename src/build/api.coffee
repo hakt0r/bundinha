@@ -48,6 +48,15 @@ Bundinha::processAPI = (opts,apilist)->
         code = code.replace /^[^(]+/, 'function ' + key
         out += "\n#{name}#{selector}#{accessor key} = #{add}#{code};"
         members.push sym.yellow + key
+      else if typeof value is 'object' and typeof (vals = Object.values value)[0] is 'function'
+        if Array.isArray value
+          out += "\n$$.#{name}#{selector}#{accessor key} = [];\n"
+          out += "\n$$.#{name}#{selector}#{accessor key}#{accessor k} = #{v.toString()};\n" for k,v of value
+        else
+          out += "\n$$.#{name}#{selector}#{accessor key} = {};\n"
+          out += "\n$$.#{name}#{selector}#{accessor key}#{accessor k} = #{v.toString()};\n" for k,v of value
+        console.log Object.values(value) if key is 'plugin'
+        console.log value
       else
         out += "\n$$.#{name}#{selector}#{accessor key} = #{JSON.stringify value};\n"
         members.push sym.gray + key

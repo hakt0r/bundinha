@@ -309,6 +309,12 @@ Bundinha::loadDependencies = ->
     else $$[dep] = require dep
   return
 
+#  █████  ███████ ███████ ███████ ████████ ███████
+# ██   ██ ██      ██      ██         ██    ██
+# ███████ ███████ ███████ █████      ██    ███████
+# ██   ██      ██      ██ ██         ██         ██
+# ██   ██ ███████ ███████ ███████    ██    ███████
+
 Bundinha::symlink = (src,dst)->
   ok = -> console.debug '::link'.green, $path.basename(src).yellow, '->'.yellow, dst.bold
   return do ok if $fs.existsSync dst
