@@ -55,8 +55,6 @@ Bundinha::processAPI = (opts,apilist)->
         else
           out += "\n$$.#{name}#{selector}#{accessor key} = {};\n"
           out += "\n$$.#{name}#{selector}#{accessor key}#{accessor k} = #{v.toString()};\n" for k,v of value
-        console.log Object.values(value) if key is 'plugin'
-        console.log value
       else
         out += "\n$$.#{name}#{selector}#{accessor key} = #{JSON.stringify value};\n"
         members.push sym.gray + key
