@@ -137,7 +137,6 @@ Bundinha::cmd_handle = ->
 
 Bundinha::cmd_init = ->
   @require 'bundinha/build/build'
-  @require 'bundinha/build/lib'
   console.log 'init'.yellow, RootDir
   @reqdir RootDir, 'src'
   @reqdir RootDir, 'config'
@@ -195,10 +194,10 @@ stripBOM = (input)->
   input = input.replace /#!\/[^\n]+\n/g,''
   input
 
-require.extensions['.js'] = (module,filename)->
-  content = $fs.readFileSync filename, 'utf8'
-  content = '( function(){\n' + stripBOM(content) + '\n}).apply(_BUND_INSTANCE_);\n'
-  module._compile content, filename
+# require.extensions['.js'] = (module,filename)->
+#   content = $fs.readFileSync filename, 'utf8'
+#   content = '( function(){\n' + stripBOM(content) + '\n}).apply(_BUND_INSTANCE_);\n'
+#   module._compile content, filename
 
 require.extensions['.coffee'] = (module,filename)=>
   options = Object.assign (
