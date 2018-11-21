@@ -1,6 +1,6 @@
 
+@npm 'ws'
 @require 'bundinha/backend/web'
-
 @shared WebSockets:true
 
 # ██     ██ ███████ ██████  ███████  ██████   ██████ ██   ██ ███████ ████████
