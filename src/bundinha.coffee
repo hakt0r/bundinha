@@ -101,6 +101,7 @@ Bundinha::build = ->
   await @emphase 'build:pre'
   await @emphase 'build'
   await @emphase 'build:post'
+  return
 
 Bundinha::page = (opts={}) ->
   opts.HasBackend = no
@@ -438,6 +439,7 @@ $$.Phaser = (Spec)->
         console.error error
         console.debug "[phase-handler]", error, o.f.toCode().gray
         process.exit 1
+    console.debug ':phase'.green, key.red
     return @
   Spec
 

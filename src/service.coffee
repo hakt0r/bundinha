@@ -1,10 +1,21 @@
 
 @require 'bundinha/build/frontend'
+@HasServiceWorker = true
 
 @phase 'build:pre',0,=>
   @ServiceHeader = ''
-@phase 'build:post',0,=>
-  await do @buildServiceWorker
+  return
+
+@phase 'build:post',0, @buildServiceWorker = =>
+  return unless @HasServiceWorker
+  @manifest = start_url:@BaseUrl, display: "standalone"
+  @ServiceHeader = """
+  AppName = '#{AppName}';
+  BuildId = '#{BuildId}';
+  Assets  = #{JSON.stringify @asset};
+  """ + @ServiceHeader
+  @serviceWorkerSource = @compileSources [ @ServiceHeader, @ServiceWorker ]
+  $fs.writeFileSync $path.join(@WebRoot,'service.js'), @serviceWorkerSource
   return
 
 # ███████ ███████ ██████  ██    ██ ██  ██████ ███████
@@ -12,8 +23,6 @@
 # ███████ █████   ██████  ██    ██ ██ ██      █████
 #      ██ ██      ██   ██  ██  ██  ██ ██      ██
 # ███████ ███████ ██   ██   ████   ██  ██████ ███████
-
-@HasServiceWorker = true
 
 Bundinha::ServiceWorker = ->
   SCOPE = self
@@ -76,20 +85,3 @@ Bundinha::ServiceWorker = ->
         NotificationToast.show I18.UpdateAvailable, 'Update', 'Cancel'
         @postMessage "skipWaiting"
   return
-
-# ██████  ██    ██ ██ ██      ██████
-# ██   ██ ██    ██ ██ ██      ██   ██
-# ██████  ██    ██ ██ ██      ██   ██
-# ██   ██ ██    ██ ██ ██      ██   ██
-# ██████   ██████  ██ ███████ ██████
-
-Bundinha::buildServiceWorker = ->
-  return unless @HasServiceWorker
-  @manifest = start_url:@BaseUrl, display: "standalone"
-  @ServiceHeader = """
-  AppName = '#{AppName}';
-  BuildId = '#{BuildId}';
-  Assets  = #{JSON.stringify @asset};
-  """ + @ServiceHeader
-  @serviceWorkerSource = @compileSources [ @ServiceHeader, @ServiceWorker ]
-  $fs.writeFileSync $path.join(@WebRoot,'service.js'), @serviceWorkerSource
