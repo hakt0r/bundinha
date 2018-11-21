@@ -2,21 +2,20 @@
 
 @server.APP.getCerts = ->
   domain = BaseUrl.replace(/.*:\/\//,'').replace(/\/.*/,'')
-  APP.httpServer = require('http').createServer APP.handleRequest
-  APP.httpServer.listen 80, null
   new ACMEHandler domain
   opts = domains:[domain], email:'sebek@sebek.de', agreeTos:yes, communityMember:no
   greenlock = require('greenlock').create
     version: 'draft-12'
     server: 'https://acme-v02.api.letsencrypt.org/directory'
     challengeType: 'http-01'
-    challenges:
-      'tls-sni-01': create:-> ACME
-      'http-01':    create:-> ACME
+    challenges: 'http-01': create:-> ACME
     configDir:$path.join ConfigDir,'acme'
-  certs = await greenlock.check opts
-  # certs = await greenlock.register opts
-  try APP.httpServer.stop()
+  unless certs = await greenlock.check opts
+    APP.httpServer = require('http').createServer APP.handleRequest
+    await new Promise (resolve)-> APP.httpServer.listen 80, resolve
+    certs = await greenlock.register opts
+    APP.httpServer.close()
+    throw new Error 'Cannot generate certs' unless certs
   APP.httpsContext = require('tls').createSecureContext
     key:certs.privkey
     cert:certs.cert
@@ -40,7 +39,7 @@
     delete @[domain]
     do done
 
-@get /acme-challenge/,(req,res)->
+@get /acme-challenge/, (req,res)->
   res.writeHead 200,"Content-Type":'text/html'
-  console.log 'LE-CHALLENGE', req.headers.host, req.url
+  console.log 'LE-CHALLENGE'.red.bold.inverse, req.headers.host, req.url
   res.end ACME[req.headers.host]

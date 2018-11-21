@@ -32,23 +32,26 @@
 { APP } = @server
 
 APP.startServer = ->
+  APP.processGet()
   if 'http' is APP.protocol
     APP.server = require('http').createServer APP.handleRequest
     APP.Protocol = '::http'
   else
     APP.Protocol = ':https'
-    if APP.getCerts then do APP.getCerts
-    keyPath = $path.join ConfigDir, 'host.key'
-    crtPath = $path.join ConfigDir, 'host.crt'
-    hasKey = $fs.existsSync keyPath
-    hasCrt = $fs.existsSync crtPath
-    unless hasKey and hasCrt
-      console.log 'SSL'.red, 'HOST crt missing:', crtPath
-      console.log 'SSL'.red, 'HOST key missing:', keyPath
-      process.exit 1
-    APP.httpsContext = require('tls').createSecureContext
-      key: $fs.readFileSync keyPath
-      cert: $fs.readFileSync crtPath
+    if APP.getCerts
+      await do APP.getCerts
+    else
+      keyPath = $path.join ConfigDir, 'host.key'
+      crtPath = $path.join ConfigDir, 'host.crt'
+      hasKey = $fs.existsSync keyPath
+      hasCrt = $fs.existsSync crtPath
+      unless hasKey and hasCrt
+        console.log 'SSL'.red, 'HOST crt missing:', crtPath
+        console.log 'SSL'.red, 'HOST key missing:', keyPath
+        process.exit 1
+      APP.httpsContext = require('tls').createSecureContext
+        key: $fs.readFileSync keyPath
+        cert: $fs.readFileSync crtPath
     options = SNICallback:(servername,cb)-> cb null, APP.httpsContext
     APP.server = require('https').createServer options, APP.handleRequest
   do APP.initWebSockets if WebSockets?
@@ -61,7 +64,7 @@ APP.startServer = ->
     process.setuid APP.chgid
     return resolve()
 
-@server.init = ->
+APP.processGet = ->
   out = []
   for expr, func of APP.get
     m = expr.match /\/(.*?)\/([gimy])?$/
