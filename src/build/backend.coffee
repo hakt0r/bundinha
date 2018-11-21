@@ -133,8 +133,10 @@ Bundinha::buildBackend = ->
 
   $fs.writeFileSync $path.join(BuildDir,@backendFile), out
 
+  do @buildPackageJSON
+
   unless $fs.existsSync $path.join BuildDir,'node_modules'
-    $cp.execSync 'cd build; npm i'
+    $cp.execSync 'cd build; npm i', stdio:'inherit'
 
   return
 
