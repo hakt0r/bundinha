@@ -36,7 +36,6 @@
         res.error error
   console.log APP.Protocol, 'websockets'.green
 
-
 @client.CALL = (call,data)->
   return WebSocketRequest call, data if CALL.socket
   return AJAX call, data
@@ -48,8 +47,6 @@
 @client.LoginResult = (result)->
   return ConnectWebSocket() if result.WebSockets
   result.success || false
-
-
 
 @client.ConnectWebSocket = -> new Promise (resolve,reject)->
   WebSocketRequest.id = 0
