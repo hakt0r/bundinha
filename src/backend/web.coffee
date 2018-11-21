@@ -80,6 +80,7 @@ APP.handleRequest = (req,res)->
     try await APP.apiRequest req, res
     catch error
       res.json error:error.toString()
+      console.error '::api'.red.bold, error
   else if req.method is 'GET'
     for rule in APP.get
       continue unless m = rule.expr.exec req.url
