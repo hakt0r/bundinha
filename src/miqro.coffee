@@ -13,9 +13,10 @@ Bundinha::miqro = -> # aka. Vquery, VanillaJ and jFlat
   window.$   = (query)-> document.querySelector query
   $.all = (query)-> Array.prototype.slice.call document.querySelectorAll query
   $.map = (query,fn)-> Array.prototype.slice.call(document.querySelectorAll query).map(fn)
-  $.make = (html,opts={})->
-    html = if html.call? then html opts else html
-    html = document.createRange().createContextualFragment html
+  $.make = (html)->
+    template = document.createElement 'template'
+    template.innerHTML = html
+    html = template.content
     if ( node = html.childNodes ).length is 1 then node[0] else html
   SmoothEvents = (spec)-> Object.assign spec,
     events:(key)-> (( @EVENT || {} )[key] || [] )
