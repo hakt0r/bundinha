@@ -42,6 +42,7 @@
     for item in list
       if Array.isArray item then @insertHtml[hook] += ( await @loadAsset item )+'\n'
       else @insertHtml[hook] += item + '\n'
+  @scriptHash = "'unsafe-inline'" if @unsafeScripts
   @insertWebsocket = ''
   @insertWebsocket = ' wss:' if WebSockets?
   @insertPolicy = """<meta http-equiv="Content-Security-Policy" content="
@@ -101,12 +102,12 @@
 # ███████  ██████ ██   ██ ██ ██         ██
 
 @collectorScope 'script', {}, (target,prop,value)=>
-  prop = 'asset' if Array.isArray value
+  prop = 'app'     if 'string' is typeof value
+  prop = 'asset'   if Array.isArray value
   value = value[0] if Array.isArray value
-  prop = 'app' if 'string' is typeof value
   @scriptScope[prop] = @scriptScope[prop] || []
   @scriptScope[prop].push value
-  # console.debug 'script'.yellow, prop.bold, value
+  console.debug 'script'.yellow, prop.bold, value.toString().substring(0,99)
   true
 
 @phase 'build:frontend:pre',0,@buildFrontendScriptsPre = =>
@@ -135,7 +136,9 @@
         @insertScripts += """<script src="#{file.replace /^\//,''}"></script>"""
         @scriptHash.push "'" + ( contentHash data ) + "'"
         @asset.push file
-      scripts.concat ( data for dest, data of @scriptScope when dest isnt 'asset' )
+      for k,v of @scriptScope
+        scripts = scripts.concat v unless k is 'asset'
+    console.log scripts
     # @plugin and @client references
     client = @clientScope
     for module, plugs of @pluginScope
