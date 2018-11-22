@@ -12,6 +12,7 @@
   SSLGateDN:    "C=com,O=#{AppPackageName}.DOMAIN,CN=gate.#{AppPackageName}.DOMAIN.com"
 
 @command 'install-nginx', ->
+  $$.ServerName = BaseURL.replace(/https?:\/\//,'').replace(/\/.*/,'')
   console.log 'install'.red, 'nginx', $$.FLAG
   try
     await APP.initConfig()
@@ -48,14 +49,12 @@ NGINX.testConfig = ->
     include #{$path.join ConfigDir, 'nginx.site.conf'}; }
   """
 
-NGINX.config = ->
-  c = ''
-  if SSLBackend is true
-    c += NGINX.ssl(SSLFullchain,SSLHostKey) + '\n'
-    c += NGINX.sslLockdown() + '\n'
-  c += """
+NGINX.config = -> """
+  #{NGINX.httpRedirect()}
   server {
+    #{NGINX.sslLockdown()}
     #{NGINX.sslServer $$.ServerName || '_'}
+    #{NGINX.ssl()}
     root #{WebDir};
     #{NGINX.singleFactor()}
     #{NGINX.apiConfig()}
@@ -65,6 +64,16 @@ NGINX.sslServer = (serverName='_',webRoot='')->
   defaultServer = if '_' is serverName then ' default_server' else ''
   webRoot       = if ''  is webRoot    then '' else "root #{webRoot};"
   """
+  ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384;
+  ssl_protocols TLSv1.2;# Requires nginx >= 1.13.0 else use TLSv1.2
+  ssl_prefer_server_ciphers on;
+  # ssl_dhparam /etc/nginx/dhparam.pem; # openssl dhparam -out /etc/nginx/dhparam.pem 4096
+  ssl_ecdh_curve secp384r1; # Requires nginx >= 1.1.0
+  ssl_session_timeout  10m;
+  ssl_session_cache builtin:1000 shared:SSL:10m;
+  ssl_session_tickets off; # Requires nginx >= 1.5.9
+  ssl_stapling on; # Requires nginx >= 1.3.7
+  ssl_stapling_verify on; # Requires nginx => 1.3.7
   listen      443 ssl#{defaultServer};
   listen [::]:443 ssl#{defaultServer};
   server_name #{serverName};
@@ -73,43 +82,32 @@ NGINX.sslServer = (serverName='_',webRoot='')->
 
 NGINX.ssl = (fullchain,key)->
   """
-  ssl_certificate     #{fullchain};
-  ssl_certificate_key #{key};
+  ssl_certificate     #{SSLFullchain};
+  ssl_certificate_key #{SSLHostKey};
   """
 
-NGINX.sslLockdown = ->
-  """
-  ssl_protocols TLSv1.2;# Requires nginx >= 1.13.0 else use TLSv1.2
-  ssl_prefer_server_ciphers on;
-  # ssl_dhparam /etc/nginx/dhparam.pem; # openssl dhparam -out /etc/nginx/dhparam.pem 4096
-  ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384;
-  ssl_ecdh_curve secp384r1; # Requires nginx >= 1.1.0
-  ssl_session_timeout  10m;
-  ssl_session_cache builtin:1000 shared:SSL:10m;
-  ssl_session_tickets off; # Requires nginx >= 1.5.9
-  ssl_stapling on; # Requires nginx >= 1.3.7
-  ssl_stapling_verify on; # Requires nginx => 1.3.7
+NGINX.httpRedirect = -> """
+  server {
+    listen 80;
+    listen [::]:80;
+    server_name #{$$.ServerName};
+    return 301 https://$host$request_uri;
+  }"""
+
+NGINX.sslLockdown = -> """
   # resolver $DNS-IP-1 $DNS-IP-2 valid=300s;
-  resolver_timeout 5s;
+  # resolver_timeout 5s;
   add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload";
   add_header X-Frame-Options DENY;
   add_header X-Content-Type-Options nosniff;
   add_header X-XSS-Protection "1; mode=block";
-  server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-    server_name _;
-    return 301 https://$host$request_uri;
-  }
   """
 
-NGINX.needsAuth = ->
-  """
+NGINX.needsAuth = -> """
   if ( $grant != 1 ){ return 401; }
   """
 
-NGINX.cookieFactor = ->
-  """
+NGINX.cookieFactor = -> """
   set $grant  0;
   set $factor "";
   if ( $http_cookie ~* "SESSION=([a-f0-9]+)(;|$)" ) {
@@ -127,14 +125,13 @@ NGINX.singleFactor = ->
   if ( $factor = 'c'  ) { set $grant 1; }
   """
 
-NGINX.multiFactor = (clientCA,gateDN)->
-  """
+NGINX.multiFactor = (clientCA,gateDN)-> """
   # multiFactor
   #{NGINX.cookieFactor()}
-  ssl_client_certificate #{clientCA};
+  ssl_client_certificate #{SSLClientCA};
   ssl_verify_client      optional;
   ssl_verify_depth       2;
-  set $gate_dn '#{gateDN}';
+  set $gate_dn '#{SSLGateDN}';
   if ( $ssl_client_verify = SUCCESS       ) { set $factor "${factor}s"; set $has_cert 1; }
   if ( $ssl_client_s_dn != ''             ) { set $auth_dn $ssl_client_s_dn;    }
   if ( $ssl_client_s_dn = $gate_dn        ) { set $auth_dn $http_x_gate_s_dn;   }
