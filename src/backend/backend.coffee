@@ -34,7 +34,7 @@
     do APP.arrayTools
     return
   init:->
-    do APP.preinit
+    await do APP.preinit
     do APP.splash
     await do APP.startServer
     do APP.initConfig
