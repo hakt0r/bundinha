@@ -30,11 +30,11 @@
     do APP.loadDependencies
     do APP.readEnv
     await func() for name, func of APP.command when process.argv.includes name
-    return
-  init:->
-    await APP.preinit()
     do APP.nodePromises
     do APP.arrayTools
+    return
+  init:->
+    do APP.preinit
     do APP.splash
     await do APP.startServer
     do APP.initConfig
@@ -57,7 +57,7 @@ $app.loadDependencies = ->
   return
 
 $app.readEnv = ->
-  try do APP.initConfig
+  try APP.initConfig yes
   $$.DEBUG     =  process.env.DEBUG is 'true' || false
   APP.chgid    =  $$.ChgID    || process.env.CHGID || false
   APP.port     =  $$.Port     || process.env.PORT  || 9999
@@ -73,12 +73,13 @@ $app.splash = ->
     '['+ 'bundinha'.yellow + '/'.gray + AppPackage.bundinha.gray +
     ( if DevMode then '/dev'.red else '/rel'.green ) + ']'
   console.log '------------------------------------'
+  console.log 'BaseURL  '.yellow, BaseURL.green
   console.log 'RootDir  '.yellow, RootDir.green
   console.log 'WebDir   '.yellow, WebDir.green
   console.log 'ConfigDir'.yellow, ConfigDir.green
   return
 
-$app.initConfig = ->
+$app.initConfig = (probeOnly=no)->
   return if @configWasRead
   unless $fs.existsSync confDir = $path.join ConfigDir
     try $fs.mkdirSync $path.join ConfigDir
@@ -94,8 +95,11 @@ $app.initConfig = ->
       $$[key] = value
       console.debug 'config'.yellow, key, JSON.stringify value
     @configKeys = Object.keys(config).concat(@configKeys).unique
-    do @writeConfig if update is yes
-  else $fs.writeFileSync p, JSON.stringify @defaultConfig
+    do @writeConfig if update is yes and probeOnly is no
+  else if not probeOnly
+    Object.assign $$, donfig = @defaultConfig
+    @configKeys = Object.keys @defaultConfig
+    $fs.writeFileSync p, JSON.stringify @defaultConfig
   @configWasRead = true
   console.debug 'config', ConfigDir.green, @configKeys.join(' ').gray
 

@@ -8,7 +8,7 @@
 
 @phase 'build:post',0, @buildServiceWorker = =>
   return unless @HasServiceWorker
-  @manifest = start_url:@BaseUrl, display: "standalone"
+  @manifest = start_url:@BaseURL, display: "standalone"
   @ServiceHeader = """
   AppName = '#{AppName}';
   BuildId = '#{BuildId}';
