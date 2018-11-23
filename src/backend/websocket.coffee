@@ -33,7 +33,7 @@
         return fn.call res, args, req, res if fn = APP.private[call]
       catch error
         console.log error
-        res.error error
+        try res.error error
   console.log APP.Protocol, 'websockets'.green
 
 @client.CALL = (call,data)->
