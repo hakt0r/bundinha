@@ -124,7 +124,10 @@ APP.apiRequest = (req,res)->
 
   if fn = @public[call]
     console.debug @Protocol.yellow, "call".green, call, args, '$public'
-    return fn.call res, args, req, res
+    try return fn.call res, args, req, res
+    catch e
+      console.error e
+      try @json error:e
 
   # reply to private api-requests only with valid auth
   value = await RequireAuth req
@@ -136,7 +139,10 @@ APP.apiRequest = (req,res)->
     throw new Error 'Command not found: ' + call
 
   console.debug @Protocol.yellow, "call".green, req.ID, call, args
-  fn.call res, args, req, res
+  try fn.call res, args, req, res
+  catch e
+    console.error e
+    try @json error:e
 
 # ███████ ██ ██      ███████
 # ██      ██ ██      ██
