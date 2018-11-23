@@ -41,11 +41,11 @@
   return AJAX call, data
 
 @client.CheckLoginCookieWasSuccessful = (result)->
-  return ConnectWebSocket() if result.WebSockets
+  return ConnectWebSocket() if result.success
   result.success || false
 
 @client.LoginResult = (result)->
-  return ConnectWebSocket() if result.WebSockets
+  return ConnectWebSocket() if result.success
   result.success || false
 
 @client.ConnectWebSocket = -> new Promise (resolve,reject)->
