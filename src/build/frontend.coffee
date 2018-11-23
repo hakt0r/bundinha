@@ -138,7 +138,6 @@
         @asset.push file
       for k,v of @scriptScope
         scripts = scripts.concat v unless k is 'asset'
-    console.log scripts
     # @plugin and @client references
     client = @clientScope
     for module, plugs of @pluginScope
