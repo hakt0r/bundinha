@@ -1,3 +1,6 @@
+
+return if @SSL? and @SSL.static
+
 @npm 'greenlock'
 
 @server.APP.getCerts = ->
