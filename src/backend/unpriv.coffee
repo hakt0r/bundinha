@@ -26,7 +26,7 @@
     WantedBy=multi-user.target
   """
   $cp.spawnSync 'sh',['-c',"""
-    if ! loginctl show-user awt | grep linger=yes
+    if ! loginctl show-user #{USER} | grep linger=yes
     then
     export SUDO_ASKPASS=$(which ssh-askpass)
       [ -n "$DISPLAY" ] && ask='-A'
