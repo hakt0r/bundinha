@@ -226,18 +226,24 @@ require.extensions['.coffee'] = (module,filename)=>
   delete require.cache[filename]
   return module._compile scpt, filename
 
-Bundinha::require = (query)->
-  file = query
-  return true if @module[query]?
-  unless module.paths.includes path = $path.join RootDir,'node_modules'
-    module.paths.push path
-  mod = ( rest = file.split '/' ).shift()
-  switch mod
-    when 'bundinha'     then file = $path.join BunDir,  'src', rest.join '/'
-    when AppPackageName then file = $path.join RootDir, 'src', rest.join '/'
-    else return require file
-  @module[query] = @module[file] = true
-  $$._BUND_INSTANCE_ = @; require file; $$._BUND_INSTANCE_ = false
+Bundinha::require = (query,p='')->
+  if 'string' is type = typeof query
+    query = $path.join p, query if p isnt ''
+    return true if @module[query]?
+    unless module.paths.includes path = $path.join RootDir,'node_modules'
+      module.paths.push path
+    mod = ( rest = ( file = query ).split '/' ).shift()
+    switch mod
+      when 'bundinha'     then file = $path.join BunDir,  'src', rest.join '/'
+      when AppPackageName then file = $path.join RootDir, 'src', rest.join '/'
+      else return require file
+    @module[query] = @module[file] = true
+    $$._BUND_INSTANCE_ = @; require file; $$._BUND_INSTANCE_ = false
+  else if Array.isArray query then for mod in query
+    @require mod, p
+  else if 'object' is type then for path, mod of query
+    @require mod, $path.join p, path
+  true
 
 # ████████  ██████   ██████  ██      ███████
 #    ██    ██    ██ ██    ██ ██      ██
