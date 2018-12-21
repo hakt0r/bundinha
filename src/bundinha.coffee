@@ -59,6 +59,7 @@ $$.Bundinha = class Bundinha extends require 'events'
     @module = {}
     $$.BUND = @ unless $$.BUND?
     @requireScope = ['os','util','fs',['cp','child_process'],'path','level','colors',['forge','node-forge']]
+    @requireDevScope = []
     Object.assign @, opts
     @phaseList = []
     @reqdir  TempDir
@@ -299,8 +300,11 @@ $$.accessor = (key)->
 Bundinha::npm = (spec)->
   @requireScope.push spec
 
+Bundinha::npmDev = (spec)->
+  @requireDevScope.push spec
+
 Bundinha::loadDependencies = ->
-  missing = @requireScope
+  missing = @requireScope.concat @requireDevScope
   .map (spec)-> if Array.isArray spec then spec[1] else spec
   .filter (spec)->
     return false if module.constructor.builtinModules.includes spec
