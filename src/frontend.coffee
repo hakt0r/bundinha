@@ -7,6 +7,7 @@
 
 @client.init = ->
   try $$.$forge = forge
+  $$.$$$  = document
   $$.BODY = $$$.body
   $$.CONT = $ 'content'
   $$.NAVI = $ 'navigation'
