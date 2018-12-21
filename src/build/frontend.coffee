@@ -42,7 +42,8 @@
     for item in list
       if Array.isArray item then @insertHtml[hook] += ( await @loadAsset item )+'\n'
       else @insertHtml[hook] += item + '\n'
-  @scriptHash = "'unsafe-inline'" if @unsafeScripts
+  @scriptHash  = "'unsafe-inline'" if @unsafeScripts
+  @scriptHash += " 'unsafe-eval'"  if @unsafeScripts
   @insertWebsocket = ''
   @insertWebsocket = ' wss:' if WebSockets?
   @insertPolicy = """<meta http-equiv="Content-Security-Policy" content="
