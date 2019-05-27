@@ -1,7 +1,10 @@
 
+
 @npmDev '@fortawesome/fontawesome-free'
 @phase 'build:pre',-1,=>
-  repo = $path.join require.resolve('@fortawesome/fontawesome-free'),'svgs'
+  console.debug ':icons'.green, Object.keys(ICON).join(' ').gray
+  pack = $path.dirname $path.dirname require.resolve '@fortawesome/fontawesome-free'
+  repo = $path.join pack,'svgs'
   dest = $path.join BuildDir,'fontawesome.css'
 
   @css """
@@ -21,7 +24,7 @@
       icon = $fs.readFileSync icon, 'utf8'
     else if $fs.existsSync icon = $path.join repo,'brands',"#{name}.svg"
       icon = $fs.readFileSync icon, 'utf8'
-    unless icon
+    if icon.match '\.svg$'
       console.log '404'.red, name
       continue
     icon = ".fa-#{name}:before{
