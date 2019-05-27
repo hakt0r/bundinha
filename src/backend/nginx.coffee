@@ -121,8 +121,9 @@ NGINX.singleFactor = ->
   return '' unless FLAG.UseAuth
   """
   # singleFactor
+  set $auth_user_ssl "";
   #{NGINX.cookieFactor()}
-  if ( $factor = 'c'  ) { set $grant 1; }
+  if ( $factor = 'c' ) { set $grant 1; }
   """
 
 NGINX.multiFactor = (clientCA,gateDN)-> """
