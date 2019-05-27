@@ -34,24 +34,23 @@
 APP.startServer = ->
   APP.processGet()
   if 'http' is APP.protocol
+    await do APP.getCerts if APP.getCerts
     APP.server = require('http').createServer APP.handleRequest
     APP.Protocol = '::http'
   else
     APP.Protocol = ':https'
-    if APP.getCerts
-      await do APP.getCerts
-    else
-      keyPath = $path.join ConfigDir, 'host.key'
-      crtPath = $path.join ConfigDir, 'host.crt'
-      hasKey = $fs.existsSync keyPath
-      hasCrt = $fs.existsSync crtPath
-      unless hasKey and hasCrt
-        console.log 'SSL'.red, 'HOST crt missing:', crtPath
-        console.log 'SSL'.red, 'HOST key missing:', keyPath
-        process.exit 1
-      APP.httpsContext = require('tls').createSecureContext
-        key: $fs.readFileSync keyPath
-        cert: $fs.readFileSync crtPath
+    await do APP.getCerts if APP.getCerts
+    keyPath = $path.join ConfigDir, 'host.key'
+    crtPath = $path.join ConfigDir, 'host.crt'
+    hasKey = $fs.existsSync keyPath
+    hasCrt = $fs.existsSync crtPath
+    unless hasKey and hasCrt
+      console.log 'SSL'.red, 'HOST crt missing:', crtPath
+      console.log 'SSL'.red, 'HOST key missing:', keyPath
+      process.exit 1
+    APP.httpsContext = require('tls').createSecureContext
+      key: $fs.readFileSync keyPath
+      cert: $fs.readFileSync crtPath
     options = SNICallback:(servername,cb)-> cb null, APP.httpsContext
     APP.server = require('https').createServer options, APP.handleRequest
   do APP.initWebSockets if WebSockets?
@@ -59,9 +58,11 @@ APP.startServer = ->
   new Promise (resolve)-> APP.server.listen APP.port, _addr_, ->
     console.log APP.Protocol, 'online'.green, APP.addr.red + ':' + APP.port.toString().magenta
     return resolve() unless APP.chgid
-    console.log APP.Protocol, 'dropping privileges'.green, APP.chgid.toString().yellow
-    process.setgid APP.chgid
+    # groups = $cp.execSync('id -Gn '+APP.chgid).toString().trim().split(' ') #.map (i)-> parseInt i
+    console.log APP.Protocol, 'dropping privileges'.green, APP.chgid.toString().yellow #, groups.join ' '
+    process.setgid 'sudo' # APP.chgid
     process.setuid APP.chgid
+    # process.setgroups groups
     return resolve()
 
 APP.processGet = ->

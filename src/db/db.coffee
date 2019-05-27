@@ -28,15 +28,17 @@ Database.verify = (data,req,access)->
   hasGroups  = req.USER.group
   accessType = if access is 'r' then 0 else 1
   for fieldName, value of data
-    throw new Error 'InvalidField: ' + fieldName unless opts = specFields[fieldName]
-    accessGroups = opts.rw[accessType]
+    if ( not opts = specFields[fieldName] ) and ( access is 'w' )
+      throw new Error 'InvalidField: ' + fieldName
+    continue unless opts
+    accessGroups = [opts.rw[accessType]]
     testSpec     = opts.t
     testSpecKeys = Object.keys testSpec
-    console.log fieldName.bold, value, accessGroups, hasGroups
+    # console.log fieldName.bold, value, accessGroups, hasGroups
     for testName in testSpecKeys
       try
-        Database[testName].apply null, testSpec[testName].concat value
-        if RequireGroupBare hasGroups, [accessGroups]
+        value = Database[testName].apply null, testSpec[testName].concat value
+        if RequireGroupBare hasGroups, accessGroups
           verified[fieldName] = value
         else if access is 'w'
           DenyAuth ': cannot write to: ' + fieldName;
@@ -50,37 +52,55 @@ Database.verify = (data,req,access)->
   verified
 
 Database.String = (len,data)->
-  throw new Error 'NoString' if 'string' isnt typeof data
+  throw new Error 'Required' unless data?
+  throw new Error "NoString: #{data}(#{t})" if 'string' isnt t =  typeof data
   throw new Error 'TooLong'  if len < data.length
+  data
 
-Database.StringTitle = (len,data)->
-  throw new Error 'NoString' if 'string' isnt typeof data
+Database.Title = (len,data)->
+  throw new Error 'Required' unless data?
+  throw new Error "NoString: #{data}(#{t})" if 'string' isnt t =  typeof data
   throw new Error 'TooLong'  if len < data.length
-  throw new Error 'Maformed' unless data.match /^[a-z0-9-+_@.,\(\)\[\]]+$/i
+  throw new Error 'Maformed' unless data.match /^[a-z0-9-+ _@.,\(\)\[\]]+$/i
+  data
 
-Database.String.URL = (data)->
-  throw new Error 'NoString' if 'string' isnt typeof data
+Database.URL = (len,data)->
+  throw new Error 'Required' unless data?
+  throw new Error "NoString: #{data}(#{t})" if 'string' isnt t =  typeof data
   throw new Error 'Maformed' unless data.match /^https?:\/\/[^'"<>]+$/i
+  data
 
-Database.StringCountryCode = (data)->
-  throw new Error 'NoString' if 'string' isnt typeof data
+Database.CountryCode = (data)->
+  throw new Error 'Required' unless data?
+  throw new Error "NoString: #{data}(#{t})" if 'string' isnt t =  typeof data
   throw new Error 'TooLong'  if 3 <= data.length
   throw new Error 'Maformed' unless data.match /^[a-z]+$/i
+  data
 
-Database.StringHTMLFormats = (data)->
-  throw new Error 'NoString' if 'string' isnt typeof data
+Database.HTMLFormats = (len,data)->
+  throw new Error 'Required' unless data?
+  throw new Error "NoString: #{data}(#{t})" if 'string' isnt t =  typeof data
   throw new Error 'TooLong'  if len < data.length
   # TODO
+  data
 
-Database.NumberTimeStamp = (data)->
-  throw new Error 'NoNumber' if 'number' isnt typeof data
-  throw new Error 'NoTimestamp' if 0 <= data < Number.MAX_SAFE_INTEGER
+Database.TimeStamp = (data)->
+  data = parseFloat data
+  throw new Error 'Required' unless data?
+  throw new Error "NoNumber: #{data}(#{t})" if 'number' isnt t =  typeof data
+  throw new Error 'NoTimestamp' unless 0 <= data <= Number.MAX_SAFE_INTEGER
+  data
 
 Database.Number = (min=-1,max=-1,places=0,data)->
-  throw new Error 'NoNumber' if 'number' isnt typeof data
-  throw new Error 'FractionOverflow' if places isnt -1 and data istn
+  data = parseFloat data
+  throw new Error 'Required' unless data?
+  throw new Error "NoNumber: #{data}(#{t})" if 'number' isnt t =  typeof data
+  throw new Error 'FractionOverflow' if places is 0 and data.toString().split('.')[1]?
+  data
 
-Database.Array = (data)->
-  throw new Error 'NoString' if 'string' isnt typeof data
+Database.Array = (len,types,data)->
+  throw new Error 'Required' unless data?
+  throw new Error "NoString: #{data}(#{t})" if 'string' isnt t =  typeof data
   throw new Error 'TooLong'  if len < data.length
   # TODO
+  data

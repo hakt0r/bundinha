@@ -129,7 +129,6 @@ Kbd::release = (focus)->
       return true
     item = @stackOrder.pop()
     @grab item.focus, item
-    console.debug ':kbd', 'main' unless @focus
     true
   else if item = @stackItem[focus.name]
     console.debug ':kbd', 'release_obscured', focus.name

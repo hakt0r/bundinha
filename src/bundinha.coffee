@@ -85,20 +85,20 @@ Bundinha::readPackage = ->
     conf
 
 Bundinha::build = ->
+  @require 'bundinha/backend/backend'
+  do @loadDependencies
+  # console.verbose ':build'.green, @htmlFile
+  @require @sourceFile || $path.join AppPackageName, AppPackageName
   @WebRoot  = $path.join BuildDir,'html'
-  @AssetURL = '/app'
+  @AssetURL = '/app' unless @AssetURL?
   @AssetDir = $path.join BuildDir,'html', @AssetURL
   @htmlFile = @htmlFile || 'index.html'
   @htmlPath = $path.join WebDir, @htmlFile
   @backendFile = @backendFile || 'backend.js'
+  console.log @AssetDir.red
   @reqdir  BuildDir
   @reqdir  WebDir
   @reqdir  @AssetDir
-  @require 'bundinha/backend/backend'
-  do @loadDependencies
-  # console.verbose ':build'.green, @htmlFile
-  @reqdir  $path.join BuildDir, 'html'
-  @require @sourceFile || $path.join AppPackageName, AppPackageName
   await @emphase 'build:pre'
   await @emphase 'build'
   await @emphase 'build:post'
@@ -412,6 +412,7 @@ do Bundinha::nodePromises = ->
   $cp.spawn$    = $util.promisify $cp.spawn
 
 do Bundinha::arrayTools = ->
+  return if Array::unique
   Object.defineProperties Array::,
     trim:    get: -> return ( @filter (i)-> i? and i isnt false ) || []
     random:  get: -> @[Math.round Math.random()*(@length-1)]

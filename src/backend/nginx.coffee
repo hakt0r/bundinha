@@ -12,7 +12,7 @@
   SSLGateDN:    "C=com,O=#{AppPackageName}.DOMAIN,CN=gate.#{AppPackageName}.DOMAIN.com"
 
 @command 'install-nginx', ->
-  $$.ServerName = BaseURL.replace(/https?:\/\//,'').replace(/\/.*/,'')
+  $$.ServerName = BaseUrl.replace(/https?:\/\//,'').replace(/\/.*/,'')
   console.log 'install'.red, 'nginx', $$.FLAG
   try
     await APP.initConfig()

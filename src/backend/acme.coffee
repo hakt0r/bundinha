@@ -13,17 +13,25 @@ return if @SSL? and @SSL.static
     challengeType: 'http-01'
     challenges: 'http-01': create:-> ACME
     configDir:$path.join ConfigDir,'acme'
-  unless certs = await greenlock.check opts
+  certs = await greenlock.check opts
+  unless certs
     APP.httpServer = require('http').createServer APP.handleRequest
-    await new Promise (resolve)-> APP.httpServer.listen 80, resolve
+    await new Promise (resolve)-> APP.httpServer.listen APP.port, resolve
     certs = await greenlock.register opts
     APP.httpServer.close()
     throw new Error 'Cannot generate certs' unless certs
-  APP.httpsContext = require('tls').createSecureContext
-    key:certs.privkey
-    cert:certs.cert
-  console.log ' acme '.green.bold.inverse, domain
-  return
+    APP.httpsContext = require('tls').createSecureContext key:certs.privkey, cert:certs.cert if $$.SSLBackend
+    console.log ' acme '.green.bold.inverse, domain
+    return
+  else if (new Date) > new Date certs.expiresAt then setTimeout ->
+    certs = await greenlock.register opts
+    APP.httpsContext = require('tls').createSecureContext key:certs.privkey, cert:certs.cert if $$.SSLBackend
+    console.log ' acme '.green.bold.inverse, domain
+    return
+  else
+    APP.httpsContext = require('tls').createSecureContext key:certs.privkey, cert:certs.cert if $$.SSLBackend
+    console.log ' acme '.green.bold.inverse, domain
+    return
 
 @server class ACMEHandler
   constructor:(@domain)->
@@ -44,5 +52,24 @@ return if @SSL? and @SSL.static
 
 @get /acme-challenge/, (req,res)->
   res.writeHead 200,"Content-Type":'text/html'
-  console.log 'LE-CHALLENGE'.red.bold.inverse, req.headers.host, req.url
+  console.log 'acme:le-challenge'.green.bold.inverse, req.headers.host, req.url
   res.end ACME[req.headers.host]
+
+@server.NGINX.httpRedirect = -> """
+  server {
+    listen 80;
+    listen [::]:80;
+    server_name #{$$.ServerName};
+    location = /.well-known/acme-challenge/ { return 404; }
+    location ~ /.well-known/acme-challenge/* {
+      allow all;
+      proxy_pass #{APP.protocol}://127.0.0.1:#{APP.port};
+      proxy_redirect off;
+      proxy_buffering off;
+      proxy_set_header        Host            $host;
+      proxy_set_header        X-Real-IP       $remote_addr;
+      proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header        X-Forwarded-Proto $scheme; }
+    location / {
+      return 301 https://$host$request_uri; }
+  }"""

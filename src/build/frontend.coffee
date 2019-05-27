@@ -252,6 +252,7 @@
     return
   @server.AppManifest = @manifest
   @server.init = ->
+    console.log " write ".red.inverse, AssetDir, 'manifest.json'
     AppManifest.start_url = BaseUrl if AppManifest.start_url
     $fs.writeFileSync $path.join(AssetDir,'manifest.json'), JSON.stringify AppManifest
     return

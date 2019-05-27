@@ -110,6 +110,7 @@ Bundinha::buildBackend = ->
 
   for scope in ['db','get','public','private','group','command']
     add = "\nAPP#{accessor scope} = {};"
+    continue unless @[scope+'Scope']?
     for name, func of @[scope+'Scope']
       value = if typeof func is 'function' then func.toString() else JSON.stringify func
       add +="\nAPP#{accessor scope}#{accessor name} = #{value};"
@@ -130,7 +131,6 @@ Bundinha::buildBackend = ->
   out = "#!#{process.execPath}\n" + out # add shebang
 
   # AppPackage.scripts['install-systemd'] = """sudo npm -g i .; #{} install-systemd"""
-
   $fs.writeFileSync $path.join(BuildDir,@backendFile), out
 
   do @buildPackageJSON

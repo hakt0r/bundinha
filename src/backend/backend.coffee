@@ -21,9 +21,11 @@
     else $path.join RootDir, 'config'
   console.debug = ->
   return
-@serverHeader.push """
-  $$.AssetDir = $path.join(WebDir,"#{@AssetDir.replace(WebDir,'')}");
-"""
+
+@phase 'build:pre',-1,=>
+  @serverHeader.push """
+    $$.AssetDir = $path.join(WebDir,"#{@AssetDir.replace(WebDir,'')}");
+  """
 
 @server
   preinit:->
@@ -73,10 +75,10 @@ $app.splash = ->
     '['+ 'bundinha'.yellow + '/'.gray + AppPackage.bundinha.gray +
     ( if DevMode then '/dev'.red else '/rel'.green ) + ']'
   console.log '------------------------------------'
-  console.log 'BaseURL  '.yellow, BaseURL.green
+  console.log 'ConfigDir'.yellow, ConfigDir.green
+  console.log 'BaseUrl  '.yellow, BaseUrl.green
   console.log 'RootDir  '.yellow, RootDir.green
   console.log 'WebDir   '.yellow, WebDir.green
-  console.log 'ConfigDir'.yellow, ConfigDir.green
   return
 
 $app.initConfig = (probeOnly=no)->
@@ -94,10 +96,11 @@ $app.initConfig = (probeOnly=no)->
       update = yes
       $$[key] = value
       console.debug 'config'.yellow, key, JSON.stringify value
-    @configKeys = Object.keys(config).concat(@configKeys).unique
+    @arrayTools()
+    @configKeys = Object.keys(config).concat(@configKeys).uniques
     do @writeConfig if update is yes and probeOnly is no
   else if not probeOnly
-    Object.assign $$, donfig = @defaultConfig
+    Object.assign $$, config = @defaultConfig
     @configKeys = Object.keys @defaultConfig
     $fs.writeFileSync p, JSON.stringify @defaultConfig
   @configWasRead = true

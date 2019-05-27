@@ -8,8 +8,8 @@
     db = $level path = $path.join ConfigDir, name + '.db'
     if ( typeName = opts.typeName )?
       Table = Database.extend $$[typeName], db
-      Table.db = db
-      Table.path = path
+      Table.db = Table::db = db
+      Table.path = Table::path = path
       Object.assign Table, opts
     else APP[name] = db
     console.info '::::db', ':' + name.bold
