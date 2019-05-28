@@ -64,22 +64,27 @@
   u.record.group = u.record.group.concat(groups).unique
   u.commit()
 
+@server.ArgsFor = (command)->
+  process.argv.slice 1 + process.argv.indexOf command
+
 @command 'user', ->
-  @APP.initConfig(); @APP.initDB(); [ user ] = process.argv.slice 1 + process.argv.indexOf 'user'
+  @APP.initConfig(); @APP.initDB(); [ user ] = ArgsFor 'user'
   u = await User.get user
   console.log if process.stdout.isTTY then u.record else JSON.stringify u.record, null, 2
   process.exit 0
 
 @command 'passwd', ->
-  @APP.initConfig(); @APP.initDB(); [ user, pass ] = process.argv.slice 1 + process.argv.indexOf 'passwd'
+  @APP.initConfig(); @APP.initDB(); [ user, pass ] = ArgsFor 'passwd'
   await User.passwd user, pass; process.exit 0
 
 @command 'group', ->
-  @APP.initConfig(); @APP.initDB(); [ user ] = args = process.argv.slice 1 + process.argv.indexOf 'group'
+  @APP.initConfig(); @APP.initDB(); [ user ] = args = ArgsFor 'group'
   await User.addGroups user, args.slice 1; process.exit 0
 
 @command 'adduser', ->
-  @APP.initConfig(); @APP.initDB(); [ user, pass ] = args = process.argv.slice 1 + process.argv.indexOf 'adduser'
+  @APP.initConfig(); @APP.initDB(); args = ArgsFor 'adduser'
+  user = args.shift()
+  pass = args.shift()
   try
     await User.get user
     console.log 'User exists:'.bold, user
@@ -88,3 +93,13 @@
   hashedPass = SHA512 [ pass, seedSalt ].join ':'
   User.create id:user, pass:hashedPass, seedSalt:seedSalt, group:if args.length > 0 then args else null
   process.exit 0
+
+@command 'deluser', ->
+  @APP.initConfig(); @APP.initDB(); [ user ] = ArgsFor 'deluser'
+  try
+    await User.get user
+    await User.del user
+    process.exit 0
+  catch error
+    console.log 'User does not exist:'.bold, user, error
+    process.exit 1

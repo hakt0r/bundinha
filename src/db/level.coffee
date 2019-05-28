@@ -12,14 +12,18 @@
       Table.path = Table::path = path
       Object.assign Table, opts
     else APP[name] = db
-    console.info '::::db', ':' + name.bold
-  console.log '::::db', 'ready'.green
+    console.debug '::::db', ':' + name.bold
+  console.debug '::::db', 'ready'.green
 
 { Database } = @server
 
 Database.get = (id)-> new Promise (resolve)=>
   throw new Error 'Not found: ' + id unless rec = JSON.parse await @db.get id
   resolve new @ rec
+
+Database.del = (id)-> new Promise (resolve)=>
+  @db.del id
+  resolve true
 
 Database.createFrom = (data,req)->
   try evt = await @db.get data.id

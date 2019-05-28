@@ -17,6 +17,7 @@
 User.defaults = -> id:User.getUID(), group: []
 User.getUID = -> SHA512 Date.now() + '-' + $forge.random.getBytesSync 16
 User.get = (id)-> new User JSON.parse await APP.user.get id
+User.del = (id)-> APP.user.del id
 
 @server.AddAuthCookie = (res,user)->
   cookie = User.getUID()

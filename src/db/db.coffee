@@ -16,6 +16,7 @@
     Spec::verify    = Database.verify.bind Spec
     Spec.createFrom = Database.createFrom.bind Spec
     Spec.get        = Database.get.bind Spec
+    Spec.del        = Database.del.bind Spec
     Spec::toJSON    = Database.toJSON = (req)-> @verify @record,req,'r'
     Spec::toString  = Database.toString = (req)-> JSON.stringify @toJSON req
     Spec
