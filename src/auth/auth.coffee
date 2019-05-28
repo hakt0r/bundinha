@@ -96,7 +96,8 @@ User.get = (id)-> new User JSON.parse await APP.user.get id
   ModalWindow.closeActive() if ModalWindow.closeActive
   try await CALL '/logout', {}
   $$.emit 'logout'
-  do LoginForm
+  $$.location = $$.location.origin
+  return # do LoginForm
 
 @client.ButtonLogout = ->
   btn = IconButton 'Logout'
