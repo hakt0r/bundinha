@@ -30,9 +30,11 @@ User.get = (id)-> new User JSON.parse await APP.user.get id
   CookieReg = /SESSION=([A-Za-z0-9+/=]+={0,3});?/
   throw new Error 'Access denied: cookie' unless match = cookies.match CookieReg
   req.COOKIE = cookie = match[1]
-  id   = await APP.session.get cookie
-  user = await APP.user.get req.ID = id
-  throw new Error 'Access denied: invalid session' unless ( req.USER = JSON.parse user )?
+  try id   = await APP.session.get cookie
+  try user = await APP.user.get req.ID = id
+  throw new Error 'Access denied: invalid session' unless user
+  try req.USER = JSON.parse user
+  throw new Error 'Access denied: invalid user' unless req.USER?
 
 @server.RequireGroupBare = (hasGroup,needsGroup)->
   return true if hasGroup.includes 'admin'
@@ -55,8 +57,11 @@ User.get = (id)-> new User JSON.parse await APP.user.get id
   throw new Error 'Access Denied' + reason
 
 @server.Logout = (q,req,res)->
+  try APP.session.get req.COOKIE catch e then return console.log 'logout:no:cookie', e
   try APP.session.del req.COOKIE
+  console.log 'DEAUTH'.yellow, req.USER.id, req.USER.group
   res.setHeader 'Set-Cookie', "SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"
+  $fs.unlinkSync ( $path.join '/tmp/auth', req.COOKIE ), '' if $fs.existsSync '/tmp/auth'
   res.json success:true
 
 @private "/login",         @server.DenyAuth
@@ -87,12 +92,15 @@ User.get = (id)-> new User JSON.parse await APP.user.get id
 @client.CheckLoginCookieWasSuccessful = (result)->
   result.success || false
 
+@client.Logout = ->
+  ModalWindow.closeActive() if ModalWindow.closeActive
+  try await CALL '/logout', {}
+  $$.emit 'logout'
+  do LoginForm
+
 @client.ButtonLogout = ->
   btn = IconButton 'Logout'
-  btn.onclick = ->
-    ModalWindow.closeActive() if ModalWindow.closeActive
-    window.dispatchEvent new Event 'logout'
-    CALL('/logout',{}).then(anew = -> $$.emit 'logout';do LoginForm).catch(anew)
+  btn.onclick = Logout
   btn
 
 @client.Login = (user,pass)->
