@@ -56,8 +56,8 @@
   result.success || false
 
 @client.ConnectWebSocket = -> new Promise (resolve,reject)->
-  WebSocketRequest.id = 0
-  WebSocketRequest.request = {}
+  WebSocketRequest.id      = WebSocketRequest.id || 0
+  WebSocketRequest.request = WebSocketRequest.request || {}
   l = location; p = l.protocol; h = l.host
   addr = p.replace('http','ws') + '//' + h + '/api'
   console.log 'ws', 'connect', addr
