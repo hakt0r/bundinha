@@ -52,8 +52,9 @@
   WebSocketRequest.id = 0
   WebSocketRequest.request = {}
   l = location; p = l.protocol; h = l.host
-  console.log 'ws', 'connect', p.replace('http','ws') + '://' + h + '/api'
-  socket = new WebSocket p.replace('http','ws') + '//' + h + '/api'
+  addr = p.replace('http','ws') + '//' + h + '/api'
+  console.log 'ws', 'connect', addr
+  socket = new WebSocket addr
   socket.addEventListener 'error', ->
     CALL.socket = null
     NotificationToast.show 1000, 'offline'
@@ -71,4 +72,18 @@
 
 @client.WebSocketRequest = (call,data)-> new Promise (resolve,reject)->
   WebSocketRequest.request[id = WebSocketRequest.id++] = resolve:resolve, reject:reject
-  CALL.socket.send JSON.stringify [id,call,data]
+  if CALL.socket.readyState is CALL.socket.OPEN
+    CALL.socket.send JSON.stringify [id,call,data]
+    return
+  try
+    await ConnectWebSocket()
+    return unless CALL.socket.readyState is CALL.socket.OPEN
+    CALL.socket.send JSON.stringify [id,call,data]
+    return
+  LoginForm()
+  NotificationToast.show 1000, """
+  <div class=error>
+    <h1>Connection Error:</h1>
+    <div>Could not connect to the WebSocket service at #{CALL.socket.url}.</div>
+  </div>"""
+  return

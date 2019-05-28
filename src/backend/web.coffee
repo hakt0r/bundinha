@@ -16,11 +16,28 @@
       xhr.send JSON.stringify [call,data]
     else xhr.send()
     xhr.onload = ->
-      try result = JSON.parse @response
-      catch e then reject "JSON Error: " + e
-      unless result.error
-           resolve result
-      else reject result.error
+      try
+        result = JSON.parse @response
+        unless result.error
+          resolve result
+        else reject result.error
+      catch e
+        if @status isnt 200
+          l = location; p = l.protocol; h = l.host
+          addr = p + '//' + h + '/api'
+          reject """
+          <div class=error>
+            <h1>Network Error:</h1>
+            <div><b>#{@status}</b> <i>#{@statusText}</i></div>
+            <div>Could not connect to the service at #{addr}.</div>
+          </div>"""
+          return
+        reject """
+        <div class=error>
+          <h1>JSON Error:</h1>
+          <div>#{e.toString()}</div>
+          <div>#{@response}.</div>
+        </div>"""
     null
 
 # ██     ██ ███████ ██████  ███████ ██████  ██    ██
