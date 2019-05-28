@@ -30,8 +30,9 @@ Bundinha::ServiceWorker = ->
   CACHE_NAME = AppName + '_' + BuildId
   jsonHeaders = headers:'Content-Type':'application/json'
   errorResponse = JSON.stringify error:'offline'
+  Assets = [location.origin].concat Assets
   self.addEventListener 'install', (event)-> event.waitUntil(
-    caches.open CACHE_NAME
+    cache = await caches.open CACHE_NAME
     .then (cache) ->
       cache.addAll Assets.map (url)=>
         new Request url, credentials: 'same-origin' )
