@@ -36,6 +36,13 @@
         try res.error error
   console.log APP.Protocol, 'websockets'.green
 
+@client.init = ->
+  $$.on 'logout', ->
+    try CALL.socket.close()
+    CALL.socket = false
+    return
+  return
+
 @client.CALL = (call,data)->
   return WebSocketRequest call, data if CALL.socket
   return AJAX call, data
