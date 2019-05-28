@@ -20,9 +20,9 @@
   return res.json challenge: storageSalt:rec.storageSalt, seedSalt:rec.seedSalt unless q.pass?
   hashedPass = SHA512 [ rec.pass, q.salt ].join ':'
   throw new Error I18.NXUser unless hashedPass is q.pass
-  await AddAuthCookie res, q
+  await AddAuthCookie res, rec
   AuthSuccess q, req, res, rec
-  null
+  return
 
 @public "/register", (q,req,res)->
   try rec = await APP.user.get q.id
