@@ -253,6 +253,7 @@
   @server.AppManifest = @manifest
   @server.init = ->
     console.log " write ".red.inverse, AssetDir, 'manifest.json'
+    AppManifest.orientation = AppManifest.orientation || 'any'
     AppManifest.start_url = BaseUrl + '/' # if AppManifest.start_url
     AppManifest.display = 'standalone' unless AppManifest.display
     $fs.writeFileSync $path.join(AssetDir,'manifest.json'), JSON.stringify AppManifest
