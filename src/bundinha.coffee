@@ -409,7 +409,9 @@ do Bundinha::nodePromises = ->
   $fs.exists$   = $util.promisify $fs.exists
   $fs.readdir$  = $util.promisify $fs.readdir
   $fs.readFile$ = $util.promisify $fs.readFile
+  $fs.unlink$   = $util.promisify $fs.unlink
   $cp.spawn$    = $util.promisify $cp.spawn
+  $cp.exec$     = $util.promisify $cp.exec
 
 do Bundinha::arrayTools = ->
   return if Array::unique
