@@ -411,6 +411,8 @@ do Bundinha::nodePromises = ->
   $fs.readFile$ = $util.promisify $fs.readFile
   $fs.unlink$   = $util.promisify $fs.unlink
   $cp.spawn$    = $util.promisify $cp.spawn
+  $cp.spawnExec$ = (cmd,args,opts)-> new Promise (resolve,reject)->
+    $cp.spawn(cmd,args,opts).on('error',reject).on('close',resolve)
   $cp.exec$     = $util.promisify $cp.exec
 
 do Bundinha::arrayTools = ->
