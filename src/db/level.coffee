@@ -19,6 +19,7 @@
 
 Database.get = (id)-> new Promise (resolve)=>
   throw new Error 'Not found: ' + id unless rec = JSON.parse await @db.get id
+  rec.id = id
   resolve new @ rec
 
 Database.del = (id)-> new Promise (resolve)=>
