@@ -31,7 +31,12 @@
   preinit:->
     do APP.loadDependencies
     do APP.readEnv
-    await func() for name, func of APP.command when process.argv.includes name
+    process.title = BaseUrl
+    calls = ( func for name, func of APP.command when process.argv.includes name )
+    if 0 < calls.length
+      do APP.initConfig
+      do APP.initDB if APP.initDB
+      await func() for func in calls
     do APP.nodePromises
     do APP.arrayTools
     return
@@ -40,7 +45,7 @@
     do APP.splash
     await do APP.startServer
     do APP.initConfig
-    do APP.initDB
+    do APP.initDB if APP.initDB
     return
   SHA512:SHA512
   escapeHTML:escapeHTML

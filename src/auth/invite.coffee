@@ -69,21 +69,21 @@
   process.argv.slice 1 + process.argv.indexOf command
 
 @command 'user', ->
-  @APP.initConfig(); @APP.initDB(); [ user ] = ArgsFor 'user'
+  [ user ] = ArgsFor 'user'
   u = await User.get user
   console.log if process.stdout.isTTY then u.record else JSON.stringify u.record, null, 2
   process.exit 0
 
 @command 'passwd', ->
-  @APP.initConfig(); @APP.initDB(); [ user, pass ] = ArgsFor 'passwd'
+  [ user, pass ] = ArgsFor 'passwd'
   await User.passwd user, pass; process.exit 0
 
 @command 'group', ->
-  @APP.initConfig(); @APP.initDB(); [ user ] = args = ArgsFor 'group'
+  [ user ] = args = ArgsFor 'group'
   await User.addGroups user, args.slice 1; process.exit 0
 
 @command 'adduser', ->
-  @APP.initConfig(); @APP.initDB(); args = ArgsFor 'adduser'
+  args = ArgsFor 'adduser'
   user = args.shift()
   pass = args.shift()
   try
@@ -96,7 +96,7 @@
   process.exit 0
 
 @command 'deluser', ->
-  @APP.initConfig(); @APP.initDB(); [ user ] = ArgsFor 'deluser'
+  [ user ] = ArgsFor 'deluser'
   try
     await User.get user
     await User.del user

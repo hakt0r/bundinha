@@ -14,12 +14,13 @@
   USER = process.env.USER || process.getuid()
   HOME = process.env.HOME || os.homedir()
   PORT = process.env.PORT || throw new Error 'PORT= environment variable or argument required'
-  DOMAIN = v if ( v = $$.ServerName      )?
-  CERT   = v if ( v = SSLFullchain       )?
-  KEY    = v if ( v = SSLHostKey         )?
-  DOMAIN = v if ( v = process.env.DOMAIN )?
+  CERT   = v if ( v = $$.SSLFullchain )?
+  KEY    = v if ( v = $$.SSLHostKey   )?
+  DOMAIN = v if ( v = $$.ServerName   )?
+  DOMAIN = v.replace(/.*\/\//,'').replace(/(:[0-9]+)?\/.*$/,'') if ( v = $$.BaseUrl )? and not DOMAIN
   CERT   = v if ( v = process.env.CERT   )?
   KEY    = v if ( v = process.env.KEY    )?
+  DOMAIN = v if ( v = process.env.DOMAIN )?
   throw new Error 'CERT= environment variable or argument required'   unless CERT?
   throw new Error 'DOMAIN= environment variable or argument required' unless DOMAIN?
   KEY = false if false is CERT
@@ -56,6 +57,7 @@
     systemctl --user enable  #{AppPackage.name}
     systemctl --user restart #{AppPackage.name}
   """], stdio: 'inherit'
+  APP.configKeys.pushUnique 'BaseUrl';      $$.BaseUrl      = 'https://' + DOMAIN
   APP.configKeys.pushUnique 'ServerName';   $$.ServerName   = DOMAIN
   APP.configKeys.pushUnique 'SSLHostKey';   $$.SSLHostKey   = KEY
   APP.configKeys.pushUnique 'SSLFullchain'; $$.SSLFullchain = CERT

@@ -13,7 +13,14 @@
 
 @command 'install-nginx', ->
   $$.ServerName = BaseUrl.replace(/https?:\/\//,'').replace(/\/.*/,'')
-  console.log 'install'.red, 'nginx', $$.FLAG
+  console.log 'install'.red, 'nginx', $$.FLAG,
+    BaseUrl:      $$.BaseUrl
+    ServerName:   $$.ServerName
+    SSLHostKey:   $$.SSLHostKey
+    SSLFullchain: $$.SSLFullchain
+    SSLBackend:   $$.SSLBackend
+    Protocol:     $$.Protocol
+    Port:         $$.Port
   try
     await APP.initConfig()
     available = '/' + $path.join 'etc','nginx','sites-available',AppPackage.name+'.conf'
