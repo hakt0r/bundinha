@@ -1,6 +1,6 @@
 # BUNDINHA
 
-BUNDINHA is an open-source backend and webapp bundler.
+BUNDINHA is an open-source backend and webapp (PWA) bundler.
 It's aim is to enable you to jump-start a self-contained
 webapp within a few lines of code.
 
@@ -10,22 +10,21 @@ complexity when it's not requested :P
 Please note that I had to make some funky language level compromises in order
 to keep things as clean and simple (as possible)
 
-Although BUNDINHA is distributed under GNU GPLv3,
-the *resulting code* of included libs, (unless superseded by a package license)
-is exempt from  then GPL and instead licensed under a MIT 3-Clause license.
-
 ### Quickstart
 
 ```ShellScript
   $ sudo npm i -g git+https://github.com/hakt0r/bundinha
-  $ mkdir MY_BUNDLE
-  $ cd    MY_BUNDLE
+  $ export MY_BUNDLE=myfancyapp
+  $ mkdir ${MY_BUNDLE}
+  $ cd    ${MY_BUNDLE}
   $ bundinha -init
   $ ls
 ```
 Your source files willl be in src/, your entry point would be:
 
-  src/MY_BUNDLE.coffee
+```ShellScript
+  $ ${EDITOR} src/${MY_BUNDLE}.coffee
+```
 
 After writing a bit of skeleton code you can build your program:
 
@@ -43,7 +42,7 @@ For testing purposes install the generated package:
 If you used the unpriv backend (recommended) setup your installation:
 
 ```ShellScript
-  $ sudo [appname]-backend install PORT=1234 DOMAIN=test CERT=ssl.cer KEY=ssl.key
+  $ sudo ${MY_BUNDLE}-backend install PORT=1234 DOMAIN=test CERT=ssl.cer KEY=ssl.key
 ```
 
 This will setup a systemd service for the current user, and install the nginx configuration.
@@ -95,13 +94,13 @@ MyApp::andsoforth = ->
   throw new Error 'ooops'
 
 # call api from the client side
+# -> add an init-hook on the frontend
 @client.init ->
   result = await CALL 'some.function', some:true, args:[1,2,3]
   console.log 'some.function returned', result
-  return
+  return # note the blank return (see below)
 
 ```
-
 
 ### A word about hooks
 
@@ -186,12 +185,57 @@ return promise
   # Add public API-handler
 ```
 
+### Modules
+
+The following modules should help you build and shape your project.
+
+```CoffeeScript
+bundinha/frontend          # minimal frontend, implies:
+bundinha/miqro             #   - some jQuery-like shortcuts
+bundinha/notification      #   - notification manager
+bundinha/button            #   - navbar / button system
+bundinha/editor            #   - minimal editor widgets
+bundinha/service           # service worker (pwa)
+bundinha/fontawesome       # fontawesome support
+bundinha/googlefonts       # googlefonts support
+bundinha/keyboard          # keyboard manager
+bundinha/license           # license compilation
+bundinha/qrcode            # qrcode generator (experimental)
+bundinha/scanner           # qrcode scanner (experimental)
+bundinha/crypto/light      # lightweight crypto: SHA1, SHA512, nacl
+bundinha/db/db             # implied by one of the following db backends
+bundinha/db/level          #   - leveldb backing
+bundinha/auth/auth         # implied by one of the following auth backends
+bundinha/auth/invite       #   - invite-key based auth
+bundinha/auth/ssh          #   - ssh authentication (experimental)
+bundinha/backend/unpriv    # recommended (nginx/sytemd --user)
+bundinha/backend/systemd   # systemd     (deprecated)
+bundinha/backend/acme      # ACME ssl certs
+bundinha/backend/binary    # system binary deps (atm deb only)
+bundinha/backend/nginx     # nginx autoconfig
+bundinha/backend/web       # static & ajax api
+bundinha/backend/websocket # websocket api
+```
+
 ## Copyrights
 
-  bundinha: * c) 2018 Sebastian Glaser <anx@hakt0r.de>
-  htx:      * c) 2013 Sebastian Glaser <anx@hakt0r.de>
+   - **bundinha** c) 2018-2019 Sebastian Glaser <anx@hakt0r.de>
+   - derived from **htx**: c) 2013 Sebastian Glaser <anx@hakt0r.de>
 
-  bundinha was derived from htx
+## GPL compiler exemption
+
+   Although BUNDINHA is distributed under GNU GPLv3,
+   the *resulting code* from included core-libs, (unless superseded by a package license)
+   is exempt from  then GPL and instead licensed under a MIT 3-Clause license.
+
+   The reasoning is: according to the FSF JavaScript (and other source languages)
+   may trigger a clause where GPL-code runs in the same process as potential closed
+   code, because scripting languages usually don't link - but concatenate the code.
+
+   This would require you to license your code under the GPL as well, thus the exemption.
+
+   So you **can** commercially publish the code BUNDINHA generates,
+   but you **must** still share patches to the source tree.
 
 ## Licensed under GNU GPLv3
 
