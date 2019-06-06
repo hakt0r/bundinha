@@ -25,7 +25,7 @@
   value = value[0] if Array.isArray value
   @htmlScope[prop] = @htmlScope[prop] || []
   @htmlScope[prop].push value
-  # console.log '::html'.yellow, prop.bold, value
+  # console.log '::html:'.bold.inverse.yellow, prop.bold, value
   true
 
 @phase 'build',0, =>
@@ -34,7 +34,7 @@
   @reqdir @AssetDir
 @phase 'build',9999, =>
   return if @HasFrontend is false
-  console.log ':build'.green, 'frontend'.bold, @AssetURL.yellow, @htmlFile.bold
+  console.log ':build:'.bold.inverse.green, 'frontend'.bold, @AssetURL.yellow, @htmlFile.bold
   await @emphase 'build:frontend:pre'
   await @emphase 'build:frontend'
   @insertHtml = head:'',body:''
@@ -116,7 +116,7 @@
   @scriptURI  = $path.join @AssetURL, @scriptFile
 @phase 'build:frontend',9999,@buildFrontendScripts = =>
   console.debug ':build'.green, 'scripts'.yellow.bold
-  { minify } = require 'uglify-es' if @minifyScripts is true
+  { minify } = require 'uglify-es' if @minify
   apilist = []
   scripts = []
   scripts.push """window.$$ = window; $$.isServer = ! ( $$.isClient = true ); $$.debug = false;"""
@@ -155,12 +155,12 @@
     for name in ['preinit','init']
       hook[name] = client[name] || ''
       delete client[name]
-    scripts.push @processAPI @shared.function, apilist
-    scripts.push @processAPI client, apilist
+
+    scripts.push @processAPI ( Object.entries client), apilist
     scripts.push 'setTimeout(async ()=>{' + [hook.preinit,hook.init].join('\n') + '});'
     scripts = scripts.join '\n'
-    scripts = minify(scripts).code                   if @minifyScripts is true
-    return                                           if scripts.trim() is ''
+    scripts = minify(scripts,@minify).code if @minify
+    return                                 if scripts.trim() is ''
     @scriptHash.push "'" + ( contentHash scripts ) + "'"
     if @inlineScripts is false
          $fs.writeFileSync $path.join(@AssetDir,@scriptFile), scripts
@@ -169,7 +169,6 @@
          console.debug ':write'.green, @scriptFile.bold
     else @insertScripts += """<script>#{scripts}"</script>"""
   @scriptHash = @scriptHash.join ' '
-  console.debug 'client'.green, apilist.join(' ').gray
 
 #  ██████ ███████ ███████
 # ██      ██      ██
@@ -193,7 +192,7 @@
   @cssScope.asset = @cssScope.asset || []
   await do =>
     # console.log "  CSS ".red.bold.inverse, @cssScope
-    CleanCSS = require 'clean-css' if @minifyScripts is true
+    CleanCSS = require 'clean-css' if @minify
     styles = ''
     for href in @cssScope.asset when href.match and url = href.match /^href:\/(.*)$/
       @insertStyles += """<link rel=stylesheet href="#{url[1]}"/>"""
@@ -208,7 +207,7 @@
         @stylesHash.push "'" + ( contentHash data ) + "'"
         @asset.push file
       styles += data + '\n' for dest, data of @cssScope when dest isnt 'asset'
-    styles = (new CleanCSS {}).minify(styles).styles if @minifyScripts is true
+    styles = (new CleanCSS {}).minify(styles).styles if @minify
     return                                           if styles.trim() is ''
     @stylesHash.push "'" + ( contentHash styles ) + "'"
     if @inlineStyles is false

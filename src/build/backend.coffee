@@ -49,7 +49,7 @@
 # ██████   ██████  ██ ███████ ██████
 
 Bundinha::buildBackend = ->
-  console.log ':build'.green, 'backend'.bold, @backendFile.yellow
+  console.log ':build:'.bold.inverse.green, 'backend'.bold, @backendFile.yellow
   @loadDependencies()
   out = '( function(){ ' + (
     @serverHeader.map (i)-> i.toBareCode()
@@ -96,8 +96,7 @@ Bundinha::buildBackend = ->
     console.debug 'plugin'.green, module, list.join ' '
 
   apis = ''; apilist = []
-  apis += @processAPI @shared.function, apilist
-  apis += @processAPI server,           apilist
+  apis += @processAPI ( Object.entries server ), apilist
 
   scripts.push apis
   scripts.push plugins
@@ -126,11 +125,9 @@ Bundinha::buildBackend = ->
 
   out += "\nAPP.init();"
   out += '\n'
-  # out = minify(out).code
-
+  out = minify(out,@minify).code if @minify
   out = "#!#{process.execPath}\n" + out # add shebang
 
-  # AppPackage.scripts['install-systemd'] = """sudo npm -g i .; #{} install-systemd"""
   $fs.writeFileSync $path.join(BuildDir,@backendFile), out
 
   do @buildPackageJSON

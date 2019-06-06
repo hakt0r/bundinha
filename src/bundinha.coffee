@@ -95,7 +95,6 @@ Bundinha::build = ->
   @htmlFile = @htmlFile || 'index.html'
   @htmlPath = $path.join WebDir, @htmlFile
   @backendFile = @backendFile || 'backend.js'
-  console.log @AssetDir.red
   @reqdir  BuildDir
   @reqdir  WebDir
   @reqdir  @AssetDir

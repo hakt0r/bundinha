@@ -14,11 +14,10 @@
   server = @server()
   for key, value of obj
     if typeof value is 'function'
-         @shared.function[key] = client[key] = $$[key] = value
+         server[key] = client[key] = $$[key] = value
     else @shared.constant[key] = $$[key] = value
   return
 @shared.constant = {}
-@shared.function = {}
 
 @scope.plugin = (module,obj)->
   if typeof obj is 'string'
@@ -29,47 +28,76 @@
   @pluginScope[module][name] = plug = {} unless plug = mod[name]
   plug
 
+Function::argumentDescriptor = ->
+  return [] unless args = @toString().match /^[^(]+\(([^)]*)\)/
+  args[1].split(',')
+  .filter (arg)-> arg?
+  .map    (arg)-> arg.replace(/\/\*.*\*\//, '').trim().split('=').map (d)-> d.trim()
+Function::argumentList = -> @argumentDescriptor().map( (d)-> d.shift() ).filter( (d)-> d.length )
+
 Bundinha::processAPI = (opts,apilist)->
   apis = ''; name = null
   descriptorFilters = ['prototype','name','length','caller','arguments','constructor']
-  _process_members_ = (out,members,api,selector='')->
+  _process_members_ = (path,name,out,members,sublclasses,api,selector='')->
     descs = Object.getOwnPropertyDescriptors api
-    sym = if  selector is '' then '@' else '::'
+    sym = if selector is '' then '@' else '::'
     for key, desc of descs when not descriptorFilters.includes key
       value = api[key]
       if typeof value is 'function'
-        code = value.toString()
-        add = if code.match /^async / then 'async ' else ''
-        xdd = if selector is '' then 'static ' + add else add
-        regex = new RegExp "  #{xdd}#{key}\\("
-        if code.match regex
-          members.push sym.green + key
-          continue
-        code = code.replace /^[^(]+/, 'function ' + key
-        out += "\n#{name}#{selector}#{accessor key} = #{add}#{code};"
-        members.push sym.yellow + key
+        if ( value::? and value::constructor? ) and key is value::constructor.name
+          sublclasses.push [key,value]
+        else
+          code = value.toString()
+          add = if code.match /^async / then 'async ' else ''
+          xdd = if selector is '' then 'static ' + add else add
+          regex = new RegExp "  #{xdd}#{key}\\("
+          if code.match regex
+            members.push sym.green + key
+            continue
+          code = code.replace /^[^(]+/, 'function ' + key
+          out += "\n#{path.substring 1}#{selector}#{accessor key} = #{add}#{code};"
+          members.push "#{sym.yellow}#{key}(#{value.argumentList().join(',').gray})"
       else if typeof value is 'object' and typeof (vals = Object.values value)[0] is 'function'
         if Array.isArray value
-          out += "\n$$.#{name}#{selector}#{accessor key} = [];\n"
-          out += "\n$$.#{name}#{selector}#{accessor key}#{accessor k} = #{v.toString()};\n" for k,v of value
+          out += "\n#{path.substring 1}#{selector}#{accessor key} = [];\n"
+          out += "\n#{path.substring 1}#{selector}#{accessor key}#{accessor k} = #{v.toString()};\n" for k,v of value
         else
-          out += "\n$$.#{name}#{selector}#{accessor key} = {};\n"
-          out += "\n$$.#{name}#{selector}#{accessor key}#{accessor k} = #{v.toString()};\n" for k,v of value
+          out += "\n#{path.substring 1}#{selector}#{accessor key} = {};\n"
+          out += "\n#{path.substring 1}#{selector}#{accessor key}#{accessor k} = #{v.toString()};\n" for k,v of value
       else
         out += "\n$$.#{name}#{selector}#{accessor key} = #{JSON.stringify value};\n"
         members.push sym.gray + key
     out
-  for name, api of opts
-    # debugger if name is 'MIME'
+  _process_class_ = (path,name,api,classes)->
+    func = api.toString()
+    out = "\n$$#{path} = #{func};"
+    members = []
+    sublclasses = []
+    if api::?
+      out = _process_members_ path, name, out, members, sublclasses, api::, '.prototype'
+      out = _process_members_ path, name, out, members, sublclasses, api
+    if members.length > 0
+         classes.push "#{path.substring(1).bold.red}(#{})", members.join ' '
+    else classes.push "#{path.substring(1).bold.red}(#{})"
+    for sub in sublclasses
+      [key,value] = sub
+      _process_class_ "#{path}#{accessor key}", key, value, classes
+    return out
+  funcs = []; classes = []
+  for record in opts
+    [ name, api ] = record
     if typeof api is 'function'
-      func = api.toString()
-      out = "\n$$#{accessor name} = #{func};"
-      members = []
-      if api::?
-        out = _process_members_ out, members, api::, '.prototype'
-        out = _process_members_ out, members, api
-      console.debug name.bold, members.join ' ' if members.length > 0
+      cnt  = Object.keys(api).length
+      cnt += Object.keys(api::).length if api::?
+      if cnt > 0
+        out = _process_class_ accessor(name), name, api, classes
+      else
+        funcs.push "#{name.yellow}(#{api.argumentList().join(',').gray})"
+        func = api.toString()
+        out = "\n$$#{accessor name} = #{func};"
     else out = "\n$$#{accessor name} = #{JSON.stringify api};"
     apis += out
     apilist.push name
+  console.debug funcs.join ' '
+  console.debug classes.join ' '
   apis
