@@ -27,7 +27,28 @@ Your source files willl be in src/, your entry point would be:
 
   src/MY_BUNDLE.coffee
 
-### Example Point
+After writing a bit of skeleton code you can build your program:
+
+```ShellScript
+  $ bundinha
+  $ ls build/
+```
+
+For testing purposes install the generated package:
+
+```ShellScript
+  $ cd build/; sudo npm -g i .; cd ..
+```
+
+If you used the unpriv backend (recommended) setup your installation:
+
+```ShellScript
+  $ sudo [appname]-backend install PORT=1234 DOMAIN=test CERT=ssl.cer KEY=ssl.key
+```
+
+This will setup a systemd service for the current user, and install the nginx configuration.
+
+### Example entry point
 
 This works for @client, @server or @shared API's
 
@@ -37,8 +58,10 @@ This works for @client, @server or @shared API's
 #   They are not included using node's require
 #   Instead their @ will be your current Bundinha
 #   -> @ stays the same on @require
+
 @require 'bundinha/fontawesome'             # use the fontawesome module
 @require 'bundinha/auth/invite'             # use the auth/invite module
+@require 'bundinha/backend/unpriv'          # use the backend/unpriv module
 @require 'MY_BUNDLE/my_other_source.coffee' # use your own extra source
 
 # create global client / server API's like this
@@ -78,6 +101,7 @@ MyApp::andsoforth = ->
   return
 
 ```
+
 
 ### A word about hooks
 
