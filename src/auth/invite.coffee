@@ -20,6 +20,7 @@
   return res.json challenge: storageSalt:rec.storageSalt, seedSalt:rec.seedSalt unless q.pass?
   hashedPass = SHA512 [ rec.pass, q.salt ].join ':'
   throw new Error I18.NXUser unless hashedPass is q.pass
+  req.USER = rec
   await AddAuthCookie res, rec
   AuthSuccess q, req, res, rec
   return

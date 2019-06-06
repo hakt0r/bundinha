@@ -48,10 +48,12 @@
   return AJAX call, data
 
 @client.CheckLoginCookieWasSuccessful = (result)->
+  $$.GROUP = result.groups
   return ConnectWebSocket() if result.success
   result.success || false
 
 @client.LoginResult = (result)->
+  $$.GROUP = result.groups
   return ConnectWebSocket() if result.success
   result.success || false
 

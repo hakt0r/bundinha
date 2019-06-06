@@ -52,7 +52,7 @@ User.del = (id)-> APP.user.del id
   DenyAuth ': invalid group' unless RequireGroupBare hasGroup, needsGroup
 
 @server.AuthSuccess = (q,req,res)->
-  res.json success:true
+  res.json success:true, groups:req.USER.group
 
 @server.DenyAuth = (reason='')->
   throw new Error 'Access Denied' + reason
@@ -91,6 +91,7 @@ User.del = (id)-> APP.user.del id
   else Promise.resolve false
 
 @client.CheckLoginCookieWasSuccessful = (result)->
+  $$.GROUP = result.groups
   result.success || false
 
 @client.Logout = ->
@@ -110,6 +111,7 @@ User.del = (id)-> APP.user.del id
   .then (challenge)-> RequestLogin user, pass, challenge
 
 @client.LoginResult = (result)->
+  $$.GROUP = result.groups
   result.success || false
 
 # ██       ██████   ██████  ██ ███    ██
