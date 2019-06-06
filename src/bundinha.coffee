@@ -405,12 +405,13 @@ $fs.readBase64Sync = (path)->
   $fs.readFileSync path, 'base64'
 
 do Bundinha::nodePromises = ->
-  $fs.stat$     = $util.promisify $fs.stat
-  $fs.exists$   = $util.promisify $fs.exists
-  $fs.readdir$  = $util.promisify $fs.readdir
-  $fs.readFile$ = $util.promisify $fs.readFile
-  $fs.unlink$   = $util.promisify $fs.unlink
-  $cp.spawn$    = $util.promisify $cp.spawn
+  $fs.stat$      = $util.promisify $fs.stat
+  $fs.exists$    = $util.promisify $fs.exists
+  $fs.readdir$   = $util.promisify $fs.readdir
+  $fs.readFile$  = $util.promisify $fs.readFile
+  $fs.writeFile$ = $util.promisify $fs.writeFile
+  $fs.unlink$    = $util.promisify $fs.unlink
+  $cp.spawn$     = $util.promisify $cp.spawn
   $cp.spawnExec$ = (cmd,args,opts)-> new Promise (resolve,reject)->
     $cp.spawn(cmd,args,opts).on('error',reject).on('close',resolve)
   $cp.exec$     = $util.promisify $cp.exec
