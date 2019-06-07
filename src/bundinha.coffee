@@ -293,7 +293,8 @@ $$.contentHashFile = (path)->
   contentHash $fs.readFileSync path, 'utf8'
 
 $$.accessor = (key)->
-  return ".#{key}" if key.match /^[a-z0-9_]+$/i
+  return "[#{key}]" if key.toString?().match? /^[0-9]+$/
+  return ".#{key}"  if key.match /^[a-z0-9_]+$/i
   return "[#{JSON.stringify key}]"
 
 Bundinha::npm = (spec)->

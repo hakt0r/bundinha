@@ -1,14 +1,4 @@
 
-# ███████ ██   ██  █████  ██████  ███████ ██████
-# ██      ██   ██ ██   ██ ██   ██ ██      ██   ██
-# ███████ ███████ ███████ ██████  █████   ██   ██
-#      ██ ██   ██ ██   ██ ██   ██ ██      ██   ██
-# ███████ ██   ██ ██   ██ ██   ██ ███████ ██████
-
-@scope 'flag', (name,value=true)-> @flagScope[name] = value
-@collectorScope 'client', ['preinit','init']
-@collectorScope 'server', ['preinit','init']
-
 Object.hasMemberFunctions = (obj)->
   return false unless typeof obj is 'function'
   return false unless obj::?
@@ -16,6 +6,18 @@ Object.hasMemberFunctions = (obj)->
   has = true for k,d of Object.getOwnPropertyDescriptors(obj)   when typeof d.value is 'function'
   has = true for k,d of Object.getOwnPropertyDescriptors(obj::) when typeof d.value is 'function' if obj::?
   has || false
+
+Function::argumentDescriptor = ->
+  return [] unless args = @toString().match /^[^(]+\(([^)]*)\)/
+  args[1].split(',')
+  .filter (arg)-> arg?
+  .map    (arg)-> arg.replace(/\/\*.*\*\//, '').trim().split('=').map (d)-> d.trim()
+
+Function::argumentList = -> @argumentDescriptor().map( (d)-> d.shift() ).filter( (d)-> d.length )
+
+@scope 'flag', (name,value=true)-> @flagScope[name] = value
+@collectorScope 'client', ['preinit','init']
+@collectorScope 'server', ['preinit','init']
 
 @shared = (obj)->
   if Object.hasMemberFunctions obj
@@ -38,74 +40,53 @@ Object.hasMemberFunctions = (obj)->
   @pluginScope[module][name] = plug = {} unless plug = mod[name]
   plug
 
-Function::argumentDescriptor = ->
-  return [] unless args = @toString().match /^[^(]+\(([^)]*)\)/
-  args[1].split(',')
-  .filter (arg)-> arg?
-  .map    (arg)-> arg.replace(/\/\*.*\*\//, '').trim().split('=').map (d)-> d.trim()
-Function::argumentList = -> @argumentDescriptor().map( (d)-> d.shift() ).filter( (d)-> d.length )
-
-Bundinha::processAPI = (opts,apilist)->
-  apis = ''; name = null
-  descriptorFilters = ['prototype','name','length','caller','arguments','constructor']
-  _process_members_ = (path,name,out,members,sublclasses,api,selector='')->
-    descs = Object.getOwnPropertyDescriptors api
-    sym = if selector is '' then '@' else '::'
-    for key, desc of descs when not descriptorFilters.includes key
-      value = api[key]
-      if typeof value is 'function'
-        if ( value::? and value::constructor? ) and key is value::constructor.name
-          sublclasses.push [key,value]
-        else
-          code = value.toString()
-          add = if code.match /^async / then 'async ' else ''
-          xdd = if selector is '' then 'static ' + add else add
-          regex = new RegExp "  #{xdd}#{key}\\("
-          if code.match regex
-            members.push sym.green + key
-            continue
-          code = code.replace /^[^(]+/, 'function ' + key
-          out += "\n#{path.substring 1}#{selector}#{accessor key} = #{add}#{code};"
-          members.push "#{sym.yellow}#{key}(#{value.argumentList().join(',').gray})"
-      else if typeof value is 'object' and typeof (vals = Object.values value)[0] is 'function'
-        if Array.isArray value
-          out += "\n#{path.substring 1}#{selector}#{accessor key} = [];\n"
-          out += "\n#{path.substring 1}#{selector}#{accessor key}#{accessor k} = #{v.toString()};\n" for k,v of value
-        else
-          out += "\n#{path.substring 1}#{selector}#{accessor key} = {};\n"
-          out += "\n#{path.substring 1}#{selector}#{accessor key}#{accessor k} = #{v.toString()};\n" for k,v of value
-      else
-        out += "\n$$.#{name}#{selector}#{accessor key} = #{JSON.stringify value};\n"
-        members.push sym.gray + key
-    out
-  _process_class_ = (path,name,api,classes)->
-    func = api.toString()
-    out = "\n$$#{path} = #{func};"
-    members = []
-    sublclasses = []
-    if api::?
-      out = _process_members_ path, name, out, members, sublclasses, api::, '.prototype'
-      out = _process_members_ path, name, out, members, sublclasses, api
-    if members.length > 0
-         classes.push "#{path.substring(1).bold.red}(#{})", members.join ' '
-    else classes.push "#{path.substring(1).bold.red}(#{})"
-    for sub in sublclasses
-      [key,value] = sub
-      out += _process_class_ "#{path}#{accessor key}", key, value, classes
-    return out
-  funcs = []; classes = []
+Bundinha::processAPI = (opts,apiDesc)->
+  out = ''
   for record in opts
-    [ name, api ] = record
-    if typeof api is 'function'
-      if Object.hasMemberFunctions api
-        out = _process_class_ accessor(name), name, api, classes
-      else
-        funcs.push "#{name.yellow}(#{api.argumentList().join(',').gray})"
-        func = api.toString()
-        out = "\n$$#{accessor name} = #{func};"
-    else out = "\n$$#{accessor name} = #{JSON.stringify api};"
-    apis += out
-    apilist.push name
-  console.log funcs.join ' '
-  console.log classes.join ' '
-  apis
+    [ name, value ] = record
+    out += @compileValue "$$",name,value,'',apiDesc
+  out
+
+Bundinha::compileValue = (path,name,value,selector,apiDesc)->
+  switch typeof value
+    when 'function'
+           @compileFunction path,name,value,selector,apiDesc
+    when 'object'
+      if Array.isArray value
+           @compileArray    path,name,value,selector,apiDesc
+      else @compileObject   path,name,value,selector,apiDesc
+    else   "\n#{path}#{selector}#{accessor name} = #{JSON.stringify value};"
+
+Bundinha::compileArray = (path,name,value,selector,apiDesc)->
+  out = "\n#{path}#{selector}#{accessor name} = [];"
+  for k,v of value
+    if 'function' is typeof v
+         out += "\n#{path}#{selector}#{accessor name}#{accessor k} = #{v.toString()};"
+    else out += "\n#{path}#{selector}#{accessor name}#{accessor k} = #{JSON.stringify v};"
+  out
+
+Bundinha::compileFunction = (path,name,value,selector,apiDesc)->
+  if Object.hasMemberFunctions value
+    return @compileObject path,name,value,selector,apiDesc
+  code = value.toString()
+  add = if code.match /^async / then 'async ' else ''
+  xdd = if selector is '' then 'static ' + add else add
+  regex = new RegExp "  #{xdd}#{name}\\("
+  if code.match regex
+    members.push sym.green + name
+    return
+  code = code.replace /^[^(]+/, 'function ' + name
+  "\n#{path}#{selector}#{accessor name} = #{add}#{code};"
+
+Bundinha::compileObject = (path,name,value,selector,apiDesc)->
+  descriptorFilters = ['prototype','length','caller','arguments','constructor']
+  func = '{}' if ( func = value.toString() ).match /^\[/ # anonymous
+  out = "\n#{path}#{selector}#{accessor name} = #{func};"
+  # prototype
+  if value::?
+    descs = Object.getOwnPropertyDescriptors value::
+    out += @compileValue "#{path}#{selector}#{accessor name}",key,desc.value,'.prototype',apiDesc for key, desc of descs when not descriptorFilters.includes key
+  # statics
+  descs = Object.getOwnPropertyDescriptors value
+  out   += @compileValue "#{path}#{selector}#{accessor name}",key,desc.value,'',  apiDesc for key, desc of descs when not descriptorFilters.includes key
+  out
