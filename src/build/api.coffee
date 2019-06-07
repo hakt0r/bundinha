@@ -9,12 +9,22 @@
 @collectorScope 'client', ['preinit','init']
 @collectorScope 'server', ['preinit','init']
 
+Object.hasMemberFunctions = (obj)->
+  return false unless typeof obj is 'function'
+  return false unless obj::?
+  return false if obj::constructor.toString().match /^(async )?function/
+  has = true for k,d of Object.getOwnPropertyDescriptors(obj)   when typeof d.value is 'function'
+  has = true for k,d of Object.getOwnPropertyDescriptors(obj::) when typeof d.value is 'function' if obj::?
+  has || false
+
 @shared = (obj)->
-  client = @client()
-  server = @server()
+  if Object.hasMemberFunctions obj
+    o = {}; o[obj.name] = obj; obj = o
   for key, value of obj
     if typeof value is 'function'
-         server[key] = client[key] = $$[key] = value
+      @client obj
+      @server obj
+      $$[key] = value
     else @shared.constant[key] = $$[key] = value
   return
 @shared.constant = {}
@@ -81,15 +91,13 @@ Bundinha::processAPI = (opts,apilist)->
     else classes.push "#{path.substring(1).bold.red}(#{})"
     for sub in sublclasses
       [key,value] = sub
-      _process_class_ "#{path}#{accessor key}", key, value, classes
+      out += _process_class_ "#{path}#{accessor key}", key, value, classes
     return out
   funcs = []; classes = []
   for record in opts
     [ name, api ] = record
     if typeof api is 'function'
-      cnt  = Object.keys(api).length
-      cnt += Object.keys(api::).length if api::?
-      if cnt > 0
+      if Object.hasMemberFunctions api
         out = _process_class_ accessor(name), name, api, classes
       else
         funcs.push "#{name.yellow}(#{api.argumentList().join(',').gray})"
@@ -98,6 +106,6 @@ Bundinha::processAPI = (opts,apilist)->
     else out = "\n$$#{accessor name} = #{JSON.stringify api};"
     apis += out
     apilist.push name
-  console.debug funcs.join ' '
-  console.debug classes.join ' '
+  console.log funcs.join ' '
+  console.log classes.join ' '
   apis
