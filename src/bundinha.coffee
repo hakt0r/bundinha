@@ -418,6 +418,8 @@ do Bundinha::nodePromises = ->
 
 do Bundinha::arrayTools = ->
   return if Array::unique
+  Object.defineProperty String::, 'arrayWrap', get:-> [@]
+  Object.defineProperty Array::,  'arrayWrap', get:-> @
   Object.defineProperties Array::,
     trim:    get: -> return ( @filter (i)-> i? and i isnt false ) || []
     random:  get: -> @[Math.round Math.random()*(@length-1)]
