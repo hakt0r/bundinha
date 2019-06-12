@@ -51,6 +51,9 @@
   SHA512:SHA512
   escapeHTML:escapeHTML
 
+@server.ArgsFor = (command)->
+  process.argv.slice 1 + process.argv.indexOf command
+
 @server.APP = class $app
 
 $app.arrayTools   = @arrayTools

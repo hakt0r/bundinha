@@ -65,9 +65,6 @@
   u.record.group = u.record.group.concat(groups).unique
   u.commit()
 
-@server.ArgsFor = (command)->
-  process.argv.slice 1 + process.argv.indexOf command
-
 @command 'user', ->
   [ user ] = ArgsFor 'user'
   u = await User.get user
