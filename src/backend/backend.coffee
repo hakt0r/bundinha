@@ -36,10 +36,11 @@
     process.title = BaseUrl
     calls = ( func for name, func of APP.command when process.argv.includes name )
     if 0 < calls.length
+      process.exitAfterCommands = true
       do APP.initConfig
       do APP.initDB if APP.initDB
       await func() for func in calls
-    process.exit 0 if process.exitAfterCommands
+      process.exit 0 if process.exitAfterCommands
     return
   init:->
     await do APP.preinit
