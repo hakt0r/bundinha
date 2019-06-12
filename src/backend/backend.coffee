@@ -31,14 +31,15 @@
   preinit:->
     do APP.loadDependencies
     do APP.readEnv
+    do APP.nodePromises
+    do APP.arrayTools
     process.title = BaseUrl
     calls = ( func for name, func of APP.command when process.argv.includes name )
     if 0 < calls.length
       do APP.initConfig
       do APP.initDB if APP.initDB
       await func() for func in calls
-    do APP.nodePromises
-    do APP.arrayTools
+    process.exit 0 if process.exitAfterCommands
     return
   init:->
     await do APP.preinit
