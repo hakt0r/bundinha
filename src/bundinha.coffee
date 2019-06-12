@@ -418,6 +418,10 @@ do Bundinha::nodePromises = ->
 
 do Bundinha::arrayTools = ->
   return if Array::unique
+  Object.filter = (o,c)->
+    r = {}
+    r[k] = v for k,v of o when c k,v
+    r
   Object.defineProperty String::, 'arrayWrap', get:-> [@]
   Object.defineProperty Array::,  'arrayWrap', get:-> @
   Object.defineProperties Array::,
