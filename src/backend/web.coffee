@@ -70,7 +70,7 @@ APP.startServer = ->
       cert: $fs.readFileSync crtPath
     options = SNICallback:(servername,cb)-> cb null, APP.httpsContext
     APP.server = require('https').createServer options, APP.handleRequest
-  do APP.initWebSockets if WebSockets?
+  WebSock?.init()
   _addr_ = if APP.addr is '0.0.0.0' then null else APP.addr
   new Promise (resolve)-> APP.server.listen APP.port, _addr_, ->
     console.log APP.Protocol, 'online'.green, APP.addr.red + ':' + APP.port.toString().magenta
