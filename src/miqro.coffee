@@ -28,7 +28,11 @@ Bundinha::miqro = -> # aka. Vquery, VanillaJ and jFlat
       @removeEventListener key, func, opts
     kill: (key)-> @events(key).map @off.bind @, key
     once: (key,func)-> @on key, func, once:yes
-    emit: (key,data)-> @dispatchEvent Object.assign( new Event key ), data: data
+    emit: (key,data)->
+      @dispatchEvent Object.assign ( new Event key ),
+        if not data? then {}
+        else if data.data? then data
+        else data:data
   for spec in [$$,$$$,HTMLElement::,DocumentFragment::]
     SmoothEvents spec
     spec.find = (query)-> @querySelector query
