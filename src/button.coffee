@@ -34,7 +34,7 @@
   show = ->
     body = opts.body || ''
     body = body() if body.call
-    win = ModalWindow
+    win = new ModalWindow
       id: opts.id || opts.title.toLowerCase()
       head: opts.head || opts.title.toLowerCase()
       body: body
@@ -45,33 +45,46 @@
     win
   btn = IconButton opts.buttonTitle, show
 
-@client.ModalWindow = (opts)->
-  ModalWindow.closeActive() if ModalWindow.closeActive
-  extraClass = ''
-  extraClass = opts.class if opts.class
-  head = if opts.head then "<h1>#{opts.head}</h1>" else ''
-  id   = if opts.id   then """id="#{opts.id}" """  else ''
-  document.body.append html = $.make """
-  <div #{id}class="window modal#{extraClass}">
-    #{head}
-  </div>"""
-  if opts.body
-    if Array.isArray opts.body then           html.append html.body = e for e in opts.body
-    else if 'string' is typeof opts.body then html.append html.body = $.make opts.body
-    else                                      html.append html.body = opts.body
-  opts.closeBtn.classList.add 'deleting' if opts.closeBtn?
-  ModalWindow.closeActive = html.close = close = (e)->
-    ModalWindow.closeActive = null
-    if opts.closeBtn?
-      opts.closeBtn.classList.remove 'deleting'
-      opts.closeBtn.onclick = if opts.showHandler? then opts.showHandler else null
-    document.removeEventListener 'keyup', keyClose
-    opts.onclose() if opts.onclose
-    html.remove()
-    e.preventDefault() if e
-    false
-  opts.closeBtn.onclick = close if opts.closeBtn?
-  document.addEventListener 'keyup', keyClose = (e)->
-    return false unless e.key is 'Escape'
-    close e
-  html
+@client class ModalWindow
+  constructor:(opts)->
+    ModalWindow.closeActive() if ModalWindow.closeActive
+    extraClass = ''
+    extraClass = opts.class if opts.class
+    head = if opts.head then "<h1>#{opts.head}</h1>" else ''
+    id   = if opts.id   then """id="#{opts.id}" """  else ''
+    document.body.append html = $.make """
+    <div #{id}class="window modal#{extraClass}">
+      #{head}
+    </div>"""
+    html.section = ModalWindow.section
+    html.section "head", opts.head
+    html.section "body", opts.body
+    html.section "foot", opts.foot
+    opts.closeBtn.classList.add 'deleting' if opts.closeBtn?
+    ModalWindow.closeActive = html.close = close = (e)->
+      ModalWindow.closeActive = null
+      if opts.closeBtn?
+        opts.closeBtn.classList.remove 'deleting'
+        opts.closeBtn.onclick = if opts.showHandler? then opts.showHandler else null
+      document.removeEventListener 'keyup', keyClose
+      opts.onclose() if opts.onclose
+      html.remove()
+      e.preventDefault() if e
+      false
+    opts.closeBtn.onclick = close if opts.closeBtn?
+    document.addEventListener 'keyup', keyClose = (e)->
+      return false unless e.key is 'Escape'
+      close e
+    html
+
+@client.ModalWindow.section = (name,value)->
+  return unless value?
+  switch typeof value
+    when 'function' then @section name, value()
+    when 'string'   then @append @body = $.make value
+    when 'object'
+      if Array.isArray value
+        @append @body = $.make ''
+        ( @body.append e for e in value )
+      else @append @body = value
+    else throw new Error """ModalWindow::section(#{name},#{value}) Unexpected: #{typeof value}"""

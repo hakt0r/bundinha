@@ -12,7 +12,7 @@
     resolve [key,value]
     ModalWindow.closeActive()
   { item,title,key,value } = opts
-  ModalWindow
+  new ModalWindow
     body:"""
     <form id="propertyEditor">
       <input  type="text" name="key"   placeholder="#{I18.Key}"   autocomplete="off" autofocus="true" />
@@ -46,7 +46,7 @@
     <button type="reset">#{I18.Cancel}</button>
     <button type="submit">#{I18.Save}</button>
   </form>"""
-  html = ModalWindow opts
+  html = new ModalWindow opts
   form$ = document.getElementById 'propertyEditor'
   value$ = document.querySelector '[name=value]'
   value$.value = value if value?
