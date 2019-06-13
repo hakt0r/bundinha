@@ -30,7 +30,7 @@
   return throw new Error 'User exists' if rec?
   # check inviteKey
   unless q.inviteKey is SHA512 [ APP.InviteKey, q.inviteSalt ].join ':'
-    return res.json error:'Invalid InviteKey'
+    return res.error 'Invalid InviteKey'
   await Promise.all [
     User.create id:q.id, pass:q.pass, seedSalt:q.salt
     AddAuthCookie res, q ]

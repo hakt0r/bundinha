@@ -138,7 +138,6 @@ WebSock::handleRequest = (msg)->
     console.error '%c--------------------------------------------------------------', 'color:red'
 
 WebSock::handleResponse = (msg)->
-  console.log msg
   [id,data,error] = JSON.parse msg
   req = @pending[id]; delete @pending[id]
   req.reject  error if error

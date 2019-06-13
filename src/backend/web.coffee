@@ -94,10 +94,11 @@ APP.processGet = ->
 APP.handleRequest = (req,res)->
   console.debug 'request'.cyan, req.url
   if req.method is 'POST' and req.url is '/api'
-    res.json = APP.apiResponse
+    res.json  = APP.apiResponse
+    res.error = (error)-> APP.apiResponse.call res, error:error
     try await APP.apiRequest req, res
     catch error
-      res.json error:error.toString()
+      res.error error.toString()
       console.error '::api'.red.bold, error
   else if req.method is 'GET'
     for rule in APP.get
@@ -106,7 +107,7 @@ APP.handleRequest = (req,res)->
       return rule.func.call res, req, res
     # fallback to fileRequest
     APP.fileRequest req, res
-  else APP.errorResponse 501, 'Uninplemented'
+  else APP.errorResponse 501, 'Unimplemented'
 
 APP.readStream = (stream)-> new Promise (resolve,reject)->
   body = []
@@ -130,7 +131,7 @@ APP.apiRequest = (req,res)->
     when 'deflate' then req.pipe stream = zlib.createInflate()
     when 'gzip'    then req.pipe stream = zlib.createGunzip()
     when 'raw'     then stream = req; stream.length = req.headers['content-length']
-    else return res.json error:'Request without data'
+    else return res.error 'Request without data'
 
   body = JSON.parse await @readStream stream
 
