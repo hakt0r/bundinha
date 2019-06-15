@@ -22,6 +22,7 @@
     ws.reqid = 0
     ws.pending = {}
     ws.on 'message', WebSock::handleMessage.bind ws
+    ws.on 'close', -> WebSock.server.emit 'close', ws
     return ws
 
 WebSock::handleMessage = (msg)->
@@ -35,7 +36,7 @@ WebSock::handleRequest = (msg)->
     [ id, call, args ] = JSON.parse msg
     json  = (data)  => @send JSON.stringify [id,data]
     error = (error) => @send JSON.stringify [id,null,error]
-    req = id:id, USER:@req.USER, ID:@req.ID, COOKIE:@req.COOKIE
+    req = id:id, sock:@, USER:@req.USER, ID:@req.ID, COOKIE:@req.COOKIE
     res = id:id, json:json, error:error, setHeader:(->)
     return fn.call res, args, req, res if fn = APP.public[call]
     if false isnt need_group = APP.group[call]

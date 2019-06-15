@@ -59,7 +59,7 @@ Bundinha::ServiceWorker = ->
       cache = await caches.open CACHE_NAME
       cache.put req, res.clone()
       resolve res
-  null
+  return
 
 #  ██████ ██      ██ ███████ ███    ██ ████████
 # ██      ██      ██ ██      ████   ██    ██
@@ -83,6 +83,6 @@ Bundinha::ServiceWorker = ->
     reg.addEventListener 'updatefound', ->
       reg.installing.addEventListener 'statechange', ->
         return unless @state is 'installed'
-        NotificationToast.show I18.UpdateAvailable, 'Update', 'Cancel'
+        # NotificationToast.show I18.UpdateAvailable, 'Update', 'Cancel'
         @postMessage "skipWaiting"
   return
