@@ -94,15 +94,16 @@ WebSock.init = ->
   return CALL.socket.query call, data if CALL.socket
   return AJAX call, data
 
-@client.CheckLoginCookieWasSuccessful = (result)->
-  $$.GROUP = result.groups
-  return WebSock.connect() if result.success
-  result.success || false
-
-@client.LoginResult = (result)->
-  $$.GROUP = result.groups
-  return WebSock.connect() if result.success
-  result.success || false
+@phase 'build', =>
+  @client.LoginResult = (result)->
+    $$.GROUP = result.groups
+    return WebSock.connect() if result.success
+    result.success || false
+  @client.CheckLoginCookieWasSuccessful = (result)->
+    $$.GROUP = result.groups
+    return WebSock.connect() if result.success
+    result.success || false
+  return
 
 @client class WebSock
   constructor:(addr,resolve,reject,opts={})->
@@ -129,7 +130,10 @@ WebSock.init = ->
 WebSock::handleRequest = (msg)->
   try
     [id,call,data] = JSON.parse msg.substring 1
-    keys = Object.keys data
+    if handler = @client.WebSock.messageHandler[call]
+      req = new WebSock.Request  id
+      res = new WebSock.Response id
+      handler data, req, res
     $$.emit call, data:data, respond:(result)=>
       @send '@' + JSON.stringify [id,result]
   catch error
@@ -170,3 +174,64 @@ WebSock::query = (call,data)-> new Promise (resolve,reject)=>
     <div>Could not connect to the WebSocket service at #{CALL.socket.url}.</div>
   </div>"""
   return
+
+class WebSock.Request
+  src: '$websocket'
+  isWebsocket: true
+  isFrontend: true
+  constructor:->
+
+class WebSock.Response
+  src: '$websocket'
+  isWebsocket: true
+  isFrontend: true
+  constructor:(@id)->
+  json  : (data)-> CALL.sock.send '@' + JSON.stringify [id,data,null]
+  error : (data)-> CALL.sock.send '@' + JSON.stringify [id,null,data]
+
+# ██████  ██    ██ ██████  ███████ ██    ██ ██████
+# ██   ██ ██    ██ ██   ██ ██      ██    ██ ██   ██
+# ██████  ██    ██ ██████  ███████ ██    ██ ██████
+# ██      ██    ██ ██   ██      ██ ██    ██ ██   ██
+# ██       ██████  ██████  ███████  ██████  ██████
+
+@client.WebSock.messageHandler = {}
+
+WebSock.defineMessage = (call,shared,client,server)=>
+  @client.WebSock.messageHandler[call] = client || shared
+  @private call, server || shared
+
+WebSock.defineMessage 'sub', (opts,req,res)->
+  subs = req.sock.sub || req.sock.sub = []
+  for k in opts
+    subs.push k
+    unless list = PubSub.rsub.get(k)
+      list = {}
+      list[k] = req.sock
+      PubSub.rsub.set k, list
+    else list[k] = req.sock
+  return
+
+WebSock.defineMessage 'pub', (opts,req,res)->
+  pubs = req.sock.pub || req.sock.pub = []
+  for k in opts
+    pubs.push k
+    unless list = PubSub.rpub.get(k)
+      list = {}
+      list[k] = req.sock
+      PubSub.rpub.set k, list
+    else list[k] = req.sock
+  return
+
+@shared class PubSub
+  @init:->
+    PubSub.lsub = new Set
+    PubSub.lpub = new Set
+    PubSub.rpub = new Map
+    PubSub.rsub = new Map
+  @sub:(key)->
+    PubSub.lsub.add key
+    @broadcast 'sub', key
+  @pub:(key,list...)->
+    PubSub.lpub.add key
+    @subcast 'pub', list.wrapArray().length

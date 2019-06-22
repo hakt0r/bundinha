@@ -11,17 +11,21 @@
 
   constructor:(opts)->
     Object.assign @, opts
+    @bin = $path.basename @lib if @lib?
     @version = @version || '1.0.0-git1'
     return i if i = SystemBinary.byName[@bin]; SystemBinary.byName[@bin] = @
 
   depend:->
     return Promise.resolve() if await @isInstalled()
-    console.log 'missing'.yellow, @bin.bold
+    console.log 'missing'.yellow, @bin.bold, @lib.gray
     return @install @ if @debian? or @debianDev?
     return Promise.resolve()
 
   isInstalled:->
-    try @path = ( await $cp.exec$ "which #{@bin}" ).stdout.trim()
+    try
+      if @lib?
+        return false unless await $fs.exists$ @path = @lib
+      else @path = ( await $cp.exec$ "which #{@bin}" ).stdout.trim()
     return @path?
 
   install:-> new Promise (@resolvePkgs)=>
@@ -34,14 +38,28 @@
       console.log 'no-build-script', @bin
       return resolve()
     toStdErr = [null,process.stderr,process.stderr]
+    script = ["set -eux"]
+    if @git then script.push """
+      test -d /tmp/#{@bin}-#{@version} ||
+      git clone --depth=1 #{@git} /tmp/#{@bin}-#{@version}"""
+    else if @tarball
+      await $fs.writeFile$ "/tmp/#{@bin}-#{@version}.tar.bz2",
+        @tarball
+      script.push """
+      test -d  /tmp/#{@bin}-#{@version} || (
+      mkdir -p /tmp/#{@bin}-#{@version}
+      cd       /tmp/#{@bin}-#{@version}
+      cat      /tmp/#{@bin}-#{@version}.tar.bz2 | base64 -d | tar xjvf -; )"""
+    else script.tarball "mkdir -p /tmp/#{@bin}-#{@version}"
+    script.push """cd /tmp/#{@bin}-#{@version}"""
+    script.push @build if @build and not @build.call
+    script.push @build() if @build and @build.call
+    script.push """
+    test -d /tmp/#{@bin}-#{@version} &&
+    rm -rf /tmp/#{@bin}-#{@version}
+    """
     try
-      await $cp.spawnExec$ 'sh', [ '-c', """
-      set -eux
-      git clone --depth=1 #{@git} /tmp/#{@bin}-#{@version}
-      cd /tmp/#{@bin}-#{@version}
-      #{@build}
-      rm -rf /tmp/#{@bin}-#{@version}"""
-      ], stdio:toStdErr
+      await $cp.spawnExec$ 'sh', [ '-c', script.join '\n' ], stdio:toStdErr
       resolve()
     catch e
       console.error 'Error'.red.bold, 'building SystemPackage:', @bin.bold

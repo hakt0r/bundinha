@@ -1,5 +1,5 @@
 
-@require 'bundinha/frontend'
+@require 'bundinha/frontend/frontend'
 
 @client.init = ->
   QR.write = qrcode

@@ -5,10 +5,29 @@
 #      ██ ██      ██   ██  ██  ██  ██      ██   ██
 # ███████ ███████ ██   ██   ████   ███████ ██   ██
 
-@require 'bundinha/db/level'
 @flag 'UseAuth'
-@db   'user'
-@db   'session'
+
+@config
+  AdminUser: 'admin'
+  AdminPassword: $forge.util.bytesToHex $forge.random.getBytes 32
+
+@require 'bundinha/db/level'
+@db 'session'
+
+@server.init = ->
+  try await $fs.mkdir$ '/tmp/auth'
+  try rec = await APP.user.get AdminUser
+  catch e
+    seedSalt = Buffer.from($forge.random.getBytesSync 128).toString 'base64'
+    hashedPass = SHA512 [ AdminPassword, seedSalt ].join ':'
+    User.create id:AdminUser, pass:hashedPass, seedSalt:seedSalt, group:['admin']
+  return
+
+# ██    ██ ███████ ███████ ██████
+# ██    ██ ██      ██      ██   ██
+# ██    ██ ███████ █████   ██████
+# ██    ██      ██ ██      ██   ██
+#  ██████  ███████ ███████ ██   ██
 
 @server class User
   constructor:(opts={})-> Object.assign @record = {}, User.defaults(), opts
@@ -16,8 +35,89 @@
 
 User.defaults = -> id:User.getUID(), group: []
 User.getUID = -> SHA512 Date.now() + '-' + $forge.random.getBytesSync 16
+
+User.groups = (callback)-> new Promise (resolve)->
+  a = {}
+  APP.user.createReadStream()
+  .on 'data', (u)->
+    u = JSON.parse u.value
+    a[u.id] = name:u.id, members:[u.id], isuser:true
+    for group in u.group
+      unless a[group]
+        a[group] = name:group, members:[]
+      a[group].members.push u.id
+  .on 'end',  (u)-> resolve Object.values(a).map callback
+
 User.get = (id)-> new User JSON.parse await APP.user.get id
 User.del = (id)-> APP.user.del id
+User.set = (id,rec)-> APP.user.put id, rec
+User.map = (callback)-> new Promise (resolve)->
+  a = []
+  APP.user.createReadStream()
+  .on 'data', (u)-> try a.push callback JSON.parse u.value catch e then console.log u
+  .on 'end',  (u)-> resolve a
+
+User.authenticatePlain = (id,password,rec)->
+  return false unless id? and password?
+  try rec = rec || JSON.parse await APP.user.get id
+  return false unless rec?
+  hashedPass = SHA512 [ password,   rec.seedSalt ].join ':'
+  hashedPass = SHA512 [ hashedPass, rec.storageSalt ].join ':'
+  return rec.pass is hashedPass
+
+User.authenticateWithClientSalt = (id,password,salt)->
+  return false unless id? and password?
+  try rec = rec || JSON.parse await APP.user.get id
+  return false unless rec?
+  hashedPass = SHA512 [ rec.pass, salt ].join ':'
+  return password is hashedPass
+
+# User.authenticateRequest = @server.DenyAuth
+User.authenticateRequest = (q,req,res)->
+  rec = await APP.user.get q.id
+  rec = JSON.parse rec
+  unless q.pass?
+    res.json challenge:
+      storageSalt:rec.storageSalt
+      seedSalt:rec.seedSalt
+    return false
+  unless await User.authenticateWithClientSalt q.id, q.pass, q.salt, rec
+    throw new Error I18.NXUser
+  req.USER = rec
+  rec
+
+# User.registerRequest = @server.DenyAuth
+User.registerRequest = (q,req,res)->
+  throw new Error 'User exists' if ( try rec = await APP.user.get q.id )?
+  throw new Error 'Invalid InviteKey' unless q.inviteKey is SHA512 [ APP.InviteKey, q.inviteSalt ].join ':'
+  await User.create id:q.id, pass:q.pass, seedSalt:q.salt
+  rec
+
+@server.User.create = (opts)->
+  opts.storageSalt = Buffer.from($forge.random.getBytesSync 128).toString 'base64'
+  opts.pass = SHA512 [ opts.pass, opts.storageSalt ].join ':'
+  new User(opts).commit()
+
+@server.User.passwd = (user,pass)->
+  u = await User.get user
+  opts = {}
+  opts.seedSalt    = Buffer.from($forge.random.getBytesSync 128).toString 'base64'
+  opts.storageSalt = Buffer.from($forge.random.getBytesSync 128).toString 'base64'
+  hashedPass       = SHA512 [ pass,       opts.seedSalt ].join ':'
+  opts.pass        = SHA512 [ hashedPass, opts.storageSalt ].join ':'
+  Object.assign u.record, opts
+  u.commit()
+
+@server.User.addGroups = (user,groups)->
+  u = await User.get user
+  u.record.group = u.record.group.concat(groups).unique
+  u.commit()
+
+#  █████  ██████  ██
+# ██   ██ ██   ██ ██
+# ███████ ██████  ██
+# ██   ██ ██      ██
+# ██   ██ ██      ██
 
 @server.AddAuthCookie = (res,user)->
   cookie = User.getUID()
@@ -65,150 +165,26 @@ User.del = (id)-> APP.user.del id
   $fs.unlinkSync ( $path.join '/tmp/auth', req.COOKIE ), '' if $fs.existsSync '/tmp/auth'
   res.json success:true
 
-@private "/login",         @server.DenyAuth
-@private "/register",      @server.DenyAuth
-@private "/authenticated", @server.AuthSuccess
-@private '/logout',        @server.Logout
+# ██████  ███████  ██████  ██    ██ ███████ ███████ ████████ ███████
+# ██   ██ ██      ██    ██ ██    ██ ██      ██         ██    ██
+# ██████  █████   ██    ██ ██    ██ █████   ███████    ██    ███████
+# ██   ██ ██      ██ ▄▄ ██ ██    ██ ██           ██    ██         ██
+# ██   ██ ███████  ██████   ██████  ███████ ███████    ██    ███████
+#                     ▀▀
 
-#  ██████ ██      ██ ███████ ███    ██ ████████
-# ██      ██      ██ ██      ████   ██    ██
-# ██      ██      ██ █████   ██ ██  ██    ██
-# ██      ██      ██ ██      ██  ██ ██    ██
-#  ██████ ███████ ██ ███████ ██   ████    ██
+@private "/authenticated", (q,req,res)-> await AuthSuccess q,req,res
+@private '/logout',        (q,req,res)-> await Logout      q,req,res
 
-@script [[BunDir,'node_modules','node-forge','dist','forge.min.js']]
+# @private "/login", @server.DenyAuth
+@public "/login", (q,req,res)->
+  return unless rec = await User.authenticateRequest q, req, res
+  await AddAuthCookie res, rec
+  AuthSuccess q, req, res, rec
+  return
 
-@client.RequestLogin = ->
-  Promise.reject()
-
-@client.CheckLoginCookie = ->
-  if document.cookie.match /SESSION=/
-    CALL '/authenticated', {}
-    .then CheckLoginCookieWasSuccessful
-    .catch (error)->
-      NotificationToast.show 'offline mode' if error is 'offline'
-      false
-  else Promise.resolve false
-
-@client.CheckLoginCookieWasSuccessful = (result)->
-  $$.GROUP = result.groups
-  result.success || false
-
-@client.Logout = ->
-  ModalWindow.closeActive() if ModalWindow.closeActive
-  try await CALL '/logout', {}
-  $$.emit 'logout'
-  $$.location = $$.location.origin
-  return # do LoginForm
-
-@client.ButtonLogout = ->
-  btn = IconButton 'Logout'
-  btn.onclick = Logout
-  btn
-
-@client.Login = (user,pass)->
-  CALL '/login', id:user
-  .then (challenge)-> RequestLogin user, pass, challenge
-
-@client.LoginResult = (result)->
-  $$.GROUP = result.groups
-  result.success || false
-
-# ██       ██████   ██████  ██ ███    ██
-# ██      ██    ██ ██       ██ ████   ██
-# ██      ██    ██ ██   ███ ██ ██ ██  ██
-# ██      ██    ██ ██    ██ ██ ██  ██ ██
-# ███████  ██████   ██████  ██ ██   ████
-
-if @AppLogo
-  @client.AppLogo = $fs.readUTF8Sync @AppLogo
-  @client.GetAppLogo = ->
-    return '' unless AppLogo?
-    i = new Image
-    i.src = URL.createObjectURL new Blob [AppLogo], filename:'AppLogo', type:'image/svg+xml'
-    i.draggable = false
-    i
-
-@client.LoginForm = -> requestAnimationFrame ->
-  document.querySelector('content').innerHTML = """
-  <div class="window modal monolithic" id="loginWindow">
-    <form id="login">
-      <input type="email"    name="id"                   placeholder="#{I18.Username}" autocomplete="username" autofocus="true" />
-      <input type="password" name="pass" pattern=".{6,}" placeholder="#{I18.Password}" autocomplete="password" />
-    </form>
-  </div>
-  """
-  document.getElementById('loginWindow').prepend GetAppLogo()
-  form$ = document.getElementById 'login'
-  navigation$ = document.querySelector('navigation')
-  navigation$.innerHTML = ''
-  navigation$.append IconButton 'Register', RegisterForm
-  navigation$.append IconButton 'Login', ' default', form$.onsubmit = (e) ->
-    e.preventDefault()
-    user = ( user$ = document.querySelector '[name=id]' ).value
-    pass = ( pass$ = document.querySelector '[name=pass]' ).value
-    window.UserID = user
-    Login user, pass
-    .then  (response)-> window.dispatchEvent new Event 'login'
-    .catch (error)->
-      NotificationToast.show error
-      user$.setCustomValidity error
-      setTimeout ( -> user$.setCustomValidity '' ), 3000
-    null
-  window.dispatchEvent new Event 'loginform'
-  null
-
-# ██████  ███████  ██████  ██ ███████ ████████ ███████ ██████
-# ██   ██ ██      ██       ██ ██         ██    ██      ██   ██
-# ██████  █████   ██   ███ ██ ███████    ██    █████   ██████
-# ██   ██ ██      ██    ██ ██      ██    ██    ██      ██   ██
-# ██   ██ ███████  ██████  ██ ███████    ██    ███████ ██   ██
-
-@client.RegisterForm = -> requestAnimationFrame ->
-  document.querySelector('content').innerHTML = """
-  <div class="window modal monolithic" id="registerWindow">
-    <form id="register" action="/register" method="post">
-      <input type="email"    name="user"      placeholder="#{I18.Username}"        autocomplete="username"         autofocus="true"/>
-      <input type="password" name="pass"      placeholder="#{I18.Password}"        autocomplete="new-password"     pattern=".{6,}" />
-      <input type="password" name="confirm"   placeholder="#{I18.ConfirmPassword}" autocomplete="confirm-password" pattern=".{6,}" />
-      <input type="password" name="inviteKey" placeholder="#{I18.InviteKey}"       autocomplete="password"         pattern=".{6,}" />
-    </form>
-  </div>"""
-  document.getElementById('registerWindow').prepend GetAppLogo()
-  form$      = document.getElementById 'register'
-  pass$      = document.querySelector '[name=pass]'
-  confirm$   = document.querySelector '[name=confirm]'
-  navigation$ = document.querySelector('navigation')
-  navigation$.innerHTML = ''
-  navigation$.append IconButton 'Login', LoginForm
-  navigation$.append IconButton 'Register', ' default', form$.onsubmit = (e) ->
-    form$      = document.getElementById 'register'
-    user$      = document.querySelector '[name=user]'
-    pass$      = document.querySelector '[name=pass]'
-    confirm$   = document.querySelector '[name=confirm]'
-    inviteKey$ = document.querySelector '[name=inviteKey]'
-    e.preventDefault()
-    user = user$.value
-    pass = pass$.value
-    confirm = confirm$.value
-    inviteKey = inviteKey$.value
-    if pass is confirm then confirm$.setCustomValidity ''
-    else return confirm$.setCustomValidity I18.PasswordNoMatch
-    seedSalt   = btoa $forge.random.getBytesSync 128
-    inviteSalt = btoa $forge.random.getBytesSync 128
-    hashedPass = SHA512 [ pass, seedSalt ].join ':'
-    hashedInviteKey = SHA512 [ inviteKey, inviteSalt ].join ':'
-    window.UserID = user
-    CALL '/register', id:user, pass:hashedPass, salt:seedSalt, inviteKey:hashedInviteKey, inviteSalt:inviteSalt
-    .then ->
-      window.dispatchEvent new Event 'register'
-      window.dispatchEvent new Event 'login'
-    .catch (error) ->
-      user$.setCustomValidity error
-      NotificationToast.show error
-    null
-  pass$.onchange = confirm$.onkeyup = ->
-    state = if pass$.value is confirm$.value then '' else I18.PasswordNoMatch
-    confirm$.setCustomValidity state
-  window.dispatchEvent new Event 'registerform'
-  null
+# @private "/register", @server.DenyAuth
+@public "/register", (q,req,res)->
+  return unless rec = await User.registerRequest q,req,res
+  await AddAuthCookie res, rec
+  AuthSuccess q, req, res, rec
+  return

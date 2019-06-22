@@ -15,6 +15,10 @@ Function::argumentDescriptor = ->
 
 Function::argumentList = -> @argumentDescriptor().map( (d)-> d.shift() ).filter( (d)-> d.length )
 
+Function::_bind = Function::bind unless Function::_bind
+Function::bind = (i,...a)->
+  Object.assign Function::_bind.call(this,i,a), boundTo:[i,a]
+
 @scope 'flag', (name,value=true)-> @flagScope[name] = value
 @collectorScope 'client', ['preinit','init']
 @collectorScope 'server', ['preinit','init']
@@ -75,7 +79,7 @@ Bundinha::compileFunction = (path,name,value,selector,apiDesc)->
   if code.match regex
     members.push sym.green + name
     return
-  code = code.replace /^[^(]+/, 'function ' + name
+  code = code.replace /^[^(]+/, 'function ' + name.replace /[-:]/g, ''
   "\n#{path}#{selector}#{accessor name} = #{add}#{code};"
 
 Bundinha::compileObject = (path,name,value,selector,apiDesc)->

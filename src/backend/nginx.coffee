@@ -11,7 +11,7 @@
   SSLClientCA:  "/path/to/ca.crt"
   SSLGateDN:    "C=com,O=#{AppPackageName}.DOMAIN,CN=gate.#{AppPackageName}.DOMAIN.com"
 
-@command 'install-nginx', ->
+@command 'install:nginx', ->
   $$.ServerName = BaseUrl.replace(/https?:\/\//,'').replace(/\/.*/,'')
   console.log 'install'.red, 'nginx', $$.FLAG,
     BaseUrl:      $$.BaseUrl

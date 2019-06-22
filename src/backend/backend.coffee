@@ -34,13 +34,7 @@
     do APP.nodePromises
     do APP.arrayTools
     process.title = BaseUrl
-    calls = ( func for name, func of APP.command when process.argv.includes name )
-    if 0 < calls.length
-      process.exitAfterCommands = true
-      do APP.initConfig
-      do APP.initDB if APP.initDB
-      await func() for func in calls
-      process.exit 0 if process.exitAfterCommands
+    await do Command.init
     return
   init:->
     await do APP.preinit
@@ -51,9 +45,6 @@
     return
   SHA512:SHA512
   escapeHTML:escapeHTML
-
-@server.ArgsFor = (command)->
-  process.argv.slice 1 + process.argv.indexOf command
 
 @server.APP = class $app
 
@@ -122,3 +113,5 @@ $app.writeConfig = ->
     o = {}
     o[k] = $$[k] for k in @configKeys
     o ), null, 2
+
+@require 'bundinha/backend/command'

@@ -6,15 +6,23 @@
   @ServiceHeader = ''
   return
 
-@phase 'build:post',0, @buildServiceWorker = =>
+@phase 'build:frontend:pre', 0, @buildServiceWorker = =>
   return unless @HasServiceWorker
-  @manifest = start_url:@BaseUrl, display: "standalone"
+  Object.assign @manifest, (
+    start_url: @BaseUrl, display: "standalone"
+  ), @manifest
   @ServiceHeader = """
   AppName = '#{AppName}';
   BuildId = '#{BuildId}';
   Assets  = #{JSON.stringify @asset};
   """ + @ServiceHeader
   @serviceWorkerSource = @compileSources [ @ServiceHeader, @ServiceWorker ]
+
+  console.log 'frontend:service:build'.bold.yellow
+  return
+
+@phase 'build:frontend:write', 9999, @buildServiceWorker = =>
+  console.log 'frontend:service:write'.bold.yellow
   $fs.writeFileSync $path.join(@WebRoot,'service.js'), @serviceWorkerSource
   return
 

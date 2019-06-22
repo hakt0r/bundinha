@@ -1,5 +1,6 @@
 
-@require 'bundinha/miqro'
+@require 'bundinha/frontend/miqro'
+
 @client init:@arrayTools
 @client escapeHTML:escapeHTML
 @client toAttr:toAttr
@@ -15,6 +16,6 @@
   BODY.append $$.NAVI = $.make '<navigation>' unless NAVI
   return
 
-@require 'bundinha/button'
-@require 'bundinha/editor'
-@require 'bundinha/notification'
+@require 'bundinha/frontend/button'
+@require 'bundinha/frontend/editor'
+@require 'bundinha/frontend/notification'

@@ -171,7 +171,7 @@ Bundinha::cmd_deploy = ->
   result = $cp.spawnSync 'ssh',[user+'@'+host,"""
   cd '#{path}'; npm i -g .;
   #{AppPackageName}-backend install-systemd;
-  #{AppPackageName}-backend install-nginx;
+  #{AppPackageName}-backend install:nginx;
   /etc/init.d/nginx restart;
   which systemctl >/dev/null 2>&1 && systemctl restart #{AppPackageName} || /etc/init.d/#{AppPackageName} restart
   """], stdio:'inherit'
@@ -344,10 +344,7 @@ Bundinha::compileSources = (sources)->
   out = ''
   for source in sources
     if typeof source is 'function'
-      source = source.toString().split '\n'
-      source.shift(); source.pop(); source.pop()
-      source = source.join '\n'
-      out += source
+      out += source.toBareCode()
     else if Array.isArray source
       source = $path.join.apply $path, source if Array.isArray source
       if source.match /.coffee$/
@@ -406,6 +403,7 @@ $fs.readBase64Sync = (path)->
 
 do Bundinha::nodePromises = ->
   $fs.stat$      = $util.promisify $fs.stat
+  $fs.mkdir$     = $util.promisify $fs.mkdir
   $fs.exists$    = $util.promisify $fs.exists
   $fs.readdir$   = $util.promisify $fs.readdir
   $fs.readFile$  = $util.promisify $fs.readFile

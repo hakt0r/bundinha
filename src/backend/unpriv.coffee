@@ -65,7 +65,7 @@
   APP.configKeys.pushUnique 'Protocol';     $$.Protocol     = 'http'
   APP.configKeys.pushUnique 'Port';         $$.Port         = PORT
   APP.writeConfig()
-  APP.command['install-nginx']()
+  Command.call 'install:nginx'
   process.exit 0
 
 @command 'start',  -> $cp.spawnSync 'systemctl',['--user','start',  AppPackage.name]; process.exit 0
@@ -73,10 +73,3 @@
 @command 'restart',-> $cp.spawnSync 'systemctl',['--user','restart',AppPackage.name]; process.exit 0
 @command 'enable', -> $cp.spawnSync 'systemctl',['--user','enable', AppPackage.name]; process.exit 0
 @command 'disable',-> $cp.spawnSync 'systemctl',['--user','disable',AppPackage.name]; process.exit 0
-
-@command 'help', ->
-  console.log " #{$$.AppName} ".bold.inverse.yellow, 'help'
-  console.log '     ', 'usage:'.underline, Object.keys(AppPackage.bin)[0].bold, 'command'.underline,'arguments...'.underline
-  console.log '   ', 'command:'.underline, Object.keys(APP.command).join(', ').grey
-  console.log '  ', 'argument:'.underline, 'KEY'.yellow.italic+'='.gray+'value'.green.italic
-  process.exit 0

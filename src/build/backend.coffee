@@ -11,7 +11,6 @@
 #      ██ ██      ██    ██ ██      ██           ██
 # ███████  ██████  ██████  ██      ███████ ███████
 
-@scope 'command'
 @scope 'group'
 
 @scope.get = (path,group,callback)->
@@ -107,7 +106,8 @@ Bundinha::buildBackend = ->
   scripts.push add
   console.debug 'config'.green, Object.keys(@configScope).join(' ').gray
 
-  for scope in ['db','get','public','private','group','command']
+  for scope in ['db','get','public','private','group']
+    continue if @[scope+'Compiler']?()
     add = "\nAPP#{accessor scope} = {};"
     continue unless @[scope+'Scope']?
     for name, func of @[scope+'Scope']

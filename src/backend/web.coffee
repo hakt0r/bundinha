@@ -98,8 +98,8 @@ APP.handleRequest = (req,res)->
     res.error = (error)-> APP.apiResponse.call res, error:error
     try await APP.apiRequest req, res
     catch error
-      res.error error.toString()
       console.error '::api'.red.bold, error
+      res.error error.toString()
   else if req.method is 'GET'
     for rule in APP.get
       continue unless m = rule.expr.exec req.url
@@ -107,7 +107,7 @@ APP.handleRequest = (req,res)->
       return rule.func.call res, req, res
     # fallback to fileRequest
     APP.fileRequest req, res
-  else APP.errorResponse 501, 'Unimplemented'
+  else APP.errorResponse res, req.url, 501, 'Unimplemented'
 
 APP.readStream = (stream)-> new Promise (resolve,reject)->
   body = []

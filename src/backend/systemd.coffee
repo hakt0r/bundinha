@@ -1,9 +1,9 @@
 
 @require 'bundinha/backend/backend'
 
-@command 'install-systemd', ->
+@command 'install-systemd', (args,req,res)->
   try $cp.execSync('which systemctl')
-  catch e then return APP.command["install-initd"]()
+  catch e then return Command.call "install-initd"
   console.log 'install'.red, 'systemd.service'
   $fs.writeFileSync '/etc/systemd/system/' + AppPackage.name + '.service', """
     [Unit]
