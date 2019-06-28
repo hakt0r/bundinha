@@ -2,37 +2,43 @@
 @require 'bundinha/backend/backend'
 @require 'bundinha/backend/web'
 
+@preCommand ->
+  await APP.getCerts()
+
 @server class NGINX
 
 @config
-  SSLBackend:   false
   SSLFullchain: "/path/to/fullchain.crt"
   SSLHostKey:   "/path/to/host.key"
   SSLClientCA:  "/path/to/ca.crt"
   SSLGateDN:    "C=com,O=#{AppPackageName}.DOMAIN,CN=gate.#{AppPackageName}.DOMAIN.com"
 
-@command 'install:nginx', ->
+@command 'install:nginx', (args,req,res)->
   $$.ServerName = BaseUrl.replace(/https?:\/\//,'').replace(/\/.*/,'')
-  console.log 'install'.red, 'nginx', $$.FLAG,
-    BaseUrl:      $$.BaseUrl
-    ServerName:   $$.ServerName
-    SSLHostKey:   $$.SSLHostKey
-    SSLFullchain: $$.SSLFullchain
-    SSLBackend:   $$.SSLBackend
-    Protocol:     $$.Protocol
-    Port:         $$.Port
-  try
-    await APP.initConfig()
-    available = '/' + $path.join 'etc','nginx','sites-available',AppPackage.name+'.conf'
-    enabled   = '/' + $path.join 'etc','nginx','sites-enabled',  AppPackage.name+'.conf'
-    # $fs.writeFileSync path = $path.join(ConfigDir,'nginx.site.conf'), NGINX.config()
-    $fs.writeFileSync available, NGINX.config()
-    $cp.spawnSync 'ln',['-sf',available,enabled]
-    $cp.spawnSync '/etc/init.d/nginx',['reload']
-    # $fs.writeFileSync '/etc/nginx/sites-available/' + AppPackage.name,
-    # $fs.writeFileSync $path.join(ConfigDir,'nginx.server.conf'), NGINX.testConfig()
-  catch e then console.log e
-  process.exit 0
+  await APP.initConfig()
+  available = '/' + $path.join 'etc','nginx','sites-available',AppPackage.name+'.conf'
+  enabled   = '/' + $path.join 'etc','nginx','sites-enabled',  AppPackage.name+'.conf'
+  # $fs.writeFileSync path = $path.join(ConfigDir,'nginx.site.conf'), NGINX.config()
+  await $fs.writeFileAsRoot$ available, config = NGINX.config()
+  await $cp.run$ '$','ln','-sf',available,enabled
+  await $cp.run$ '$','/etc/init.d/nginx','restart'
+  r = await $cp.run$ '$','nginx','-t'
+  if r.status isnt 0
+    console.error ' nginx '.blue.whiteBG.bold, 'install'.red.bold
+    console.error '',"#{'BaseUrl'.padEnd(13).bold.yellow}: #{$$.BaseUrl.bold.white}"
+    console.error '',"#{'ServerName'.padEnd(13).bold.yellow}: #{$$.ServerName.bold.white}"
+    console.error '',"#{'SSLHostKey'.padEnd(13).bold.yellow}: #{$$.SSLHostKey.bold.white}"
+    console.error '',"#{'SSLFullchain'.padEnd(13).bold.yellow}: #{$$.SSLFullchain.bold.white}"
+    console.error '',"#{'Protocol'.padEnd(13).bold.yellow}: #{$$.Protocol.bold.white}"
+    console.error '',"#{'Port'.padEnd(13).bold.yellow}: #{$$.Port.bold.white}"
+    console.error r.stdout
+    console.error r.stderr
+    console.error config
+    throw new Error 'NGINX config error'
+  console.log ' nginx '.blue.whiteBG.bold, 'install'.green.bold
+  res.json true
+  # $fs.writeFileSync '/etc/nginx/sites-available/' + AppPackage.name,
+  # $fs.writeFileSync $path.join(ConfigDir,'nginx.server.conf'), NGINX.testConfig()
 
 NGINX.testConfig = ->
   """
@@ -58,14 +64,15 @@ NGINX.testConfig = ->
 
 NGINX.config = -> """
   #{NGINX.httpRedirect()}
+  """ + if ( ssl = NGINX.ssl() ) then """
   server {
-    #{NGINX.sslLockdown()}
     #{NGINX.sslServer $$.ServerName || '_'}
-    #{NGINX.ssl()}
     root #{WebDir};
+    #{ssl}
+    #{NGINX.sslLockdown()}
     #{NGINX.singleFactor()}
     #{NGINX.apiConfig()}
-  }"""
+  }""" else ''
 
 NGINX.sslServer = (serverName='_',webRoot='')->
   defaultServer = if '_' is serverName then ' default_server' else ''
@@ -87,11 +94,11 @@ NGINX.sslServer = (serverName='_',webRoot='')->
   #{webRoot}
   """
 
-NGINX.ssl = (fullchain,key)->
-  """
-  ssl_certificate     #{SSLFullchain};
-  ssl_certificate_key #{SSLHostKey};
-  """
+NGINX.ssl = (fullchain=$$.SSLFullchain,key=$$.SSLHostKey)->
+  if ( $fs.existsSync fullchain ) and ( $fs.existsSync key ) then """
+  ssl_certificate     #{fullchain};
+  ssl_certificate_key #{key};
+  """ else ''
 
 NGINX.httpRedirect = -> """
   server {

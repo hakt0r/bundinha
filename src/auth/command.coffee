@@ -10,6 +10,9 @@
   u = await User.get user
   console.log if process.stdout.isTTY then u.record else JSON.stringify u.record, null, 2
 
+@command 'user:list', (args,req,res)-> res.json await User.map( (u)-> u )
+@command 'user:list:names', (args,req,res)-> res.json await User.map( (u)-> u.id )
+
 @command 'user:pass', (args)->
   [ user, pass ] = args
   await User.passwd user, pass

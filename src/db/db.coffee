@@ -1,6 +1,10 @@
 
 @require 'bundinha/backend/backend'
 
+@preCommand ->
+  await do APP.initDB if APP.initDB
+  return
+
 @scope.db = (name,opts)->
   if 'string' is typeof name
     @dbScope[name] = opts || {}
@@ -10,18 +14,39 @@
     opts.fields = opts.fields || $$[typeName].fields || {}
     @dbScope[opts.file] = opts
 
-@server class Database
-  @extend:(Spec)->
-    Spec.verify     = Database.verify.bind Spec
-    Spec::verify    = Database.verify.bind Spec
-    Spec.createFrom = Database.createFrom.bind Spec
-    Spec.get        = Database.get.bind Spec
-    Spec.del        = Database.del.bind Spec
-    Spec::toJSON    = Database.toJSON = (req)-> @verify @record, req, 'r'
-    Spec::toString  = Database.toString = (req)-> JSON.stringify @toJSON req
-    Spec
+@server.APP.initDB = ->
+  initTable = (name, opts)->
+    plugin = opts.plugin || opts.plugin = 'level'
+    console.debug '::::db'.yellow, ':' + name.bold, plugin, opts
+    db = await Database.plugin[plugin].open(name,opts)
+    if ( typeName = opts.typeName )?
+      Table = Database.extend $$[typeName], db, plugin
+      Table.path = Table::path = path
+    else APP[name] = Table = db
+    console.debug '::::db', ':' + name.bold, opts
+    Table
+  await Promise.all ( initTable name, opts for name, opts of APP.db )
+  console.debug '::::db', 'ready'.green
 
-Database.verify = (data,req,access)->
+@server class Database
+  @extend:(Table,db,plugin)->
+    p = Database.plugin[plugin].extend
+    g = Database.plugin.generic
+    Table.db = Table::db = db
+    Table.createFrom = fn.bind Table if fn = p.createFrom || g.createFrom
+    Table.get        = fn.bind Table if fn = p.get        || g.get
+    Table.put        = fn.bind Table if fn = p.put        || g.put
+    Table.del        = fn.bind Table if fn = p.del        || g.del
+    Table.verify     = fn.bind Table if fn = p.verify     || g.verify
+    Table::verify    = fn.bind Table if fn = p.verify     || g.verify
+    Table::toJSON    = fn.bind Table if fn = p.toJSON     || g.toJSON
+    Table::toString  = fn.bind Table if fn = p.toString   || g.toString
+    Table
+  @plugin:generic:{}
+
+Database.plugin.generic.toJSON = (req)-> await @verify @record, req, 'r'
+Database.plugin.generic.toString = (req)-> JSON.stringify await @toJSON req
+Database.plugin.generic.verify = (data,req,access)->
   verified   = {}
   errors     = {}
   hadError   = false

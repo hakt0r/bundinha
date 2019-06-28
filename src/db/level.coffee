@@ -1,32 +1,30 @@
 
-# @npm 'leveldb'
+@npm ['level','level']
 @require 'bundinha/db/db'
 
-@server.APP.initDB = ->
-  for name, opts of APP.db
-    console.debug '::::db'.yellow, ':' + name.bold, opts
-    db = $level path = $path.join ConfigDir, name + '.db'
-    if ( typeName = opts.typeName )?
-      Table = Database.extend $$[typeName], db
-      Table.db = Table::db = db
-      Table.path = Table::path = path
-      Object.assign Table, opts
-    else APP[name] = db
-    console.debug '::::db', ':' + name.bold
-  console.debug '::::db', 'ready'.green
-
-{ Database } = @server
-
-Database.get = (id)-> new Promise (resolve)=>
-  throw new Error 'Not found: ' + id unless rec = JSON.parse await @db.get id
-  rec.id = id
-  resolve new @ rec
-
-Database.del = (id)-> new Promise (resolve)=>
-  @db.del id
-  resolve true
-
-Database.createFrom = (data,req)->
-  try evt = await @db.get data.id
-  throw new Error 'Exists' if evt?
-  evt = @create data,req
+@server.Database.plugin.level =
+  open: (name,opts)->
+    path = $path.join ConfigDir, name + '.db'
+    l = Object.assign $level(path), opts, path:path
+    opts.convert = true is name is 'post'
+    await @exportToText name,l if opts.convert
+    l
+  exportToText:(name,db)->
+    out = {}
+    try await $fs.mkdir$ $path.join ConfigDir, name
+    await new Promise (resolve)->
+      db.createReadStream()
+      .on 'data', (u)-> out[u.key] = u.value
+      .on 'close', resolve
+    await Promise.all ( $fs.writeFile$ $path.join(ConfigDir, name, key), value for key, value of out )
+  get: (id)-> new Promise (resolve)=>
+    throw new Error 'Not found: ' + id unless rec = JSON.parse await @db.get id
+    rec.id = id
+    resolve new @ rec
+  del: (id)-> new Promise (resolve)=>
+    @db.del id
+    resolve true
+  createFrom: (data,req)->
+    try evt = await @db.get data.id
+    throw new Error 'Exists' if evt?
+    evt = @create data, req

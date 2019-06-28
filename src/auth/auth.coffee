@@ -7,12 +7,13 @@
 
 @flag 'UseAuth'
 
+@require 'bundinha/db/' + @AuthDB = @AuthDB || 'text'
+@db 'user',    plugin:@AuthDB, convert:true
+@db 'session', plugin:@AuthDB, convert:true
+
 @config
   AdminUser: 'admin'
   AdminPassword: $forge.util.bytesToHex $forge.random.getBytes 32
-
-@require 'bundinha/db/level'
-@db 'session'
 
 @server.init = ->
   try await $fs.mkdir$ '/tmp/auth'
@@ -51,11 +52,26 @@ User.groups = (callback)-> new Promise (resolve)->
 User.get = (id)-> new User JSON.parse await APP.user.get id
 User.del = (id)-> APP.user.del id
 User.set = (id,rec)-> APP.user.put id, rec
+
 User.map = (callback)-> new Promise (resolve)->
+  a = []; APP.user.createReadStream()
+  .on 'data', (u)-> try ( a.push callback JSON.parse u.value )
+  .on 'end',  (u)-> resolve a
+@server.User.filter = (callback)-> new Promise (resolve)->
+  a = []; APP.user.createReadStream()
+  .on 'data', (u)-> try ( a.push u unless false is callback.call u = JSON.parse u.value )
+  .on 'end',  (u)-> resolve a
+@server.User.admins = -> await User.filter -> @group?.includes('admin') or @id is $$.AdminUser
+@server.User.adminIds = -> ( await User.admins() ).map (u)-> u.id
+
+User.aliasSearch = (alias)-> new Promise (resolve)->
   a = []
   APP.user.createReadStream()
-  .on 'data', (u)-> try a.push callback JSON.parse u.value catch e then console.log u
-  .on 'end',  (u)-> resolve a
+  .on 'data', (u)->
+    try u = JSON.parse u.value catch e then console.log u
+    return unless ( u.id is alias ) or ( u.alias?.includes? alias )
+    a.push u.id
+  .on 'end',  (u)-> resolve a.shift()
 
 User.authenticatePlain = (id,password,rec)->
   return false unless id? and password?
@@ -69,6 +85,8 @@ User.authenticateWithClientSalt = (id,password,salt)->
   return false unless id? and password?
   try rec = rec || JSON.parse await APP.user.get id
   return false unless rec?
+  console.log rec, salt
+  console.log password
   hashedPass = SHA512 [ rec.pass, salt ].join ':'
   return password is hashedPass
 
@@ -82,7 +100,7 @@ User.authenticateRequest = (q,req,res)->
       seedSalt:rec.seedSalt
     return false
   unless await User.authenticateWithClientSalt q.id, q.pass, q.salt, rec
-    throw new Error I18.NXUser
+    throw new Error "#{I18.NXUser}: #{q.id}"
   req.USER = rec
   rec
 

@@ -58,9 +58,8 @@ $$.Bundinha = class Bundinha extends require 'events'
     super()
     @module = {}
     $$.BUND = @ unless $$.BUND?
-    @requireScope = ['os','util','fs',['cp','child_process'],'path','level','colors',['forge','node-forge']]
+    @requireScope = ['os','util','fs',['cp','child_process'],'path','colors']
     @requireDevScope = []
-    Object.assign @, opts
     @phaseList = []
     @reqdir  TempDir
     @require 'bundinha/build/build'
@@ -86,6 +85,7 @@ Bundinha::readPackage = ->
 
 Bundinha::build = ->
   @require 'bundinha/backend/backend'
+  @reqdir BuildDir
   do @loadDependencies
   # console.verbose ':build'.green, @htmlFile
   @require @sourceFile || $path.join AppPackageName, AppPackageName
@@ -95,9 +95,9 @@ Bundinha::build = ->
   @htmlFile = @htmlFile || 'index.html'
   @htmlPath = $path.join WebDir, @htmlFile
   @backendFile = @backendFile || 'backend.js'
-  @reqdir  BuildDir
-  @reqdir  WebDir
-  @reqdir  @AssetDir
+  @reqdir WebDir
+  @reqdir @AssetDir
+  do @loadDependencies
   await @emphase 'build:pre'
   await @emphase 'build'
   await @emphase 'build:post'
@@ -298,25 +298,38 @@ $$.accessor = (key)->
   return "[#{JSON.stringify key}]"
 
 Bundinha::npm = (spec)->
+  # console.debug '@npm:req', spec
   @requireScope.push spec
 
 Bundinha::npmDev = (spec)->
+  # console.debug '@npm:dev', spec
   @requireDevScope.push spec
 
 Bundinha::loadDependencies = ->
-  missing = @requireScope.concat @requireDevScope
-  .map (spec)-> if Array.isArray spec then spec[1] else spec
-  .filter (spec)->
+  module.paths.pushUnique $path.join BuildDir, 'node_modules'
+  module.paths.pushUnique $path.join RootDir,  'node_modules'
+  module.paths.pushUnique $path.join BunDir,   'node_modules'
+  moduleName = (spec)-> if Array.isArray spec then spec[1] else spec
+  filterForMissing = (scope,base)-> scope.map(moduleName).filter (spec)->
     return false if module.constructor.builtinModules.includes spec
-    try require.resolve spec; false catch e then true
-  if missing.length > 0
-    console.log ':::npm', missing
-    process.chdir RootDir
-    $cp.spawnSync 'npm',['i','--save'].concat(missing),stdio:'inherit'
-  for dep in @requireScope
-    if Array.isArray dep
-      $$[dep[0]] = require dep[1]
-    else $$[dep] = require dep
+    # console.log $path.join base,'node_modules', spec
+    # console.log $fs.existsSync $path.join base,'node_modules', spec
+    return false if $fs.existsSync $path.join base,'node_modules', spec
+    true
+  installScope = (scope,base,arg)->
+    missing = filterForMissing scope, base
+    if missing.length > 0
+      console.debug ':::build:npm', missing
+      process.chdir base
+      $cp.spawnSync 'npm',['i',arg].concat(missing),stdio:'inherit'
+    for dep in scope
+      if Array.isArray dep
+        continue if false is dep[0]
+        $$[dep[0]] = require dep[1]
+      else $$[dep] = require dep
+      console.debug ' $load$ '.white.redBG.bold, dep
+  installScope @requireDevScope, BuildDir, '--save'
+  # installScope @requireScope,    RootDir,  '--save-opt'
   return
 
 #  █████  ███████ ███████ ███████ ████████ ███████
@@ -330,7 +343,7 @@ Bundinha::symlink = (src,dst)->
   return do ok if $fs.existsSync dst
   return do ok if $fs.symlinkSync src, dst
 
-Bundinha::linkFile = (src,dest)->
+Bundinha::linkFile = (src,dest)-> # console.log '::link'.yellow, $path.basename(src).bold, $path.basename(dest).bold, $os.userInfo().username; console.log (try ($cp.execSync "ls -al  '#{src}'").toString().trim().gray.bold)||'error'.red.bold; console.log (try ($cp.execSync "ls -al '#{dest}'").toString().trim().gray.bold)||'error'.red.bold
   $fs.linkSync src, dest unless $fs.existsSync dest
   console.debug '::link'.green, $path.basename(dest).bold
 
@@ -407,12 +420,109 @@ do Bundinha::nodePromises = ->
   $fs.exists$    = $util.promisify $fs.exists
   $fs.readdir$   = $util.promisify $fs.readdir
   $fs.readFile$  = $util.promisify $fs.readFile
+  $fs.rename$    = $util.promisify $fs.rename
   $fs.writeFile$ = $util.promisify $fs.writeFile
+  $fs.writeFileAsRoot$ = (path,data)->
+    opts = $cp.spawnOpts $cp.spawnArgs '$','tee',path
+    opts.stdio = ['pipe','pipe','pipe']
+    s = $cp.spawn opts.args[0], opts.args.slice(1), opts
+    s.stdin.write data; s.stdin.end()
+    await $cp.awaitOutput s,opts
   $fs.unlink$    = $util.promisify $fs.unlink
   $cp.spawn$     = $util.promisify $cp.spawn
-  $cp.spawnExec$ = (cmd,args,opts)-> new Promise (resolve,reject)->
-    $cp.spawn(cmd,args,opts).on('error',reject).on('close',resolve)
-  $cp.exec$     = $util.promisify $cp.exec
+  $cp.spawn$$    = (cmd,args,opts)-> new Promise (resolve,reject)-> $cp.spawn(cmd,args,opts).on('error',reject).on('close',resolve)
+  $cp.exec$      = $util.promisify $cp.exec
+  $cp.run = (args...)->
+    opts = $cp.spawnOpts $cp.spawnArgs ...args
+    $cp.spawn opts.args[0], opts.args.slice(1), opts
+    await $cp.awaitOutput s,opts
+  $cp.run$ = (args...)->
+    opts = $cp.spawnOpts $cp.spawnArgs ...args
+    s = $cp.spawn opts.args[0], opts.args.slice(1), opts
+    # console.log '$run$'.white.redBG.bold, opts.args, opts.stdio[0] is process.stdin
+    await $cp.awaitOutput s,opts
+  $cp.spawnArgs = (args...)->
+    # console.log ' :SPAWN:ARGS: ', @name, args
+    if      1 <  args.length then opts = args:args
+    else if 1 is args.length and args[0]?
+      if Array.isArray args[0] then opts = args:args[0]
+      else if args[0].match?   then opts = args:['sh','-c',args[0]]
+      else if args[0].args?    then opts = args[0]
+    throw new Error " EXEC:FAIL #{JSON.stringify args}" unless opts
+    opts
+  $cp.spawnOpts = (opts)-> ( ->
+    args = opts.args
+    if m = args[0]?.match /^([$#])([eltx]+)?(@.*)?$/
+      opts.needsRoot = true  if m[1] is '$' unless @virtual
+      opts.log = true        if m[2]?.match 'l'
+      opts.log = true        if m[2]?.match 'e'
+      opts.preferTerm = true if m[2]?.match 't'
+      opts.preferX11  = true if m[2]?.match 'x'
+      args.shift()
+    currentUser = $os.userInfo().username
+    user = if opts.needsRoot then 'root' else opts.user || currentUser
+    if opts.needsRoot and @localhost and currentUser isnt 'root'
+      if process.env.DISPLAY? and process.env.SUDO_ASKPASS
+           args = ['sudo','-A'].concat args
+      else
+        opts.needsInput = true
+        args = ['sudo'].concat args
+    args = ['--'].concat args if args.length > 0
+    if @virtual
+      if parent = Host.byId[@parent[0]]
+        if parent.localhost
+          args = ['lxc-attach','-n',@name].concat args
+          if process.env.DISPLAY? and process.env.SUDO_ASKPASS
+            args = ['sudo','-A'].concat args
+          else
+            opts.needsInput = true
+            args = ['sudo'].concat args
+        else
+          user = parent.user || 'root'
+          args = ['ssh','-o','LogLevel=QUIET','-t',user+"@"+parent.name,'lxc-attach','-n',@name].concat args
+      else throw new Error "No parent for Host[#{@name}]"
+    else if @localhost
+      if opts.preferTerm
+        if args.length > 0
+          args = ['-e',"'#{args.slice(1).join ' '}'"]
+        args = ['xterm'].concat args
+      else args = args.slice 1
+    else if @staticIP
+      user = @user || 'root'
+      args = ['ssh','-o','LogLevel=QUIET','-t',user+"@"+@canonical].concat args
+    else
+      user = @user || 'root'
+      args = ['ssh','-o','LogLevel=QUIET','-t',user+"@"+@name].concat args
+    opts.stdio = opts.stdio || [null,null,null]
+    if Array.isArray opts.stdio
+      opts.stdio[0] = process.stdin if opts.needsInput
+      opts.stdio[1] = 'pipe' if opts.log or opts.pipe
+      opts.stdio[2] = 'pipe' if opts.log
+    opts.args = args
+    opts.user = user #; console.log ' :SPAWN:1 '.black.greenBG.bold, @name, opts
+    opts ).call opts.host || opts.host = name:$os.hostname(), localhost:true
+  $cp.awaitSilent = (s)-> new Promise (r,e)-> s.on('close',r).on('error',e)
+  $cp.awaitOutput = (s,opts)-> new Promise (resolve)-> ( ->
+    e = []; o = []; s.stderr.setEncoding 'utf8'
+    if opts.log then s.stderr.on 'data', (data)=> data.trim().split('\n').map (line)=>
+      return if '' is line = line.trim()
+      e.push line; console.log "#{if @localhost then ":" else "@"}#{@name}:".red, line
+    else s.stderr.on 'data', (data)-> e.push data
+    if opts.pipe
+      pipePromise = opts.pipe s
+      s.on 'close', (status)->
+        await pipePromise if opts.awaitChild
+        resolve stderr:e.join(''), status:status
+    else
+      s.stdout.setEncoding 'utf8'
+      if opts.log
+           s.stdout.on 'data', (data)=> o.push data; data.trim().split('\n').map (line)=>
+             return if '' is line = line.trim()
+             e.push line; console.log "#{if @localhost then ":" else "@"}#{@name}:".yellow, line
+      else s.stdout.on 'data', (data)-> o.push data
+      s.on 'close', (status)-> resolve stdout:o.join(''), stderr:e.join(''), status:status
+    return ).call opts.host || opts.host = name:$os.hostname(), localhost:true
+  return
 
 do Bundinha::arrayTools = ->
   return if Array::unique
@@ -420,6 +530,13 @@ do Bundinha::arrayTools = ->
     r = {}
     r[k] = v for k,v of o when c k,v
     r
+  unless Array::flat then Array::flat = ->
+    depth = if isNaN(arguments[0]) then 1 else Number(arguments[0])
+    if depth then Array::reduce.call(this, ((acc, cur) ->
+      if Array.isArray(cur) then acc.push.apply acc, Array::flat.call(cur, depth - 1)
+      else acc.push cur
+      acc
+    ), []) else Array::slice.call(this)
   Object.defineProperty String::, 'arrayWrap', get:-> [@]
   Object.defineProperty Array::,  'arrayWrap', get:-> @
   Object.defineProperties Array::,
@@ -452,8 +569,8 @@ $$.Phaser = (Spec)->
     list = @phaseList
       .filter (o)-> o.k is key
       .sort (a,b)-> a.p - b.p
-    await Promise.all list.map (o)-> new Promise (r)->
-      try r await o.f.call @
+    await Promise.all list.map (o)->
+      try await o.f.call @
       catch error
         console.error ':phase'.red, (key+':'+o.p).bold
         console.error error

@@ -4,6 +4,8 @@
 # ██ ██  ██ ██ ██    ██
 # ██ ██   ████ ██    ██
 
+@require 'bundinha/crypto/heavy'
+
 @serverHeader = []
 @serverHeader.push ->
   require 'colors'
@@ -38,10 +40,10 @@
     return
   init:->
     await do APP.preinit
-    do APP.splash
+    await do APP.splash
     await do APP.startServer
-    do APP.initConfig
-    do APP.initDB if APP.initDB
+    await do APP.initConfig
+    # await do APP.initDB if APP.initDB
     return
   SHA512:SHA512
   escapeHTML:escapeHTML
@@ -55,8 +57,10 @@ $app.require      = @requireScope
 $app.loadDependencies = ->
   for dep in @require
     if Array.isArray dep
+      continue if false is dep[0]
       $$['$' + dep[0]] = require dep[1]
     else $$['$' + dep] = require dep
+    console.debug ' $load$ '.white.redBG.bold, dep
   return
 
 $app.readEnv = ->
@@ -76,10 +80,10 @@ $app.splash = ->
     '['+ 'bundinha'.yellow + '/'.gray + AppPackage.bundinha.gray +
     ( if DevMode then '/dev'.red else '/rel'.green ) + ']'
   console.log '------------------------------------'
-  console.log 'ConfigDir'.yellow, ConfigDir.green
-  console.log 'BaseUrl  '.yellow, BaseUrl.green
-  console.log 'RootDir  '.yellow, RootDir.green
-  console.log 'WebDir   '.yellow, WebDir.green
+  console.log '    BaseUrl'.yellow, BaseUrl.bold.white
+  console.log '  ConfigDir'.yellow, ConfigDir.green
+  console.log '    RootDir'.yellow, RootDir.green
+  console.log '     WebDir'.yellow, WebDir.green
   return
 
 $app.initConfig = (probeOnly=no)->

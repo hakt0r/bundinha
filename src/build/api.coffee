@@ -47,6 +47,7 @@ Function::bind = (i,...a)->
 Bundinha::processAPI = (opts,apiDesc)->
   out = ''
   for record in opts
+    console.log name.red if name is 'PreCommand'
     [ name, value ] = record
     out += @compileValue "$$",name,value,'',apiDesc
   out
@@ -58,6 +59,10 @@ Bundinha::compileValue = (path,name,value,selector,apiDesc)->
     when 'object'
       if Array.isArray value
            @compileArray    path,name,value,selector,apiDesc
+      else if value?.constructor is Set
+           @compileSet      path,name,value,selector,apiDesc
+      else if value?.constructor is Map
+           @compileMap      path,name,value,selector,apiDesc
       else @compileObject   path,name,value,selector,apiDesc
     else   "\n#{path}#{selector}#{accessor name} = #{JSON.stringify value};"
 
@@ -68,6 +73,12 @@ Bundinha::compileArray = (path,name,value,selector,apiDesc)->
          out += "\n#{path}#{selector}#{accessor name}#{accessor k} = #{v.toString()};"
     else out += "\n#{path}#{selector}#{accessor name}#{accessor k} = #{JSON.stringify v};"
   out
+
+Bundinha::compileMap = (path,name,value,selector,apiDesc)->
+  "\n#{path}#{selector}#{accessor name} = new Map(#{JSON.stringify Array.from value});"
+
+Bundinha::compileSet = (path,name,value,selector,apiDesc)->
+  "\n#{path}#{selector}#{accessor name} = new Set(#{JSON.stringify Array.from value});"
 
 Bundinha::compileFunction = (path,name,value,selector,apiDesc)->
   if Object.hasMemberFunctions value
@@ -84,7 +95,7 @@ Bundinha::compileFunction = (path,name,value,selector,apiDesc)->
 
 Bundinha::compileObject = (path,name,value,selector,apiDesc)->
   descriptorFilters = ['prototype','length','caller','arguments','constructor']
-  func = '{}' if ( func = value.toString() ).match /^\[/ # anonymous
+  func = if value.constructor is Object then '{}' else value.toString()
   out = "\n#{path}#{selector}#{accessor name} = #{func};"
   # prototype
   if value::?

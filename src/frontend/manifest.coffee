@@ -9,13 +9,13 @@
   @manifestPolicy = "'self'"
   @server.AppManifest = @manifest = {}
   return if @HasBackend is no
-  console.log " backend:dynamic ".blue.inverse, @AssetDir, 'manifest.json'
+  console.debug " backend:dynamic ".blue.inverse, @AssetDir, 'manifest.json'
   @manifestPolicy = "'self' https:"
   @insertManifest = """<link rel=manifest crossorigin="use-credentials" href="#{$path.join @AssetURL,'manifest.json'}"/>"""
   @server.init = ->
-    console.log " backend:dynamic ".red.inverse, AssetDir, 'manifest.json'
+    console.debug " backend:dynamic ".red.inverse, AssetDir, 'manifest.json'
     csp = $fs.readFileSync $path.join(__dirname,'csp.txt'), 'utf8'
-    console.log " write ".red.inverse, AssetDir, 'manifest.json', csp.replace(/\n/g,' ').replace(/[ ]+/g,' ').gray
+    console.debug " write ".red.inverse, AssetDir, 'manifest.json', csp.replace(/\n/g,' ').replace(/[ ]+/g,' ').gray
     AppManifest.content_security_policy = csp
     AppManifest.orientation = AppManifest.orientation || 'any'
     AppManifest.start_url = BaseUrl + '/' # if AppManifest.start_url
@@ -51,13 +51,13 @@
 
 @phase 'build:frontend:metadata', =>
   return if @HasBackend is no
-  console.log 'build:manifest'.bold.yellow, @workerHash
+  console.debug 'build:manifest'.bold.yellow, @workerHash
   return do @buildInlineManifest if @inlineManifest is yes
   return
 
 @phase 'build:frontend:write', =>
   if @HasBackend is no
-    console.log " write ".red.inverse, @AssetDir, 'manifest.json', 'static'.red
+    console.debug " write ".red.inverse, @AssetDir, 'manifest.json', 'static'.red
     $fs.writeFileSync $path.join(@AssetDir,'manifest.json'), JSON.stringify @manifest
     return
   return

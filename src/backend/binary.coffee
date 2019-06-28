@@ -16,10 +16,10 @@
     return i if i = SystemBinary.byName[@bin]; SystemBinary.byName[@bin] = @
 
   depend:->
-    return Promise.resolve() if await @isInstalled()
-    console.log 'missing'.yellow, @bin.bold, @lib.gray
-    return @install @ if @debian? or @debianDev?
-    return Promise.resolve()
+    return if await @isInstalled()
+    console.log 'missing'.yellow, (@bin||@lib||'UNDEFINED').gray
+    await @install @ if @debian? or @debianDev? or @build?
+    console.log 'installed'.yellow, (@bin||@lib||'UNDEFINED').gray
 
   isInstalled:->
     try
@@ -43,23 +43,22 @@
       test -d /tmp/#{@bin}-#{@version} ||
       git clone --depth=1 #{@git} /tmp/#{@bin}-#{@version}"""
     else if @tarball
-      await $fs.writeFile$ "/tmp/#{@bin}-#{@version}.tar.bz2",
-        @tarball
+      await $fs.writeFile$ "/tmp/#{@bin}-#{@version}.tar.bz2", @tarball
       script.push """
       test -d  /tmp/#{@bin}-#{@version} || (
       mkdir -p /tmp/#{@bin}-#{@version}
       cd       /tmp/#{@bin}-#{@version}
       cat      /tmp/#{@bin}-#{@version}.tar.bz2 | base64 -d | tar xjvf -; )"""
-    else script.tarball "mkdir -p /tmp/#{@bin}-#{@version}"
+    else script.push "mkdir -p /tmp/#{@bin}-#{@version}"
     script.push """cd /tmp/#{@bin}-#{@version}"""
-    script.push @build if @build and not @build.call
-    script.push @build() if @build and @build.call
+    script.push @build() if @build and     @build.call
+    script.push @build   if @build and not @build.call
     script.push """
     test -d /tmp/#{@bin}-#{@version} &&
     rm -rf /tmp/#{@bin}-#{@version}
     """
     try
-      await $cp.spawnExec$ 'sh', [ '-c', script.join '\n' ], stdio:toStdErr
+      await $cp.run$ '$l','sh','-c',script.join '\n'
       resolve()
     catch e
       console.error 'Error'.red.bold, 'building SystemPackage:', @bin.bold
@@ -78,14 +77,13 @@ SystemBinary.doInstallPackages = ->
   keep = ( k for k,v of install when v is true  )
   dev  = ( k for k,v of install when v is false )
   console.log 'installing'.yellow.bold, keep.join(', ').green, dev.join(', ').grey
-  await $cp.spawnExec$ 'sudo',
-    ['-A','apt-get','install','-yq'].concat(keep).concat(dev),
-    stdio:toStdErr
+  await $cp.run$ ['$l','apt-get','install','-yq'].concat(keep).concat(dev)
+  console.log 'installing->building'.yellow.bold
   for binary in SystemBinary.installQueue
     console.log 'building'.yellow.bold, binary.bin.bold.white
     await binary.installFromSource()
     binary.resolvePkgs?()
   console.log 'cleaning up...'.yellow.bold
-  await $cp.spawnExec$ 'sudo', ['-A','apt-get','purge','-yq'].concat(dev), stdio:toStdErr
-  await $cp.spawnExec$ 'sudo', ['-A','apt-get','autoremove','-yq'],        stdio:toStdErr
+  await $cp.run$ ['$l','apt-get','purge','-yq'].concat dev
+  await $cp.run$ '$l','apt-get','autoremove','-yq'
   SystemBinary.installQueue = []

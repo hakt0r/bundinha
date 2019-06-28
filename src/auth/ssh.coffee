@@ -1,5 +1,6 @@
 
-@require 'bundinha/auth/dbremote'
+
+# @require 'bundinha/auth/ssh_userdb'
 @require 'bundinha/auth/auth'
 @require 'bundinha/auth/command'
 @require 'bundinha/auth/frontend'

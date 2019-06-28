@@ -5,15 +5,21 @@
 # ██      ██ ██      ██      ██  ██ ██      ██ ██
 # ███████ ██  ██████ ███████ ██   ████ ███████ ███████
 
-@phase 'build:pre',0, @fetchLicense = =>
-  console.log = console.error = -> # HACK: suppress legally's verbosity
-  @npmLicenses = await require 'legally'
-  console.log = console._log; console.error = console._err # HACK: suppress legally's verbosity
+return
+@npmDev [false,'legally']
+
+@phase 'build:pre', @fetchLicense = =>
+  console.log ' :LICENSE: ', AppPackage.name
+  # module.paths.push $path.join RootDir,'node_modules'
+  # legal = require 'legally'
+  # @npmLicenses  = await legal plain:false, show:['./']
+  # console.log ' :LICENSE: ', AppPackage.name, @npmLicenses
+  @npmLicenses = {}
   @nodeLicenses = await @fetchAsset(
     $path.join BuildDir,'LICENSE.node'
     "https://raw.githubusercontent.com/nodejs/node/master/LICENSE" )
 
-@phase 'build',0, @buildLicense = =>
+@phase 'build', @buildLicense = =>
   npms = ( for name, pkg of @npmLicenses
     [match,link,version] = name.match /(.*)@([^@]+)/
     shortName = link.split('/').pop()

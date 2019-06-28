@@ -17,12 +17,11 @@
   Assets  = #{JSON.stringify @asset};
   """ + @ServiceHeader
   @serviceWorkerSource = @compileSources [ @ServiceHeader, @ServiceWorker ]
-
-  console.log 'frontend:service:build'.bold.yellow
+  console.debug 'frontend:service:build'.bold.yellow
   return
 
 @phase 'build:frontend:write', 9999, @buildServiceWorker = =>
-  console.log 'frontend:service:write'.bold.yellow
+  console.debug 'frontend:service:write'.bold.yellow
   $fs.writeFileSync $path.join(@WebRoot,'service.js'), @serviceWorkerSource
   return
 
@@ -81,8 +80,8 @@ Bundinha::ServiceWorker = ->
 
 @client.InitServiceWorker = ->
   return Promise.resolve() unless 'serviceWorker' of navigator
-  window.addEventListener 'beforeinstallprompt', -> console.log 'install-prompt'
-  navigator.serviceWorker.addEventListener 'message', (event)-> console.log event.data
+  window.addEventListener 'beforeinstallprompt', -> console.debug 'install-prompt'
+  navigator.serviceWorker.addEventListener 'message', (event)-> console.debug event.data
   navigator.serviceWorker.addEventListener 'controllerchange', -> window.location.reload()
   reg = await navigator.serviceWorker.register 'service.js'
   if reg.waiting?

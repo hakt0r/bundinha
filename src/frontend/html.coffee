@@ -11,7 +11,7 @@
   value = value[0] if Array.isArray value
   @htmlScope[prop] = @htmlScope[prop] || []
   @htmlScope[prop].push value
-  # console.log '::html:'.bold.inverse.yellow, prop.bold, value
+  # console.debug '::html:'.bold.inverse.yellow, prop.bold, value
   true
 
 @phase 'build:frontend:hash', =>
@@ -45,7 +45,7 @@
   ## FF is very strict about styles and csp
   if @insertHtml.body is '' then @insertHtml.body = """
     <navigation></navigation><content><center>JavaScript is required.</center></content>"""
-  console.log 'frontend:index:build'.bold.yellow
+  console.debug 'frontend:index:build'.bold.yellow
   insertHead = [
     @insertHtml.head
     # @insertPolicy

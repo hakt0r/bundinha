@@ -1,5 +1,4 @@
 
-@require 'bundinha/auth/dblocal'
 @require 'bundinha/auth/auth'
 @require 'bundinha/auth/command'
 @require 'bundinha/auth/frontend'

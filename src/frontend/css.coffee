@@ -11,7 +11,7 @@
   prop = 'app'     if 'string' is typeof value
   @cssScope[prop] = @cssScope[prop] || []
   @cssScope[prop].push value
-  # console.log '  CSS '.yellow.bold.inverse, prop.bold, value
+  # console.debug '  CSS '.yellow.bold.inverse, prop.bold, value
   true
 
 @phase 'build:frontend:pre',0,@buildFrontendStylesPre = =>
@@ -21,7 +21,7 @@
 @phase 'build:frontend:post',@buildFrontendStyles = =>
   @cssScope.asset = @cssScope.asset || []
   await do =>
-    # console.log "  CSS ".red.bold.inverse, @cssScope
+    # console.debug "  CSS ".red.bold.inverse, @cssScope
     CleanCSS = require 'clean-css' if @minify
     styles = ''
     for href in @cssScope.asset when href.match and url = href.match /^href:\/(.*)$/
@@ -41,6 +41,7 @@
     return                                           if styles.trim() is ''
     @stylesHash.push "'" + ( contentHash styles ) + "'"
     if @inlineStyles is false
+         console.debug ' CSS:WRITE '.green.inverse, @cssFile
          $fs.writeFileSync $path.join(@AssetDir,@cssFile), styles
          @insertStyles += """<link rel=stylesheet href="#{@cssURI.replace /^\//,''}"/>"""
          @asset.push @cssURI

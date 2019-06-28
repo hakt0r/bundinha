@@ -23,4 +23,4 @@
   @workerHash = ''
   @workerHash += "'" + contentHash(@serviceWorkerSource) + "'" if @serviceWorkerSource
   @workerHash += " '" + contentHash(src) + "'" for name, src of @webWorkerScope
-  console.log 'build:workers:hash'.bold.yellow, @workerHash
+  console.debug 'build:workers:hash'.bold.yellow, @workerHash

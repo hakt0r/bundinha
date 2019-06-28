@@ -51,12 +51,12 @@
 APP.startServer = ->
   APP.processGet()
   if 'http' is APP.protocol
-    await do APP.getCerts if APP.getCerts
+    await APP.getCerts(true) if APP.getCerts
     APP.server = require('http').createServer APP.handleRequest
     APP.Protocol = '::http'
   else
     APP.Protocol = ':https'
-    await do APP.getCerts if APP.getCerts
+    await APP.getCerts(true) if APP.getCerts
     keyPath = $path.join ConfigDir, 'host.key'
     crtPath = $path.join ConfigDir, 'host.crt'
     hasKey = $fs.existsSync keyPath

@@ -1,12 +1,16 @@
 
-
 @npmDev '@fortawesome/fontawesome-free'
+
 @phase 'build:pre',-1,=>
   console.debug ':icons'.green, Object.keys(ICON).join(' ').gray
-  pack = $path.dirname $path.dirname require.resolve '@fortawesome/fontawesome-free'
+  #module.paths.push $path.join RootDir, 'node_modules' # FIXME
+  #pack = $path.dirname $path.dirname require.resolve '@fortawesome/fontawesome-free'
+  # console.log pack
+  # pack = $path.join RootDir, 'node_modules'
+  pack = p if $fs.existsSync p = $path.join RootDir, 'node_modules', '@fortawesome','fontawesome-free'
+  pack = p if $fs.existsSync p = $path.join BunDir,  'node_modules', '@fortawesome','fontawesome-free'
   repo = $path.join pack,'svgs'
   dest = $path.join BuildDir,'fontawesome.css'
-
   @css """
   .fa,.faw { position: relative; min-width:2.5em; }
   .fa span, .faw span { display:none; }

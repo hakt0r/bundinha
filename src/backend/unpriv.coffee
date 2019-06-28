@@ -28,7 +28,7 @@
   catch e
     console.log 'Error:', 'systemd is required for this setup'.red
     console.log 'In addition this requires:'
-    console.log "  sudo -A loginctl enable-linger #{USER}".yellow
+    console.log "  sudo loginctl enable-linger #{USER}".yellow
     process.exit 1
   dest = $path.join HOME, '.local','share','systemd','user',AppPackage.name + '.service'
   console.log 'install'.yellow, 'systemd for', USER.green
@@ -45,15 +45,17 @@
     [Install]
     WantedBy=multi-user.target
   """
+
+  $cp.sudoSnippet = """
+  [ "$USER" = "root" ] || { sudo='sudo'; [ -n "$DISPLAY" ] && { SUDO_ASKPASS=$(which ssh-askpass); [ -n "$SUDO_ASKPASS" ] && { ask='-A'; export SUDO_ASKPASS; }; }; }
+  """
+
   $cp.spawnSync 'sh',['-c',"""
-    if ! loginctl show-user #{USER} | grep linger=yes
-    then
-    export SUDO_ASKPASS=$(which ssh-askpass)
-      [ -n "$DISPLAY" ] && ask='-A'
-      sudo $ask loginctl enable-linger #{USER}
-    fi
+    #{$cp.sudoSnippet}
+    if ! $sudo $ask loginctl show-user #{USER} | grep -q linger=yes
+    then $sudo $ask loginctl enable-linger #{USER}; fi
     systemctl --user | grep -q #{AppPackage.name}.service &&
-    systemctl --user disable #{AppPackage.name}
+      systemctl --user disable #{AppPackage.name}
     systemctl --user enable  #{AppPackage.name}
     systemctl --user restart #{AppPackage.name}
   """], stdio: 'inherit'
