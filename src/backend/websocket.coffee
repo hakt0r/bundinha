@@ -6,8 +6,31 @@
 #  ███ ███  ███████ ██████  ███████  ██████   ██████ ██   ██ ███████    ██
 
 @npm 'ws'
-@require 'bundinha/backend/web'
 @shared WebSockets:true
+@require 'bundinha/backend/web'
+@require 'bundinha/rpc'; { RPC } = @server
+
+@server class RPC.WebSock extends RPC
+  type:'$ws'
+  stdio:['$web','$web','$error']
+  isWebsocket: true
+  isWeb: true
+  constructor:(msg,parent)->
+    super msg.slice(1), parent
+    Object.assign @, rid:msg[0]
+    { UID, USER, COOKIE, GROUP } = @parent
+  # log:-> try @send
+  respond: (data)->
+    unless data
+      @err 'Empty response'
+      return @SOCK.send JSON.stringify [@rid,false,'NO_DATA']
+    if data.error and data.error.length > 0
+      data.error = data.error.map (i)=>
+        @err i
+        @err i.stack
+        i.toString()
+      return @SOCK.send JSON.stringify [@rid,null,data.error]
+    return @SOCK.send JSON.stringify [@rid,data]
 
 # ███████ ███████ ██████  ██    ██ ███████ ██████
 # ██      ██      ██   ██ ██    ██ ██      ██   ██
@@ -15,14 +38,25 @@
 #      ██ ██      ██   ██  ██  ██  ██      ██   ██
 # ███████ ███████ ██   ██   ████   ███████ ██   ██
 
+@server.init = ->
+  WebSock.ID$ = me =
+    nextId:0
+    freeId:[]
+    get:-> me.freeId.shift() || me.nextId++
+    del:(id)-> me.freeId.push()
+  return
+
 @server class WebSock
   constructor:(ws,req)->
     Object.assign ws, WebSock::
+    ws.uid = WebSock.ID$.get()
     ws.req = req
     ws.reqid = 0
     ws.pending = {}
     ws.on 'message', WebSock::handleMessage.bind ws
-    ws.on 'close', -> WebSock.server.emit 'close', ws
+    ws.on 'close', ->
+      WebSock.ID$.del ws.uid
+      WebSock.server.emit 'close', ws
     return ws
 
 WebSock::handleMessage = (msg)->
@@ -32,19 +66,13 @@ WebSock::handleMessage = (msg)->
   return
 
 WebSock::handleRequest = (msg)->
-  try
-    [ id, call, args ] = JSON.parse msg
-    json  = (data)  => @send JSON.stringify [id,data]
-    error = (error) => @send JSON.stringify [id,null,error]
-    req = id:id, sock:@, USER:@req.USER, ID:@req.ID, COOKIE:@req.COOKIE
-    res = id:id, json:json, error:error, setHeader:(->)
-    return fn.call res, args, req, res if fn = APP.public[call]
-    if false isnt need_group = APP.group[call]
-      RequireGroup req, need_group
-    return fn.call res, args, req, res if fn = APP.private[call]
-  catch error
-    console.error '::ws::', error
-    try res.error error
+  new RPC.WebSock JSON.parse(msg), Object.assign {},
+    COOKIE: @req.COOKIE
+    USER:   @req.USER
+    GROUP:  @req.GROUP
+    UID:    @req.UID
+    SOCK:   @
+  .handle()
 
 WebSock::query = (call,data)-> new Promise (resolve,reject)=>
   @pending[id = @reqid++] = sock:@, resolve:resolve, reject:reject, call:call, data:data
@@ -53,9 +81,10 @@ WebSock::query = (call,data)-> new Promise (resolve,reject)=>
 WebSock::handleResponse = (msg)->
   [id,data,error] = JSON.parse msg.substring 1
   unless req = @pending[id]
-    return console.error 'invalid response', msg
-  delete @pending[data.id]
-  return req.reject error if error
+    console.error 'Invalid response:', msg
+    throw new Error 'Invalid response'
+  delete @pending[req.id]
+  return req.reject [req,error].flat() if error
   req.resolve data
   return
 
@@ -68,14 +97,17 @@ WebSock.broadcast = (call,data)->
 WebSock.init = ->
   WebSock.server = wss = new ( require 'ws' ).Server noServer:true
   APP.server.on 'upgrade', (request, socket, head)->
-    try await RequireAuth request
-    catch error
-      console.log error
-      socket.destroy()
+    try
+      request.htReq = request
+      await RequireAuth request
+    catch error then console.log error; socket.destroy()
     wss.handleUpgrade request, socket, head, (ws)-> wss.emit 'connection', ws, request
     return
-  wss.on 'connection', (s,r)-> new WebSock s,r
+  wss.on 'connection', (s,r)-> s = new WebSock s,r
   console.log APP.Protocol, 'websockets'.green
+
+
+
 
 #  ██████ ██      ██ ███████ ███    ██ ████████
 # ██      ██      ██ ██      ████   ██    ██
@@ -145,7 +177,7 @@ WebSock::handleRequest = (msg)->
 WebSock::handleResponse = (msg)->
   [id,data,error] = JSON.parse msg
   req = @pending[id]; delete @pending[id]
-  req.reject  error if error
+  return req.reject [req,error].flat() if ( not req? ) or error
   req.resolve data
   return
 
@@ -156,7 +188,7 @@ WebSock.connect = (old)-> new Promise (resolve,reject)->
   new WebSock addr,resolve,reject,old
 
 WebSock::query = (call,data)-> new Promise (resolve,reject)=>
-  @pending[id = @reqid++] = resolve:resolve, reject:reject
+  @pending[id = @reqid++] = resolve:resolve, reject:reject, call:call, data:data
   if @readyState is @OPEN
     @send JSON.stringify [id,call,data]
     return

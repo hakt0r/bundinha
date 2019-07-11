@@ -20,9 +20,8 @@ $$.$util  = require 'util'
 $$.$forge = require 'node-forge'
 
 $$.ENV = process.env
-$$.ARG = process.argv.filter (v)-> not v.match /^-/
-for v in ( process.argv.filter (v)-> v.match /^-/ )
-  ARG[v.replace /^-+/, ''] = not ( v.match /^--no-/ )?
+$$.ARG = process.argv.slice 2
+ARG[v] = not v.match /^no-/ for v in process.argv
 
 $$.RootDir   = ENV.APP      || process.cwd()
 $$.ConfigDir = ENV.CONF     || $path.join RootDir, 'config'
@@ -154,6 +153,12 @@ Bundinha::cmd_init = ->
   p.scripts[name] = script for name,script of COM when not p.scripts[name]
   p.devDependencies.bundinha = 'file:'+BunDir unless p.devDependencies.bundinha
   @writeConfig p, RootDir, 'package.json'
+  unless $fs.existsSync p = $path.join RootDir, 'src', appName + '.coffee'
+    $fs.writeFileSync p, """
+    @require 'bundinha/backend/unpriv'
+    @require 'bundinha/backend/command'
+    @require 'bundinha/auth/invite'
+    """
   process.exit 0
 
 Bundinha::cmd_push = (final=yes)->
@@ -328,8 +333,8 @@ Bundinha::loadDependencies = ->
         $$[dep[0]] = require dep[1]
       else $$[dep] = require dep
       console.debug ' $load$ '.white.redBG.bold, dep
-  installScope @requireDevScope, BuildDir, '--save'
-  # installScope @requireScope,    RootDir,  '--save-opt'
+  installScope @requireDevScope, RootDir,   '--save-dev'
+  installScope @requireScope,    BuildDir,  '--save-opt'
   return
 
 #  █████  ███████ ███████ ███████ ████████ ███████
@@ -439,7 +444,7 @@ do Bundinha::nodePromises = ->
   $cp.run$ = (args...)->
     opts = $cp.spawnOpts $cp.spawnArgs ...args
     s = $cp.spawn opts.args[0], opts.args.slice(1), opts
-    # console.log '$run$'.white.redBG.bold, opts.args, opts.stdio[0] is process.stdin
+    console.log '$run$'.white.redBG.bold, opts.args, opts.stdio[0] is process.stdin
     await $cp.awaitOutput s,opts
   $cp.spawnArgs = (args...)->
     # console.log ' :SPAWN:ARGS: ', @name, args
@@ -452,8 +457,9 @@ do Bundinha::nodePromises = ->
     opts
   $cp.spawnOpts = (opts)-> ( ->
     args = opts.args
-    if m = args[0]?.match /^([$#])([eltx]+)?(@.*)?$/
+    if m = args[0]?.match /^([$#])([-eltx]+)?(@.*)?$/
       opts.needsRoot = true  if m[1] is '$' unless @virtual
+      opts.needsInput = true if m[2]?.match '-'
       opts.log = true        if m[2]?.match 'l'
       opts.log = true        if m[2]?.match 'e'
       opts.preferTerm = true if m[2]?.match 't'
@@ -501,6 +507,7 @@ do Bundinha::nodePromises = ->
     opts.args = args
     opts.user = user #; console.log ' :SPAWN:1 '.black.greenBG.bold, @name, opts
     opts ).call opts.host || opts.host = name:$os.hostname(), localhost:true
+  # console.log args.join(' ').gray, opts.stdio[0] id process.stdin
   $cp.awaitSilent = (s)-> new Promise (r,e)-> s.on('close',r).on('error',e)
   $cp.awaitOutput = (s,opts)-> new Promise (resolve)-> ( ->
     e = []; o = []; s.stderr.setEncoding 'utf8'
@@ -530,7 +537,7 @@ do Bundinha::arrayTools = ->
     r = {}
     r[k] = v for k,v of o when c k,v
     r
-  unless Array::flat then Array::flat = ->
+  unless Array::flat then Object.defineProperty Array::,'flat',enumerable:false,value:->
     depth = if isNaN(arguments[0]) then 1 else Number(arguments[0])
     if depth then Array::reduce.call(this, ((acc, cur) ->
       if Array.isArray(cur) then acc.push.apply acc, Array::flat.call(cur, depth - 1)

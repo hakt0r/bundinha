@@ -12,20 +12,20 @@ Database.plugin.text =
   del: (id)-> new Promise (resolve)=>
     @db.del id
     resolve true
-  createFrom: (data,req)->
-    try evt = await @db.get data.id
+  createFrom: (req)->
+    try evt = await @db.get req.args.id
     throw new Error 'Exists' if evt?
-    evt = @create data, req
+    evt = @create req
 
 @server class Database.Text
   constructor:(@name)-> @path = $path.join ConfigDir, @name
-  open:-> await $fs.mkdir$ @path unless await $fs.exists$ @path; @
-  get:(key)->
+  open:=> await $fs.mkdir$ @path unless await $fs.exists$ @path; @
+  get:(key)=>
     path = $path.join @path, key
     throw new Error "db:#{@name}: key does not exist '#{key}'" unless await $fs.exists$ path
     $fs.readFile$ path, 'utf8'
-  del:(key)-> $fs.unlink$ $path.join @path, key
-  put:(key,value)->
+  del:(key)-> await $fs.unlink$ $path.join @path, key
+  put:(key,value)=>
     path = $path.join @path, key
     value = if typeof value is 'string' then value else JSON.stringify value
     await $fs.writeFile$ path+'.$$', value

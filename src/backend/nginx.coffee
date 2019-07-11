@@ -1,11 +1,14 @@
 
-@require 'bundinha/backend/backend'
-@require 'bundinha/backend/web'
+@server class NGINX
+  @dynamic:[]
+  @http:[]
 
 @preCommand ->
   await APP.getCerts()
 
-@server class NGINX
+@require 'bundinha/backend/backend'
+@require 'bundinha/backend/web'
+@require 'bundinha/backend/acme'
 
 @config
   SSLFullchain: "/path/to/fullchain.crt"
@@ -13,7 +16,7 @@
   SSLClientCA:  "/path/to/ca.crt"
   SSLGateDN:    "C=com,O=#{AppPackageName}.DOMAIN,CN=gate.#{AppPackageName}.DOMAIN.com"
 
-@command 'install:nginx', (args,req,res)->
+@command 'install:nginx',->
   $$.ServerName = BaseUrl.replace(/https?:\/\//,'').replace(/\/.*/,'')
   await APP.initConfig()
   available = '/' + $path.join 'etc','nginx','sites-available',AppPackage.name+'.conf'
@@ -24,19 +27,19 @@
   await $cp.run$ '$','/etc/init.d/nginx','restart'
   r = await $cp.run$ '$','nginx','-t'
   if r.status isnt 0
-    console.error ' nginx '.blue.whiteBG.bold, 'install'.red.bold
-    console.error '',"#{'BaseUrl'.padEnd(13).bold.yellow}: #{$$.BaseUrl.bold.white}"
-    console.error '',"#{'ServerName'.padEnd(13).bold.yellow}: #{$$.ServerName.bold.white}"
-    console.error '',"#{'SSLHostKey'.padEnd(13).bold.yellow}: #{$$.SSLHostKey.bold.white}"
-    console.error '',"#{'SSLFullchain'.padEnd(13).bold.yellow}: #{$$.SSLFullchain.bold.white}"
-    console.error '',"#{'Protocol'.padEnd(13).bold.yellow}: #{$$.Protocol.bold.white}"
-    console.error '',"#{'Port'.padEnd(13).bold.yellow}: #{$$.Port.bold.white}"
-    console.error r.stdout
-    console.error r.stderr
-    console.error config
-    throw new Error 'NGINX config error'
-  console.log ' nginx '.blue.whiteBG.bold, 'install'.green.bold
-  res.json true
+    @err ' nginx '.blue.whiteBG.bold, 'install'.red.bold
+    @err '',"#{'BaseUrl'.padEnd(13).bold.yellow}: #{$$.BaseUrl.bold.white}"
+    @err '',"#{'ServerName'.padEnd(13).bold.yellow}: #{$$.ServerName.bold.white}"
+    @err '',"#{'SSLHostKey'.padEnd(13).bold.yellow}: #{$$.SSLHostKey.bold.white}"
+    @err '',"#{'SSLFullchain'.padEnd(13).bold.yellow}: #{$$.SSLFullchain.bold.white}"
+    @err '',"#{'Protocol'.padEnd(13).bold.yellow}: #{$$.Protocol.bold.white}"
+    @err '',"#{'Port'.padEnd(13).bold.yellow}: #{$$.Port.bold.white}"
+    @err r.stdout
+    @err r.stderr
+    @err config
+    @error 'NGINX config error'
+  @log ' nginx '.blue.whiteBG.bold, 'install'.green.bold
+  true
   # $fs.writeFileSync '/etc/nginx/sites-available/' + AppPackage.name,
   # $fs.writeFileSync $path.join(ConfigDir,'nginx.server.conf'), NGINX.testConfig()
 
@@ -64,13 +67,15 @@ NGINX.testConfig = ->
 
 NGINX.config = -> """
   #{NGINX.httpRedirect()}
+  #{NGINX.http.map( (i)-> i() ).join '\n'}
   """ + if ( ssl = NGINX.ssl() ) then """
   server {
-    #{NGINX.sslServer $$.ServerName || '_'}
+  #{NGINX.sslServer $$.ServerName || '_'}
     root #{WebDir};
     #{ssl}
     #{NGINX.sslLockdown()}
     #{NGINX.singleFactor()}
+    #{NGINX.dynamic.map( (i)-> i() ).join '\n  '}
     #{NGINX.apiConfig()}
   }""" else ''
 
@@ -78,66 +83,67 @@ NGINX.sslServer = (serverName='_',webRoot='')->
   defaultServer = if '_' is serverName then ' default_server' else ''
   webRoot       = if ''  is webRoot    then '' else "root #{webRoot};"
   """
-  ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384;
-  ssl_protocols TLSv1.2;# Requires nginx >= 1.13.0 else use TLSv1.2
-  ssl_prefer_server_ciphers on;
-  # ssl_dhparam /etc/nginx/dhparam.pem; # openssl dhparam -out /etc/nginx/dhparam.pem 4096
-  ssl_ecdh_curve secp384r1; # Requires nginx >= 1.1.0
-  ssl_session_timeout  10m;
-  ssl_session_cache builtin:1000 shared:SSL:10m;
-  ssl_session_tickets off; # Requires nginx >= 1.5.9
-  ssl_stapling on; # Requires nginx >= 1.3.7
-  ssl_stapling_verify on; # Requires nginx => 1.3.7
-  listen      443 ssl#{defaultServer};
-  listen [::]:443 ssl#{defaultServer};
-  server_name #{serverName};
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384;
+    ssl_protocols TLSv1.2;# Requires nginx >= 1.13.0 else use TLSv1.2
+    ssl_prefer_server_ciphers on;
+    # ssl_dhparam /etc/nginx/dhparam.pem; # openssl dhparam -out /etc/nginx/dhparam.pem 4096
+    ssl_ecdh_curve secp384r1; # Requires nginx >= 1.1.0
+    ssl_session_timeout  10m;
+    ssl_session_cache builtin:1000 shared:SSL:10m;
+    ssl_session_tickets off; # Requires nginx >= 1.5.9
+    ssl_stapling on; # Requires nginx >= 1.3.7
+    ssl_stapling_verify on; # Requires nginx => 1.3.7
+    listen      443 ssl#{defaultServer};
+    listen [::]:443 ssl#{defaultServer};
+    server_name #{serverName};
   #{webRoot}
   """
 
 NGINX.ssl = (fullchain=$$.SSLFullchain,key=$$.SSLHostKey)->
   if ( $fs.existsSync fullchain ) and ( $fs.existsSync key ) then """
-  ssl_certificate     #{fullchain};
-  ssl_certificate_key #{key};
+    ssl_certificate     #{fullchain};
+    ssl_certificate_key #{key};
   """ else ''
 
-NGINX.httpRedirect = -> """
+NGINX.httpRedirect = (serverName)-> """
   server {
     listen 80;
     listen [::]:80;
-    server_name #{$$.ServerName};
+    server_name #{serverName || $$.ServerName || '_'};
     return 301 https://$host$request_uri;
   }"""
 
 NGINX.sslLockdown = -> """
-  # resolver $DNS-IP-1 $DNS-IP-2 valid=300s;
-  # resolver_timeout 5s;
-  add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload";
-  add_header X-Frame-Options DENY;
-  add_header X-Content-Type-Options nosniff;
-  add_header X-XSS-Protection "1; mode=block";
+  \ \ # resolver $DNS-IP-1 $DNS-IP-2 valid=300s;
+    # resolver_timeout 5s;
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload";
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-XSS-Protection "1; mode=block";
   """
 
 NGINX.needsAuth = -> """
   if ( $grant != 1 ){ return 401; }
   """
 
-NGINX.cookieFactor = -> """
-  set $grant  0;
-  set $factor "";
-  if ( $http_cookie ~* "SESSION=([a-f0-9]+)(;|$)" ) {
-    set $auth_cookie $1; }
-  if ( -f "/tmp/auth/${auth_cookie}" ) {
-    set $factor "${factor}c";
-    set $auth_user_cookie $cookie_user; }
+NGINX.cookieFactor = (sessionPath=APP.session.path)->
+  """
+  \ \ set $grant 0;
+    set $factor "";
+    if ( $http_cookie ~* "SESSION=([a-f0-9]+)(;|$)" ) {
+      set $auth_cookie $1; }
+    if ( -f "#{sessionPath}/${auth_cookie}" ) {
+      set $factor "${factor}c";
+      set $auth_user_cookie $cookie_user; }
   """
 
-NGINX.singleFactor = ->
+NGINX.singleFactor = (sessionPath=APP.session.path)->
   return '' unless FLAG.UseAuth
   """
-  # singleFactor
-  set $auth_user_ssl "";
-  #{NGINX.cookieFactor()}
-  if ( $factor = 'c' ) { set $grant 1; }
+    # singleFactor
+    set $auth_user_ssl "";
+  #{NGINX.cookieFactor sessionPath}
+    if ( $factor = 'c' ) { set $grant 1; }
   """
 
 NGINX.multiFactor = (clientCA,gateDN)-> """

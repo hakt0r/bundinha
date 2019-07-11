@@ -55,18 +55,17 @@ ACME::init = ->
 # ██      ██   ██ ██      ██      ██  ██
 #  ██████ ██   ██ ███████  ██████ ██   ██
 
-@command 'acme:check',      (args...)-> ACME.checkHTTP$cmd ...args
-@command 'acme:check:http', (args...)-> ACME.checkHTTP$cmd ...args
-ACME::checkHTTP$cmd = (args,req,res)-> res.json await ACME.check()
 ACME::check = ->
-  res = await @list()
-  check = cert if cert = res[@domain]
-  for name, cert of res
+  list = await @list()
+  check = cert if cert = list[@domain]
+  for name, cert of list
     check = cert if cert.san?.includes? @domain
     check = cert if cert.san?.includes? '*.' + @domain.replace /^[^.]+\./, ''
     check = cert if cert.san?.includes? '*.' + @domain.split('.').slice(-2).join('.')
   return false unless check
   if check.renew > new Date then check else false
+@command 'acme:check',      (args...)-> await ACME.check ...args
+@command 'acme:check:http', (args...)-> await ACME.check ...args
 
 # ██      ██ ███████ ████████
 # ██      ██ ██         ██
@@ -74,11 +73,9 @@ ACME::check = ->
 # ██      ██      ██    ██
 # ███████ ██ ███████    ██
 
-@command 'acme:list', (args...)-> await ACME.list$cmd ...args
-ACME::list$cmd = (args,req,res)-> res.json await ACME.list()
 ACME::list = ->
   acmeResult = await $cp.run$ args:[ACME.call,"--list"].flat()
-  return {} unless acmeResult?.stdout?; res = {}
+  return {} unless acmeResult?.stdout?; list = {}
   beginList = false
   acmeResult.stdout.trim().split('\n').forEach (line)=>
     if line.match '\t'
@@ -96,8 +93,9 @@ ACME::list = ->
       key:  $path.join @ca, w[0], w[0] + '.key'
       mode: if c.match(/Le_Webroot='dns'/)? then 'dns' else 'http'
     return if r.renew.toString() is 'Invalid Date'
-    res[w[0]] = r
-  return res
+    list[w[0]] = r
+  return list
+@command 'acme:list', (args...)-> await ACME.list ...args
 
 # ██████  ███████ ███    ██ ███████ ██     ██
 # ██   ██ ██      ████   ██ ██      ██     ██
@@ -105,17 +103,16 @@ ACME::list = ->
 # ██   ██ ██      ██  ██ ██ ██      ██ ███ ██
 # ██   ██ ███████ ██   ████ ███████  ███ ███
 
-@command 'acme:renew',      (args...)-> ACME.renewHTTP$cmd ...args
-@command 'acme:renew:http', (args...)-> ACME.renewHTTP$cmd ...args
-ACME::renewHTTP$cmd = (args,req,res)-> res.json await ACME.renewHTTP()
-ACME::renewHTTP = (args,req,res)->
+ACME::renewHTTP = (req)->
   throw new Error 'Undefined: ServerName' unless $$.ServerName
   await @nginxRedirectOn()
   { stdout } = acmeResult = await $cp.run$ [
     ACME.call,"--issue","-d",$$.ServerName,"--standalone","--httpport",APP.port + 1776].flat()
-  result = ACME.parseResult acmeResult, $$.ServerName
+  result = ACME.parseResult req, acmeResult, $$.ServerName
   await @nginxRedirectOff()
   result
+@command 'acme:renew',      (args...)-> await ACME.renew ...args
+@command 'acme:renew:http', (args...)-> await ACME.renew ...args
 
 # ████████  ██████   ██████  ██      ███████
 #    ██    ██    ██ ██    ██ ██      ██
@@ -133,18 +130,18 @@ ACME::usingForeignCerts = ->
   console.log ' acme '.inverse.yellowBG.bold, 'usingForeignCerts', SSLHostKey
   true
 
-ACME::parseResult = ({stdout,stderr},domain,firstStep=false,req,res)->
+ACME::parseResult = (request,{stdout,stderr},domain,firstStep=false)->
   SSL = "  acme ".blue.whiteBG.bold + ' ' + domain.bold
   if stdout?.match /-----END CERTIFICATE-----/
-    console.log SSL, 'renewed'.green.bold
+    request.log SSL, 'renewed'.green.bold
     true
   else if m = stdout?.match /Skip\, Next renewal time is: ([^\n]+)/
-    console.log SSL, 'valid until'.green.bold, (m.pop()||'').italic.bold
+    request.log SSL, 'valid until'.green.bold, (m.pop()||'').italic.bold
     true
   else unless firstStep
-    console.error SSL, 'not renewed'.red.bold
-    console.error stdout.trim().replace(/\[[^\]]+\] /g,' ').gray
-    console.error stderr.trim().replace(/\[[^\]]+\] /g,' ').gray
+    request.err SSL, 'not renewed'.red.bold
+    request.err stdout.trim().replace(/\[[^\]]+\] /g,' ').gray
+    request.err stderr.trim().replace(/\[[^\]]+\] /g,' ').gray
     false
 
 ACME::nginxRedirectOff = -> if NGINX.httpRedirect is @httpRedirect
@@ -182,7 +179,8 @@ ACME::httpRedirect = -> """
 # ██████  ██   ████ ███████
 return unless @acmeDNS
 
-ACME::renewDNS = ({domain,dynamic,domains,subDomains,aliased,force,updateDNS,nameServer},req,res)->
+ACME::renewDNS = (request)->
+  {domain,dynamic,domains,subDomains,aliased,force,updateDNS,nameServer} = request
   writeNewConfig = ->
     return unless cert = await ACME.check()
     $$.SSLHostKey = cert.key
@@ -200,18 +198,18 @@ ACME::renewDNS = ({domain,dynamic,domains,subDomains,aliased,force,updateDNS,nam
     if ( dom is domain ) or subDomains.includes dom
          args = args.concat ['-d','*.'+dom]
     else args = args.concat ['-d',dom,'-d','*.'+dom]
-  console.log SSL, 'update', [domains,aliased,subDomains].flat().map( (i)-> i.green ).join(', ')
+  request.log SSL, 'update', [domains,aliased,subDomains].flat().map( (i)-> i.green ).join(', ')
   # force = force || not await $fs.exists$ cachePath
   # if force
-  console.log SSL, 'talking to ACME'.yellow.bold
+  request.log SSL, 'talking to ACME'.yellow.bold
   { stdout } = acmeResult = await $cp.run$ [
     ACME.call,'--issue',dnsArgs,'-d',domain,args,'--challenge-alias',dynamic].flat()
   await $fs.writeFile$ cachePath, stdout
-  if ACME.parseResult acmeResult, domain, true
+  if ACME.parseResult request, acmeResult, domain, true
     await writeNewConfig()
     return true
   # else stdout = await $fs.stdoutFile$ cachePath, 'utf8'
-  console.log SSL, 'reading DNS tokens'.yellow.bold
+  request.log SSL, 'reading DNS tokens'.yellow.bold
   found = true; challenge = []; check = []
   while found
     try [m0,dom] = m = stdout.match /domain: '_acme-challenge\.([^']+)'/i; dom = dom.trim()
@@ -224,16 +222,16 @@ ACME::renewDNS = ({domain,dynamic,domains,subDomains,aliased,force,updateDNS,nam
     challenge.push ['cname',"_acme-challenge.#{domain}.","_acme-challenge.#{dynamic}.",300]
   subDomains.forEach (domain)->
     challenge.push ['cname',"_acme-challenge.#{domain}.","_acme-challenge.#{dynamic}.",300]
-  await updateDNS challenge, 'add'
-  console.log SSL, 'checking DNS-TXT records'.yellow.bold, CNC.tempRecords
+  await updateDNS challenge, 'add', request
+  request.log SSL, 'checking DNS-TXT records'.yellow.bold, DNS.tempRecords
   r = await Promise.all check.map (i)-> i()
   throw new Error 'DNS check failed' unless r.reduce (
     (c,v)-> if c is false then false else v
   ), true
-  console.log SSL, 'ACME is verifying'.yellow.bold
+  request.log SSL, 'ACME is verifying'.yellow.bold
   { stdout } = acmeResult = await $cp.run$ [ACME.call,'--renew',dnsArgs,'-d',domain,args].flat(); stdout = r.stdout
-  await updateDNS challenge, 'delete'
-  if ACME.parseResult acmeResult, domain
+  await updateDNS challenge, 'delete', request
+  if ACME.parseResult request, acmeResult, domain
     await writeNewConfig()
     true
   else false
@@ -242,9 +240,9 @@ ACME::checkDNS = (domain,token,nameServer)-> ->
   SSL = "  acme ".blue.whiteBG.bold + ' ' + domain.bold
   r = await $cp.run$ 'host','-t','TXT',"_acme-challenge.#{domain}", nameServer
   if r?.stdout?.includes? token
-    console.log SSL,'token'.green, domain.bold, token
+    request.log SSL,'token'.green, domain.bold, token
     return true
-  console.error SSL,'token'.red.bold, domain.bold
-  console.error r?.stderr
-  console.error r?.stdout
+  request.err SSL,'token'.red.bold, domain.bold
+  request.err r?.stderr
+  request.err r?.stdout
   false

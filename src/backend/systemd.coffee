@@ -3,7 +3,7 @@
 
 @command 'install-systemd', (args,req,res)->
   try $cp.execSync('which systemctl')
-  catch e then return Command.call "install-initd"
+  catch e then return @call "install-initd"
   console.log 'install'.red, 'systemd.service'
   $fs.writeFileSync '/etc/systemd/system/' + AppPackage.name + '.service', """
     [Unit]
@@ -25,7 +25,6 @@
     systemctl enable  #{AppPackage.name}
     systemctl restart #{AppPackage.name}
   """
-  process.exit 0
 
 @command 'install-initd', ->
   console.log 'install'.red, 'init.d script'
@@ -67,4 +66,3 @@
     update-rc.d #{AppPackage.name} enable
     /etc/init.d/#{AppPackage.name} restart
   """
-  process.exit 0

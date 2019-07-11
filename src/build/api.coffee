@@ -67,11 +67,12 @@ Bundinha::compileValue = (path,name,value,selector,apiDesc)->
     else   "\n#{path}#{selector}#{accessor name} = #{JSON.stringify value};"
 
 Bundinha::compileArray = (path,name,value,selector,apiDesc)->
-  out = "\n#{path}#{selector}#{accessor name} = [];"
-  for k,v of value
-    if 'function' is typeof v
-         out += "\n#{path}#{selector}#{accessor name}#{accessor k} = #{v.toString()};"
-    else out += "\n#{path}#{selector}#{accessor name}#{accessor k} = #{JSON.stringify v};"
+  return "\n#{path}#{selector}#{accessor name} = [];" if value.length is 0
+  out = "\n#{path}#{selector}#{accessor name} = ["
+  for k,v of value.slice(0,-1)
+    out += if 'function' is typeof v then "\n   #{v.toString()}," else "#{JSON.stringify v},"
+  v = value.slice().pop()
+  out += if 'function' is typeof v then "\n   #{v.toString()}];" else "#{JSON.stringify v}];"
   out
 
 Bundinha::compileMap = (path,name,value,selector,apiDesc)->
@@ -90,7 +91,7 @@ Bundinha::compileFunction = (path,name,value,selector,apiDesc)->
   if code.match regex
     members.push sym.green + name
     return
-  code = code.replace /^[^(]+/, 'function ' + name.replace /[-:]/g, ''
+  code = code.replace /^[^(]+/, 'function ' + name.replace /[^a-zA-Z0-9]+/g, '_'
   "\n#{path}#{selector}#{accessor name} = #{add}#{code};"
 
 Bundinha::compileObject = (path,name,value,selector,apiDesc)->

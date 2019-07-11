@@ -13,7 +13,7 @@
     process.env[k] = v
   USER = process.env.USER || process.getuid()
   HOME = process.env.HOME || os.homedir()
-  PORT = process.env.PORT || throw new Error 'PORT= environment variable or argument required'
+  PORT = process.env.PORT || $$.Port || throw new Error 'PORT= environment variable or argument required'
   CERT   = v if ( v = $$.SSLFullchain )?
   KEY    = v if ( v = $$.SSLHostKey   )?
   DOMAIN = v if ( v = $$.ServerName   )?
@@ -26,12 +26,12 @@
   KEY = false if false is CERT
   try $cp.execSync 'which systemctl'
   catch e
-    console.log 'Error:', 'systemd is required for this setup'.red
-    console.log 'In addition this requires:'
-    console.log "  sudo loginctl enable-linger #{USER}".yellow
+    @err 'Error:', 'systemd is required for this setup'.red
+    @err 'In addition this requires:'
+    @err "  sudo loginctl enable-linger #{USER}".yellow
     process.exit 1
   dest = $path.join HOME, '.local','share','systemd','user',AppPackage.name + '.service'
-  console.log 'install'.yellow, 'systemd for', USER.green
+  @log ' instl '.blue.bold.whiteBG, 'systemd for', USER.green
   $cp.spawnSync 'mkdir',['-p',$path.dirname dest], stdio:'inherit'
   $fs.writeFileSync dest, """
     [Unit]
@@ -46,10 +46,12 @@
     WantedBy=multi-user.target
   """
 
+  @log ' instl '.blue.bold.whiteBG, 'sudo snippet'
   $cp.sudoSnippet = """
   [ "$USER" = "root" ] || { sudo='sudo'; [ -n "$DISPLAY" ] && { SUDO_ASKPASS=$(which ssh-askpass); [ -n "$SUDO_ASKPASS" ] && { ask='-A'; export SUDO_ASKPASS; }; }; }
   """
 
+  @log ' instl '.blue.bold.whiteBG, 'linger'
   $cp.spawnSync 'sh',['-c',"""
     #{$cp.sudoSnippet}
     if ! $sudo $ask loginctl show-user #{USER} | grep -q linger=yes
@@ -59,6 +61,7 @@
     systemctl --user enable  #{AppPackage.name}
     systemctl --user restart #{AppPackage.name}
   """], stdio: 'inherit'
+  @log ' instl '.blue.bold.whiteBG, 'config'
   APP.configKeys.pushUnique 'BaseUrl';      $$.BaseUrl      = 'https://' + DOMAIN
   APP.configKeys.pushUnique 'ServerName';   $$.ServerName   = DOMAIN
   APP.configKeys.pushUnique 'SSLHostKey';   $$.SSLHostKey   = KEY
@@ -67,11 +70,11 @@
   APP.configKeys.pushUnique 'Protocol';     $$.Protocol     = 'http'
   APP.configKeys.pushUnique 'Port';         $$.Port         = PORT
   APP.writeConfig()
-  Command.call 'install:nginx'
-  process.exit 0
+  await @sub 'install:nginx'
 
-@command 'start',  -> $cp.spawnSync 'systemctl',['--user','start',  AppPackage.name]; process.exit 0
-@command 'stop',   -> $cp.spawnSync 'systemctl',['--user','stop',   AppPackage.name]; process.exit 0
-@command 'restart',-> $cp.spawnSync 'systemctl',['--user','restart',AppPackage.name]; process.exit 0
-@command 'enable', -> $cp.spawnSync 'systemctl',['--user','enable', AppPackage.name]; process.exit 0
-@command 'disable',-> $cp.spawnSync 'systemctl',['--user','disable',AppPackage.name]; process.exit 0
+@command 'status', -> ( await $cp.run$ 'systemctl','--user','status', AppPackage.name ).status is 0
+@command 'start',  -> ( await $cp.run$ 'systemctl','--user','start',  AppPackage.name ).status is 0
+@command 'stop',   -> ( await $cp.run$ 'systemctl','--user','stop',   AppPackage.name ).status is 0
+@command 'restart',-> ( await $cp.run$ 'systemctl','--user','restart',AppPackage.name ).status is 0
+@command 'enable', -> ( await $cp.run$ 'systemctl','--user','enable', AppPackage.name ).status is 0
+@command 'disable',-> ( await $cp.run$ 'systemctl','--user','disable',AppPackage.name ).status is 0

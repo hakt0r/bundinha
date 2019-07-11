@@ -24,7 +24,7 @@
   del: (id)-> new Promise (resolve)=>
     @db.del id
     resolve true
-  createFrom: (data,req)->
-    try evt = await @db.get data.id
+  createFrom:(req)->
+    try evt = await @db.get req.args.id
     throw new Error 'Exists' if evt?
-    evt = @create data, req
+    evt = @create req

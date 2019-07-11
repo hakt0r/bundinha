@@ -73,7 +73,7 @@ Database.plugin.generic.verify = (data,req,access)->
         errors[fieldName][testName] = e
         hadError = true
   if hadError
-    console.error 'access'.red.bold, req.ID, errors
+    console.error 'access'.red.bold, req.UID, errors
     throw ( e = new Error 'VerificationError'; e.data = errors; e )
   verified
 

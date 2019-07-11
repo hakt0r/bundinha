@@ -15,13 +15,13 @@
   AdminUser: 'admin'
   AdminPassword: $forge.util.bytesToHex $forge.random.getBytes 32
 
-@server.init = ->
+@preCommand ->
   try await $fs.mkdir$ '/tmp/auth'
   try rec = await APP.user.get AdminUser
   catch e
     seedSalt = Buffer.from($forge.random.getBytesSync 128).toString 'base64'
     hashedPass = SHA512 [ AdminPassword, seedSalt ].join ':'
-    User.create id:AdminUser, pass:hashedPass, seedSalt:seedSalt, group:['admin']
+    User.create args:id:AdminUser, pass:hashedPass, seedSalt:seedSalt, group:['admin']
   return
 
 # ██    ██ ███████ ███████ ██████
@@ -42,7 +42,7 @@ User.groups = (callback)-> new Promise (resolve)->
   APP.user.createReadStream()
   .on 'data', (u)->
     u = JSON.parse u.value
-    a[u.id] = name:u.id, members:[u.id], isuser:true
+    a[u.id] = name:u.id, members:[u.id], isuser:true, user:u
     for group in u.group
       unless a[group]
         a[group] = name:group, members:[]
@@ -73,45 +73,8 @@ User.aliasSearch = (alias)-> new Promise (resolve)->
     a.push u.id
   .on 'end',  (u)-> resolve a.shift()
 
-User.authenticatePlain = (id,password,rec)->
-  return false unless id? and password?
-  try rec = rec || JSON.parse await APP.user.get id
-  return false unless rec?
-  hashedPass = SHA512 [ password,   rec.seedSalt ].join ':'
-  hashedPass = SHA512 [ hashedPass, rec.storageSalt ].join ':'
-  return rec.pass is hashedPass
-
-User.authenticateWithClientSalt = (id,password,salt)->
-  return false unless id? and password?
-  try rec = rec || JSON.parse await APP.user.get id
-  return false unless rec?
-  console.log rec, salt
-  console.log password
-  hashedPass = SHA512 [ rec.pass, salt ].join ':'
-  return password is hashedPass
-
-# User.authenticateRequest = @server.DenyAuth
-User.authenticateRequest = (q,req,res)->
-  rec = await APP.user.get q.id
-  rec = JSON.parse rec
-  unless q.pass?
-    res.json challenge:
-      storageSalt:rec.storageSalt
-      seedSalt:rec.seedSalt
-    return false
-  unless await User.authenticateWithClientSalt q.id, q.pass, q.salt, rec
-    throw new Error "#{I18.NXUser}: #{q.id}"
-  req.USER = rec
-  rec
-
-# User.registerRequest = @server.DenyAuth
-User.registerRequest = (q,req,res)->
-  throw new Error 'User exists' if ( try rec = await APP.user.get q.id )?
-  throw new Error 'Invalid InviteKey' unless q.inviteKey is SHA512 [ APP.InviteKey, q.inviteSalt ].join ':'
-  await User.create id:q.id, pass:q.pass, seedSalt:q.salt
-  rec
-
-@server.User.create = (opts)->
+@server.User.create = (req)->
+  opts = req.args
   opts.storageSalt = Buffer.from($forge.random.getBytesSync 128).toString 'base64'
   opts.pass = SHA512 [ opts.pass, opts.storageSalt ].join ':'
   new User(opts).commit()
@@ -137,23 +100,38 @@ User.registerRequest = (q,req,res)->
 # ██   ██ ██      ██
 # ██   ██ ██      ██
 
-@server.AddAuthCookie = (res,user)->
+@server.AddAuthCookie = (req)->
   cookie = User.getUID()
-  res.setHeader 'Set-Cookie', "SESSION=#{cookie}; expires=#{new Date(new Date().getTime()+86409000).toUTCString()}; path=/"
-  $fs.writeFileSync ( $path.join '/tmp/auth', cookie ), '' if $fs.existsSync '/tmp/auth'
-  console.log 'AUTH'.yellow, user.id, user.group
-  APP.session.put cookie, user.id
+  console.debug 'COOKIE'.yellow, req.USER.id, req.USER.group
+  req.setHeader 'Set-Cookie', "SESSION=#{cookie}; expires=#{new Date(new Date().getTime()+86409000).toUTCString()}; path=/;#{$$.CookieDomain||''}"
+  req.COOKIE = cookie
+  APP.session.put cookie, req.USER.id
 
 @server.RequireAuth = (req)->
-  throw new Error 'Access denied: no cookie' unless cookies = req.headers.cookie
-  CookieReg = /SESSION=([A-Za-z0-9+/=]+={0,3});?/
-  throw new Error 'Access denied: cookie' unless match = cookies.match CookieReg
-  req.COOKIE = cookie = match[1]
-  try id   = await APP.session.get cookie
-  try user = await APP.user.get req.ID = id
-  throw new Error 'Access denied: invalid session' unless user
-  try req.USER = JSON.parse user
-  throw new Error 'Access denied: invalid user' unless req.USER?
+  unless ( await ReadAuth req ) and req.USER? and req.GROUP?.includes? '$auth'
+    req.err? 'Access denied: invalid user'
+    false
+  else true
+
+@server.ReadAuth = (req,opts={})->
+  if auth = req.htReq?.headers?.authorization
+    auth = ( Buffer.from auth.split(' ').pop(), 'base64' ).toString().split(':')
+    return false unless user = try JSON.parse await APP.user.get auth[0]
+    return false unless await User.authenticatePlain auth[0], auth[1], user
+    AddAuthToRequest req, user, false
+  else
+    return false unless cookies = req.htReq.headers.cookie
+    return false unless cookie  = ( cookies.match /SESSION=([A-Za-z0-9+/=]+={0,3});?/ )?[1]
+    return false unless user    = try await APP.user.get id = try await APP.session.get cookie
+    AddAuthToRequest req, JSON.parse(user), cookie
+  true
+
+@server.AddAuthToRequest = (req,rec,cookie)->
+  req.COOKIE = cookie if cookie
+  req.UID    = rec.id
+  req.GROUP  = ['$auth'].concat ( rec.group || [] ).slice()
+  req.USER   = rec
+  true
 
 @server.RequireGroupBare = (hasGroup,needsGroup)->
   return true if hasGroup.includes 'admin'
@@ -169,19 +147,20 @@ User.registerRequest = (q,req,res)->
   DenyAuth ': no groups'     unless hasGroup
   DenyAuth ': invalid group' unless RequireGroupBare hasGroup, needsGroup
 
-@server.AuthSuccess = (q,req,res)->
-  res.json success:true, groups:req.USER.group
+@server.AuthSuccess = (req)->
+  try @setHeader "X-Auth-User: #{req.USER.id}"
+  success:true, groups:req.USER.group
 
 @server.DenyAuth = (reason='')->
   throw new Error 'Access Denied' + reason
 
-@server.Logout = (q,req,res)->
-  try APP.session.get req.COOKIE catch e then return console.log 'logout:no:cookie', e
-  try APP.session.del req.COOKIE
+@server.Logout = (req)->
+  console.log 'out', req
+  return true unless req.COOKIE
+  req.setHeader 'Set-Cookie', "SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"
+  await APP.session.del req.COOKIE
   console.log 'DEAUTH'.yellow, req.USER.id, req.USER.group
-  res.setHeader 'Set-Cookie', "SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"
-  $fs.unlinkSync ( $path.join '/tmp/auth', req.COOKIE ), '' if $fs.existsSync '/tmp/auth'
-  res.json success:true
+  true
 
 # ██████  ███████  ██████  ██    ██ ███████ ███████ ████████ ███████
 # ██   ██ ██      ██    ██ ██    ██ ██      ██         ██    ██
@@ -190,19 +169,52 @@ User.registerRequest = (q,req,res)->
 # ██   ██ ███████  ██████   ██████  ███████ ███████    ██    ███████
 #                     ▀▀
 
-@private "/authenticated", (q,req,res)-> await AuthSuccess q,req,res
-@private '/logout',        (q,req,res)-> await Logout      q,req,res
+User.authenticatePlain = (id,password,rec)->
+  return false unless id? and password?
+  unless rec
+    try rec = JSON.parse await APP.user.get id
+  return false unless rec?
+  hashedPass = SHA512 [ password,   rec.seedSalt    ].join ':'
+  hashedPass = SHA512 [ hashedPass, rec.storageSalt ].join ':'
+  return rec.pass is hashedPass
 
-# @private "/login", @server.DenyAuth
-@public "/login", (q,req,res)->
-  return unless rec = await User.authenticateRequest q, req, res
-  await AddAuthCookie res, rec
-  AuthSuccess q, req, res, rec
-  return
+User.authenticateWithClientSalt = (id,password,salt)->
+  return false unless id? and password?
+  try rec = rec || JSON.parse await APP.user.get id
+  return false unless rec?
+  hashedPass = SHA512 [ rec.pass, salt ].join ':'
+  return password is hashedPass
 
-# @private "/register", @server.DenyAuth
-@public "/register", (q,req,res)->
-  return unless rec = await User.registerRequest q,req,res
-  await AddAuthCookie res, rec
-  AuthSuccess q, req, res, rec
-  return
+User.authenticateRequest = (req)->
+  { id, pass, salt } = req.args
+  rec = await APP.user.get id
+  rec = JSON.parse rec
+  return challenge:storageSalt:rec.storageSalt,seedSalt:rec.seedSalt unless pass?
+  unless await User.authenticateWithClientSalt id, pass, salt, rec
+    throw new Error "#{I18.NXUser}: #{id}"
+  AddAuthToRequest req, rec
+
+User.registerRequest = (req)->
+  { id, pass, salt, inviteKey, inviteSalt } = req.args
+  throw new Error 'User exists' if ( try rec = await APP.user.get id )?
+  throw new Error 'Invalid InviteKey' unless inviteKey is SHA512 [ APP.InviteKey, inviteSalt ].join ':'
+  unless rec = await User.create args:id:id, pass:pass, seedSalt:salt
+    throw new Error "#{I18.RegistrationFailed}: #{id}"
+  AddAuthToRequest req, rec
+
+@public 'login', ->
+  result = await User.authenticateRequest @
+  return result if result.challenge
+  await AddAuthCookie @
+  return  AuthSuccess @
+
+@public 'register', ->
+  return unless await User.registerRequest @
+  await AddAuthCookie @
+  return  AuthSuccess @
+
+@private 'logout', ->
+  return await Logout @
+
+@private 'authenticated', ->
+  return  AuthSuccess @

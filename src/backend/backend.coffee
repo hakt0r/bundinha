@@ -35,7 +35,7 @@
     do APP.readEnv
     do APP.nodePromises
     do APP.arrayTools
-    process.title = BaseUrl
+    process.title = BaseUrl.replace(/https?:\/\//,'')
     await do Command.init
     return
   init:->

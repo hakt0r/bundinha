@@ -1,5 +1,75 @@
 
 @require 'bundinha/backend/backend'
+@require 'bundinha/rpc'
+{ APP,RPC } = @server
+
+# ██████  ██████   ██████
+# ██   ██ ██   ██ ██
+# ██████  ██████  ██
+# ██   ██ ██      ██
+# ██   ██ ██       ██████
+
+APP.handleRequest = (req,res)->
+  new RPC.Web req, res
+  .handle()
+
+@server class RPC.Web extends RPC
+  type:'$web'
+  stdio:['$web','$web','$error']
+  isWeb: true
+  constructor:(htReq,htRes)->
+    super null, USER:{}, GROUP:[], UID:0, COOKIE:false
+    @htReq = htReq; @htRes = htRes; { @url, @method } = htReq
+    @setHeader = htRes.setHeader.bind htRes
+    @writeHead = htRes.writeHead.bind htRes
+    @write     = htRes.write    .bind htRes
+    @end       = htRes.end      .bind htRes
+    console.debug 'request'.cyan, @url, @method
+
+RPC.Web::execute = ->
+  await ReadAuth @
+  if @method is 'GET'
+    if @url.match /^\/api\//
+      @cmd = @url.replace(/^\/api\//,'').split()
+    else for rule in RPC.match
+      continue unless m = rule.expr.exec @url
+      @cmd = [rule.key,m.slice 2].flat(); @parsedUrl = m
+      break
+    console.debug 'GET', @url, @cmd
+    return APP.fileRequest @htReq, @htRes unless @cmd # fallback to fileRequest
+  else if @method is 'POST' and @url is '/api'
+    @cmd = await @handlePostBody()
+  else return APP.httpError @, 501, 'Unimplemented'
+  console.debug 'request:web:execute'.cyan, @url, @cmd
+  await RPC::execute.call @
+
+RPC.Web::respond = (data)->
+  @dbg 'respond', data
+  @setHeader 'Content-Type', 'text/json'
+  if @fail
+    @data.error = @data.error.map (i)-> $colors.strip i
+    @statusCode = if ( c = @failCode )? then c else 501
+  else
+    delete data.error
+    @statusCode = 200
+  @writeHead @statusCode
+  @end JSON.stringify data
+
+RPC.Web::handlePostBody = ->
+  @stream = undefined
+  switch (@htReq.headers['content-encoding'] or 'raw').toLowerCase()
+    when 'deflate' then @htReq.pipe @stream = zlib.createInflate()
+    when 'gzip'    then @htReq.pipe @stream = zlib.createGunzip()
+    when 'raw'     then @stream = @htReq; @stream.length = @htReq.headers['content-length']
+    else return @error 'Request without data'
+  unless Array.isArray body = JSON.parse await @readStream @stream
+    throw new Error 'Request not an array'
+  body
+
+RPC.Web::readStream = (stream)-> new Promise (resolve,reject)->
+  body = []
+  stream.on 'data', (chunk)-> body.push chunk
+  stream.on 'end', -> resolve Buffer.concat(body).toString('utf8')
 
 #  ██████ ██      ██ ███████ ███    ██ ████████
 # ██      ██      ██ ██      ████   ██    ██
@@ -46,10 +116,8 @@
 # ██ ███ ██ ██      ██   ██      ██ ██   ██  ██  ██
 #  ███ ███  ███████ ██████  ███████ ██   ██   ████
 
-{ APP } = @server
-
 APP.startServer = ->
-  APP.processGet()
+  APP.compileExpressions()
   if 'http' is APP.protocol
     await APP.getCerts(true) if APP.getCerts
     APP.server = require('http').createServer APP.handleRequest
@@ -82,86 +150,15 @@ APP.startServer = ->
     # process.setgroups groups
     return resolve()
 
-APP.processGet = ->
+APP.compileExpressions = ->
   out = []
-  for expr, func of APP.get
-    m = expr.match /\/(.*?)\/([gimy])?$/
-    expr = new RegExp m[1], m[2] || ''
-    out.push expr:expr, func:func
-  APP.get = out
+  for expr in Array.from RPC.match
+    func = RPC.byId[expr]
+    continue unless m = expr.match /^\/(.*?)\/([gimy])?$/
+    rex = new RegExp m[1], m[2] || ''
+    out.push expr:rex, func:func, key:expr
+  RPC.match = out
   return
-
-APP.handleRequest = (req,res)->
-  console.debug 'request'.cyan, req.url
-  if req.method is 'POST' and req.url is '/api'
-    res.json  = APP.apiResponse
-    res.error = (error)-> APP.apiResponse.call res, error:error
-    try await APP.apiRequest req, res
-    catch error
-      console.error '::api'.red.bold, error
-      res.error error.toString()
-  else if req.method is 'GET'
-    for rule in APP.get
-      continue unless m = rule.expr.exec req.url
-      req.parsedUrl = m
-      return rule.func.call res, req, res
-    # fallback to fileRequest
-    APP.fileRequest req, res
-  else APP.errorResponse res, req.url, 501, 'Unimplemented'
-
-APP.readStream = (stream)-> new Promise (resolve,reject)->
-  body = []
-  stream.on 'data', (chunk)-> body.push chunk
-  stream.on 'end', -> resolve Buffer.concat(body).toString('utf8')
-
-#  █████       ██  █████  ██   ██
-# ██   ██      ██ ██   ██  ██ ██
-# ███████      ██ ███████   ███
-# ██   ██ ██   ██ ██   ██  ██ ██
-# ██   ██  █████  ██   ██ ██   ██
-
-APP.apiResponse = (data)->
-  @setHeader 'Content-Type', 'text/json'
-  @statusCode = 200
-  @end JSON.stringify data
-
-APP.apiRequest = (req,res)->
-  stream = undefined
-  switch (req.headers['content-encoding'] or 'raw').toLowerCase()
-    when 'deflate' then req.pipe stream = zlib.createInflate()
-    when 'gzip'    then req.pipe stream = zlib.createGunzip()
-    when 'raw'     then stream = req; stream.length = req.headers['content-length']
-    else return res.error 'Request without data'
-
-  body = JSON.parse await @readStream stream
-
-  unless Array.isArray body
-    throw new Error 'Request not an array'
-
-  [ call, args ] = body
-  # reply to public api-requests
-
-  if fn = @public[call]
-    console.debug @Protocol.yellow, "call".green, call, args, '$public'
-    try return fn.call res, args, req, res
-    catch e
-      console.error e
-      try @json error:e
-
-  # reply to private api-requests only with valid auth
-  value = await RequireAuth req
-
-  if false isnt need_group = @group[call]
-    RequireGroup req, need_group
-
-  unless fn = @private[call]
-    throw new Error 'Command not found: ' + call
-
-  console.debug @Protocol.yellow, "call".green, req.ID, call, args
-  try fn.call res, args, req, res
-  catch e
-    console.error e
-    try @json error:e
 
 # ███████ ██ ██      ███████
 # ██      ██ ██      ██

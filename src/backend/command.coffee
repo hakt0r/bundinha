@@ -6,11 +6,14 @@
 #  ██████  ██████  ██      ██ ██      ██ ██   ██ ██   ████ ██████
 # return if @command
 
+@require 'bundinha/rpc'; { RPC } = @server
+
+@server class Command
+
 @command = (name,opts)=>
-  if typeof name is 'object'
-    for name, opts of name
-       @server.Command.byName[name] = opts
-  else @server.Command.byName[name] = opts
+  if typeof name is 'object' then for name, opts of name
+       @group name, ['$console','admin'], opts
+  else @group name, ['$console','admin'], opts
   return
 
 @preCommand = (func)=>
@@ -22,98 +25,93 @@
 @preCommand ->
   await APP.initConfig()
 
-@server class Command
-  @byName: {}
-  constructor:(@name,@func)->
-    Command.byName[@name] = @
-    @execute = @func.bind @
-
-Command.call = (cmd,args=[],req,res)->
-  return unless func = Command.byName[cmd]
-  if Array.isArray(args) then args = args.map (i)-> switch i[0]
-    when '{' then JSON.parse i
-    when '[' then JSON.parse i
-    when 'f' then ( if i is 'false' then false else i )
-    else i
-  subreq = req || new Command.Request func, args, req
-  subres = res || new Command.Response func
-  await func.execute args, subreq, subres
-  return subres.response
-
 Command.init = ->
-  for name, func of Command.byName
-    Command.byName[name] = new Command name, func
   await fn() for fn in APP.PreCommand if APP.PreCommand?
-  args = process.argv; i = 0; chain = []
+  args = process.argv; i = 0
   args = args.slice 2
-  while cmd = args.shift()
-    unless func = Command.byName[cmd]
-      console.error "Command not found: #{cmd}"
-      console.error " try " + "#{Object.keys(AppPackage.bin)[0]}".bold + " help".bold.yellow
-      process.exit 1
-    if -1 isnt idx = args.indexOf '--'
-      s = 1 + args.indexOf name
-      chain.push [cmd,func,args.slice 0, idx]
-      args = args.slice idx + 1
-    else
-      chain.push [cmd,func,args]
-      break
-  return unless 0 < chain.length
+  return unless 0 < args.length
   process.exitAfterCommands = true
-  for call in chain
-    [cmd,func,args] = call
-    result = await Command.call cmd, args
+  try
+    user = await Command.consoleUser()
+    call = new RPC.Console args, user
+    result = await call.execute()
+  catch e
+    console.error e
+    process.exit 1
   process.exit 1 if process.exitAfterCommands and false is result
+  console.log result unless true is result # console.log if process.stdout.isTTY then result else JSON.stringify result, null, 2
   process.exit 0 if process.exitAfterCommands
 
-@server class Command.Request
-  src:"$console"
-  isConsole: true
-  constructor:(@cmd,@argv,@parent)->
-    if @parent
-      @[k] = @parent[k] for k in ['USER','ID','COOKIE','sock']
-    else @USER = id:process.env.USER
-
-@server class Command.Response
-  isConsole: true
-  constructor: (@cmd)-> @dst = "$console"
-  json:  (@response)-> console.log JSON.stringify @response
-  error:     (@fail)-> console.error @fail
+Command.consoleUser = ->
+  info = $os.userInfo()
+  user = try await User.aliasSearch info.username
+  unless user
+    user = try ( await do User.admins ).shift()
+  unless user
+    console.debug ' call '.red.bold.whiteBG, "User unknown:".red, info?.username?.white.bold
+    console.debug '    $ '.red.bold.whiteBG, info
+    return process.exit 1
+  user = Object.assign user, info, console:true
+  user.group = [user.group||[],'$console','$auth'].flat()
+  UID:0, USER:user, GROUP:user.group, COOKIE:'$console'
 
 @server.ArgsFor = (command)->
   process.argv.slice 1 + process.argv.indexOf command
 
 @command 'help', ->
-  console.log " #{$$.AppName} ".bold.inverse.yellow, 'help'
-  console.log '     ', 'usage:'.underline, Object.keys(AppPackage.bin)[0].bold, 'command'.underline,'arguments...'.underline
-  console.log '   ', 'command:'.underline, Object.keys(Command.byName).join(', ').grey
-  console.log '  ', 'argument:'.underline, 'KEY'.yellow.italic+'='.gray+'value'.green.italic
-  process.exit 0
+  @log " #{$$.AppName} ".bold.inverse.yellow, 'help'
+  @log '     ', 'usage:'.underline, Object.keys(AppPackage.bin)[0].bold, 'command'.underline,'arguments...'.underline
+  @log '   ', 'command:'.underline, Object.keys(RPC.byId).map((i)->i.replace /\\\\/g,'\\').join(', ').grey
+  @log '  ', 'argument:'.underline, 'KEY'.yellow.italic+'='.gray+'value'.green.italic
+  true
 
-# ██████  ██████   ██████
-# ██   ██ ██   ██ ██
-# ██████  ██████  ██
-# ██   ██ ██      ██
-# ██   ██ ██       ██████
-return unless @commandRPC
+@server class RPC.Console extends RPC
+  type:'$console'
+  stdio:['$console','$console','$error']
+  isConsole:true
+
+# return unless @commandRPC # optional
+# ██    ██ ███    ██ ██ ██   ██
+# ██    ██ ████   ██ ██  ██ ██
+# ██    ██ ██ ██  ██ ██   ███
+# ██    ██ ██  ██ ██ ██  ██ ██
+#  ██████  ██   ████ ██ ██   ██
+
+@server class RPC.UNIX extends RPC
+  type:'$console'
+  stdio:['$console','$console','$error']
+  isUNIX:true
+  isConsole:true
+  constructor:(msg,parent,sock)->
+    super msg, parent
+    @SOCK = sock
+    @writeHead = @setHeader = ->
+  log:(args...)-> @SOCK.sendMessage 'l' + JSON.stringify(args); RPC::log.apply @, args
+  err:(args...)-> @SOCK.sendMessage 'e' + JSON.stringify(args); RPC::err.apply @, args
+  respond:(data)->
+    return @SOCK.sendMessage JSON.stringify false unless data
+    return @SOCK.sendMessage JSON.stringify status$:1 if data.error and data.error.length > 0
+    return @SOCK.sendMessage JSON.stringify data
+
+@server.init = ->
+  Command.createServer()
+  return
 
 @preCommand ->
   return unless await $fs.exists$ path = $path.join ConfigDir,'sock'
   await new Promise (resolve)->
     return resolve() unless sock = try require('net').createConnection(path)
+    sock.on 'error', (error)-> resolve()
     sock.on 'connect', (error)->
       args = process.argv.slice 2
-      sock.write JSON.stringify args
-    sock.on 'data', (msg)->
-      msg = msg.toString 'utf8'
-      process.exit 1 if (json = try JSON.parse msg)?.status$ is 1
-      console.log msg
-      process.exit 0
-    sock.on 'error', (e)-> resolve()
-  return
-
-@server.init = ->
-  Command.createServer()
+      MessageStream sock, (msg)->
+        if msg[0] is 'e' then return console.error.apply console, JSON.parse(msg.substring 1)
+        if msg[0] is 'l' then return console.log  .apply console, JSON.parse(msg.substring 1)
+        process.exit 1 if ( json = try JSON.parse msg )?.status$ is 1
+        process.exit 0 if json is true
+        process.exit 1 if json is false
+        console.log json; process.exit 0
+      sock.sendMessage JSON.stringify args
   return
 
 Command.createServer = ->
@@ -126,13 +124,36 @@ Command.createServer = ->
     Command.server.listen path, -> resolve()
 
 Command.onUnixClient = (client)->
-  console.error '  unix '.whiteBG.blue.bold, 'client'.yellow.bold
-  client.on 'data', (msg)->
+  console.debug '  unix '.whiteBG.blue.bold, 'client'.yellow.bold
+  MessageStream client, (msg)->
     msg = try JSON.parse msg.toString 'utf8'
-    result = await Command.call msg
+    result = await ( new RPC.UNIX msg, ( await Command.consoleUser() ), client ).handle()
     result = result || status$:1
-    client.write JSON.stringify result
+    client.sendMessage JSON.stringify(result)
+  client.on 'error', (msg)-> # console.error '$console'.gray+':e'.red, msg
 
 Command.onUnixError = (e)->
   console.error '  unix '.whiteBG.blue.bold, 'error'.red.bold
   console.error e
+
+# ulib:MessageStream
+MessageStream = (sock,callback)->
+  sock.sendMessage = (msg)->
+    b = Buffer.concat [Buffer.from([0,0,0,0]),msg = Buffer.from msg]
+    b.writeUInt32LE msg.length, 0
+    @write b
+  buffer = Buffer.from []; nextLen = -1
+  sock.on 'data', (msg)->
+    buffer = Buffer.concat [buffer,msg]
+    if nextLen is -1 and buffer.length >= 4
+      nextLen = buffer.readUInt32LE 0; buffer = buffer.subarray 4
+    while ( nextLen > -1 ) and ( buffer.length >= nextLen )
+      callback buffer.subarray(0,nextLen).toString()
+      buffer = buffer.subarray nextLen
+      if buffer.length >= 4
+           nextLen = buffer.readUInt32LE 0; buffer = buffer.subarray 4
+      else nextLen = -1
+    return
+  return
+@server.MessageStream = MessageStream
+@client.MessageStream = MessageStream

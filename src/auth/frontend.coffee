@@ -17,12 +17,12 @@
     hashedPass = SHA512 [ pass,       challenge.seedSalt    ].join ':'
     hashedPass = SHA512 [ hashedPass, challenge.storageSalt ].join ':'
     hashedPass = SHA512 [ hashedPass, clientSalt            ].join ':'
-  CALL '/login', id:user, pass:hashedPass, salt:clientSalt
+  CALL 'login', id:user, pass:hashedPass, salt:clientSalt
   .then LoginResult
 
 @client.CheckLoginCookie = ->
   if document.cookie.match /SESSION=/
-    CALL '/authenticated', {}
+    CALL 'authenticated', {}
     .then CheckLoginCookieWasSuccessful
     .catch (error)->
       NotificationToast.show 'offline mode' if error is 'offline'
@@ -35,7 +35,7 @@
 
 @client.Logout = ->
   ModalWindow.closeActive() if ModalWindow.closeActive
-  try await CALL '/logout', {}
+  try await CALL 'logout', {}
   $$.emit 'logout'
   $$.location = $$.location.origin
   return # do LoginForm
@@ -46,7 +46,7 @@
   btn
 
 @client.Login = (user,pass)->
-  CALL '/login', id:user
+  CALL 'login', id:user
   .then (challenge)-> RequestLogin user, pass, challenge
 
 @client.LoginResult = (result)->
@@ -106,7 +106,7 @@ if @AppLogo
 @client.RegisterForm = -> requestAnimationFrame ->
   document.querySelector('content').innerHTML = """
   <div class="window modal monolithic" id="registerWindow">
-    <form id="register" action="/register" method="post">
+    <form id="register" action="/api/register" method="post">
       <input type="email"    name="user"      placeholder="#{I18.Username}"        autocomplete="username"         autofocus="true"/>
       <input type="password" name="pass"      placeholder="#{I18.Password}"        autocomplete="new-password"     pattern=".{6,}" />
       <input type="password" name="confirm"   placeholder="#{I18.ConfirmPassword}" autocomplete="confirm-password" pattern=".{6,}" />
@@ -138,7 +138,7 @@ if @AppLogo
     hashedPass = SHA512 [ pass, seedSalt ].join ':'
     hashedInviteKey = SHA512 [ inviteKey, inviteSalt ].join ':'
     window.UserID = user
-    CALL '/register', id:user, pass:hashedPass, salt:seedSalt, inviteKey:hashedInviteKey, inviteSalt:inviteSalt
+    CALL 'register', id:user, pass:hashedPass, salt:seedSalt, inviteKey:hashedInviteKey, inviteSalt:inviteSalt
     .then ->
       window.dispatchEvent new Event 'register'
       window.dispatchEvent new Event 'login'

@@ -7,10 +7,10 @@
 
 { APP, User } = @server
 
-@public "/register", APP.denyAuth
+@public "register", APP.denyAuth
 
 User.authenticationChallenge = (rec)->
-  challenge:'$plaintext$' unless q.pass?
+  challenge:'$plaintext$' unless req.args.pass?
 
 User.authenticatePlain = (id,password)->
   result = await $cp.exec$ """
@@ -21,18 +21,13 @@ User.authenticatePlain = (id,password)->
 User.authenticateWithClientSalt = (id,password,salt)->
   false
 
-User.authenticateRequest = (q,req,res)->
-  return res.json challenge:'$plaintext$' unless q.pass?
-  unless await User.authenticatePlain q.id, q.pass
+User.authenticateRequest = (req)->
+  [ id, pass ] = req.args
+  return challenge:'$plaintext$' unless pass?
+  unless await User.authenticatePlain id, pass
     throw new Error I18.NXUser
   req.USER = rec
-  rec
 
-User.registerRequest = (q,req,res)->
-  throw new Error I18.AccessDenied
-
-@server.User.create = (opts)->
-  throw new Error I18.AccessDenied
-
-@server.User.passwd = (user,pass)->
-  throw new Error I18.AccessDenied
+User.registerRequest = -> throw new Error I18.AccessDenied
+@server.User.create  = -> throw new Error I18.AccessDenied
+@server.User.passwd  = -> throw new Error I18.AccessDenied
