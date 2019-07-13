@@ -148,7 +148,8 @@ User.aliasSearch = (alias)-> new Promise (resolve)->
   DenyAuth ': invalid group' unless RequireGroupBare hasGroup, needsGroup
 
 @server.AuthSuccess = (req)->
-  try @setHeader "X-Auth-User: #{req.USER.id}"
+  try req.setHeader "X-Auth-User",    req.USER.id
+  try req.setHeader "X-Auth-Group", ( req.USER.group || [] ).join ', '
   success:true, groups:req.USER.group
 
 @server.DenyAuth = (reason='')->

@@ -1,7 +1,7 @@
 
 @require 'bundinha/frontend/miqro'
 
-@client init:@arrayTools
+@client init:$$.ArrayTools
 @client escapeHTML:escapeHTML
 @client toAttr:toAttr
 @client SHA512:SHA512

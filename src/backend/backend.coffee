@@ -50,8 +50,8 @@
 
 @server.APP = class $app
 
-$app.arrayTools   = @arrayTools
-$app.nodePromises = @nodePromises
+$app.arrayTools   = $$.ArrayTools
+$app.nodePromises = $$.NodePromises
 $app.require      = @requireScope
 
 $app.loadDependencies = ->

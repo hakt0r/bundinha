@@ -187,69 +187,6 @@ Bundinha::cmd_push_clean = ->
   ssh #{ARG[0]} 'killall node; cd /var/www/; rm -rf #{AppPackageName}/*'
   """; return
 
-# ██████  ███████  ██████  ██    ██ ██ ██████  ███████
-# ██   ██ ██      ██    ██ ██    ██ ██ ██   ██ ██
-# ██████  █████   ██    ██ ██    ██ ██ ██████  █████
-# ██   ██ ██      ██ ▄▄ ██ ██    ██ ██ ██   ██ ██
-# ██   ██ ███████  ██████   ██████  ██ ██   ██ ███████
-#                     ▀▀
-
-$$._BUND_INSTANCE_ = false
-stripBOM = (input)->
-  input = input.slice 1 if input.charCodeAt(0) is 0xFEFF
-  input = input.replace /#!\/[^\n]+\n/g,''
-  input
-
-# require.extensions['.js'] = (module,filename)->
-#   content = $fs.readFileSync filename, 'utf8'
-#   content = '( function(){\n' + stripBOM(content) + '\n}).apply(_BUND_INSTANCE_);\n'
-#   module._compile content, filename
-
-require.extensions['.coffee'] = (module,filename)=>
-  options = Object.assign (
-    bare:on, filename:filename, inlineMap:yes, sourceMap:yes
-  ), module.options || {}
-  cacheExists = $fs.existsSync cache = $path.join TempDir, hash = SHA1 filename
-  compile = =>
-    console.log "::brew".yellow, filename.bold
-    { js, sourceMap } = $coffee._compileFile filename, options
-    $coffee.sourceMap = $coffee.sourceMap || {}
-    $coffee.sourceMap[filename] = sourceMap
-    scpt = js
-    $fs.writeFileSync cache, scpt
-    $fs.touch.sync cache, ref:filename
-    scpt
-  scpt = (
-    if cacheExists
-      c = $fs.statSync cache
-      s = $fs.statSync filename
-      if c.mtime.toString().trim() is s.mtime.toString().trim()
-        $fs.readUTF8Sync cache
-      else compile()
-    else compile() )
-  scpt = '( function(){\n' + scpt + '\n}).apply(_BUND_INSTANCE_);\n'
-  delete require.cache[filename]
-  return module._compile scpt, filename
-
-Bundinha::require = (query,p='')->
-  if 'string' is type = typeof query
-    query = $path.join p, query if p isnt ''
-    return true if @module[query]?
-    unless module.paths.includes path = $path.join RootDir,'node_modules'
-      module.paths.push path
-    mod = ( rest = ( file = query ).split '/' ).shift()
-    switch mod
-      when 'bundinha'     then file = $path.join BunDir,  'src', rest.join '/'
-      when AppPackageName then file = $path.join RootDir, 'src', rest.join '/'
-      else return require file
-    @module[query] = @module[file] = true
-    $$._BUND_INSTANCE_ = @; require file; $$._BUND_INSTANCE_ = false
-  else if Array.isArray query then for mod in query
-    @require mod, p
-  else if 'object' is type then for path, mod of query
-    @require mod, $path.join p, path
-  true
-
 # ████████  ██████   ██████  ██      ███████
 #    ██    ██    ██ ██    ██ ██      ██
 #    ██    ██  █ ██ ██ █  ██ ██      ███████
@@ -409,182 +346,70 @@ Bundinha::linkAsset = (path)->
 # ██       ██ ██     ██    ██      ██  ██ ██      ██ ██ ██    ██ ██  ██ ██      ██
 # ███████ ██   ██    ██    ███████ ██   ████ ███████ ██  ██████  ██   ████ ███████
 
-$fs.touch = Bundinha::touch = require 'touch'
+require './lib/nodePromises'; do Bundinha::nodePromises = $$.NodePromises
+Bundinha::touch = $fs.touch
+require './lib/arrayTools'  ; do Bundinha::arrayTools   = $$.ArrayTools
+require './lib/phaser'      ; Phaser Bundinha::
 
-$fs.readUTF8Sync = (path)->
-  path = $path.join.apply $path,path if Array.isArray path
-  $fs.readFileSync path, 'utf8'
+# ██████  ███████  ██████  ██    ██ ██ ██████  ███████
+# ██   ██ ██      ██    ██ ██    ██ ██ ██   ██ ██
+# ██████  █████   ██    ██ ██    ██ ██ ██████  █████
+# ██   ██ ██      ██ ▄▄ ██ ██    ██ ██ ██   ██ ██
+# ██   ██ ███████  ██████   ██████  ██ ██   ██ ███████
+#                     ▀▀
 
-$fs.readBase64Sync = (path)->
-  path = $path.join.apply $path,path if Array.isArray path
-  $fs.readFileSync path, 'base64'
+$$._BUND_INSTANCE_ = false
+stripBOM = (input)->
+  input = input.slice 1 if input.charCodeAt(0) is 0xFEFF
+  input = input.replace /#!\/[^\n]+\n/g,''
+  input
 
-do Bundinha::nodePromises = ->
-  $fs.stat$      = $util.promisify $fs.stat
-  $fs.mkdir$     = $util.promisify $fs.mkdir
-  $fs.exists$    = $util.promisify $fs.exists
-  $fs.readdir$   = $util.promisify $fs.readdir
-  $fs.readFile$  = $util.promisify $fs.readFile
-  $fs.rename$    = $util.promisify $fs.rename
-  $fs.writeFile$ = $util.promisify $fs.writeFile
-  $fs.writeFileAsRoot$ = (path,data)->
-    opts = $cp.spawnOpts $cp.spawnArgs '$','tee',path
-    opts.stdio = ['pipe','pipe','pipe']
-    s = $cp.spawn opts.args[0], opts.args.slice(1), opts
-    s.stdin.write data; s.stdin.end()
-    await $cp.awaitOutput s,opts
-  $fs.unlink$    = $util.promisify $fs.unlink
-  $cp.spawn$     = $util.promisify $cp.spawn
-  $cp.spawn$$    = (cmd,args,opts)-> new Promise (resolve,reject)-> $cp.spawn(cmd,args,opts).on('error',reject).on('close',resolve)
-  $cp.exec$      = $util.promisify $cp.exec
-  $cp.run = (args...)->
-    opts = $cp.spawnOpts $cp.spawnArgs ...args
-    $cp.spawn opts.args[0], opts.args.slice(1), opts
-    await $cp.awaitOutput s,opts
-  $cp.run$ = (args...)->
-    opts = $cp.spawnOpts $cp.spawnArgs ...args
-    s = $cp.spawn opts.args[0], opts.args.slice(1), opts
-    console.log '$run$'.white.redBG.bold, opts.args, opts.stdio[0] is process.stdin
-    await $cp.awaitOutput s,opts
-  $cp.spawnArgs = (args...)->
-    # console.log ' :SPAWN:ARGS: ', @name, args
-    if      1 <  args.length then opts = args:args
-    else if 1 is args.length and args[0]?
-      if Array.isArray args[0] then opts = args:args[0]
-      else if args[0].match?   then opts = args:['sh','-c',args[0]]
-      else if args[0].args?    then opts = args[0]
-    throw new Error " EXEC:FAIL #{JSON.stringify args}" unless opts
-    opts
-  $cp.spawnOpts = (opts)-> ( ->
-    args = opts.args
-    if m = args[0]?.match /^([$#])([-eltx]+)?(@.*)?$/
-      opts.needsRoot = true  if m[1] is '$' unless @virtual
-      opts.needsInput = true if m[2]?.match '-'
-      opts.log = true        if m[2]?.match 'l'
-      opts.log = true        if m[2]?.match 'e'
-      opts.preferTerm = true if m[2]?.match 't'
-      opts.preferX11  = true if m[2]?.match 'x'
-      args.shift()
-    currentUser = $os.userInfo().username
-    user = if opts.needsRoot then 'root' else opts.user || currentUser
-    if opts.needsRoot and @localhost and currentUser isnt 'root'
-      if process.env.DISPLAY? and process.env.SUDO_ASKPASS
-           args = ['sudo','-A'].concat args
-      else
-        opts.needsInput = true
-        args = ['sudo'].concat args
-    args = ['--'].concat args if args.length > 0
-    if @virtual
-      if parent = Host.byId[@parent[0]]
-        if parent.localhost
-          args = ['lxc-attach','-n',@name].concat args
-          if process.env.DISPLAY? and process.env.SUDO_ASKPASS
-            args = ['sudo','-A'].concat args
-          else
-            opts.needsInput = true
-            args = ['sudo'].concat args
-        else
-          user = parent.user || 'root'
-          args = ['ssh','-o','LogLevel=QUIET','-t',user+"@"+parent.name,'lxc-attach','-n',@name].concat args
-      else throw new Error "No parent for Host[#{@name}]"
-    else if @localhost
-      if opts.preferTerm
-        if args.length > 0
-          args = ['-e',"'#{args.slice(1).join ' '}'"]
-        args = ['xterm'].concat args
-      else args = args.slice 1
-    else if @staticIP
-      user = @user || 'root'
-      args = ['ssh','-o','LogLevel=QUIET','-t',user+"@"+@canonical].concat args
-    else
-      user = @user || 'root'
-      args = ['ssh','-o','LogLevel=QUIET','-t',user+"@"+@name].concat args
-    opts.stdio = opts.stdio || [null,null,null]
-    if Array.isArray opts.stdio
-      opts.stdio[0] = process.stdin if opts.needsInput
-      opts.stdio[1] = 'pipe' if opts.log or opts.pipe
-      opts.stdio[2] = 'pipe' if opts.log
-    opts.args = args
-    opts.user = user #; console.log ' :SPAWN:1 '.black.greenBG.bold, @name, opts
-    opts ).call opts.host || opts.host = name:$os.hostname(), localhost:true
-  # console.log args.join(' ').gray, opts.stdio[0] id process.stdin
-  $cp.awaitSilent = (s)-> new Promise (r,e)-> s.on('close',r).on('error',e)
-  $cp.awaitOutput = (s,opts)-> new Promise (resolve)-> ( ->
-    e = []; o = []; s.stderr.setEncoding 'utf8'
-    if opts.log then s.stderr.on 'data', (data)=> data.trim().split('\n').map (line)=>
-      return if '' is line = line.trim()
-      e.push line; console.log "#{if @localhost then ":" else "@"}#{@name}:".red, line
-    else s.stderr.on 'data', (data)-> e.push data
-    if opts.pipe
-      pipePromise = opts.pipe s
-      s.on 'close', (status)->
-        await pipePromise if opts.awaitChild
-        resolve stderr:e.join(''), status:status
-    else
-      s.stdout.setEncoding 'utf8'
-      if opts.log
-           s.stdout.on 'data', (data)=> o.push data; data.trim().split('\n').map (line)=>
-             return if '' is line = line.trim()
-             e.push line; console.log "#{if @localhost then ":" else "@"}#{@name}:".yellow, line
-      else s.stdout.on 'data', (data)-> o.push data
-      s.on 'close', (status)-> resolve stdout:o.join(''), stderr:e.join(''), status:status
-    return ).call opts.host || opts.host = name:$os.hostname(), localhost:true
-  return
+# require.extensions['.js'] = (module,filename)->
+#   content = $fs.readFileSync filename, 'utf8'
+#   content = '( function(){\n' + stripBOM(content) + '\n}).apply(_BUND_INSTANCE_);\n'
+#   module._compile content, filename
 
-do Bundinha::arrayTools = ->
-  return if Array::unique
-  Object.filter = (o,c)->
-    r = {}
-    r[k] = v for k,v of o when c k,v
-    r
-  unless Array::flat then Object.defineProperty Array::,'flat',enumerable:false,value:->
-    depth = if isNaN(arguments[0]) then 1 else Number(arguments[0])
-    if depth then Array::reduce.call(this, ((acc, cur) ->
-      if Array.isArray(cur) then acc.push.apply acc, Array::flat.call(cur, depth - 1)
-      else acc.push cur
-      acc
-    ), []) else Array::slice.call(this)
-  Object.defineProperty String::, 'arrayWrap', get:-> [@]
-  Object.defineProperty Array::,  'arrayWrap', get:-> @
-  Object.defineProperties Array::,
-    trim:    get: -> return ( @filter (i)-> i? and i isnt false ) || []
-    random:  get: -> @[Math.round Math.random()*(@length-1)]
-    unique:  get: -> u={}; @filter (i)-> return u[i] = on unless u[i]; no
-    uniques: get: ->
-      u={}; result = @slice()
-      @forEach (i)->
-        result.remove i if u[i]
-        u[i] = on
-      result
-    remove:     enumerable:no, value: (v) -> @splice i, 1 if i = @indexOf v; @
-    pushUnique: enumerable:no, value: (v) -> @push v if -1 is @indexOf v
-    common:     enumerable:no, value: (b) -> @filter (i)-> -1 isnt b.indexOf i
-  return
+require.extensions['.coffee'] = (module,filename)=>
+  options = Object.assign (
+    bare:on, filename:filename, inlineMap:yes, sourceMap:yes
+  ), module.options || {}
+  cacheExists = $fs.existsSync cache = $path.join TempDir, hash = SHA1 filename
+  compile = =>
+    console.log "::brew".yellow, filename.bold
+    { js, sourceMap } = $coffee._compileFile filename, options
+    $coffee.sourceMap = $coffee.sourceMap || {}
+    $coffee.sourceMap[filename] = sourceMap
+    scpt = js
+    $fs.writeFileSync cache, scpt
+    $fs.touch.sync cache, ref:filename
+    scpt
+  scpt = (
+    if cacheExists
+      c = $fs.statSync cache
+      s = $fs.statSync filename
+      if c.mtime.toString().trim() is s.mtime.toString().trim()
+        $fs.readUTF8Sync cache
+      else compile()
+    else compile() )
+  scpt = '( function(){\n' + scpt + '\n}).apply(_BUND_INSTANCE_);\n'
+  delete require.cache[filename]
+  return module._compile scpt, filename
 
-# ██████  ██   ██  █████  ███████ ███████ ██████
-# ██   ██ ██   ██ ██   ██ ██      ██      ██   ██
-# ██████  ███████ ███████ ███████ █████   ██████
-# ██      ██   ██ ██   ██      ██ ██      ██   ██
-# ██      ██   ██ ██   ██ ███████ ███████ ██   ██
-
-$$.Phaser = (Spec)->
-  Spec.phase = (key,prio,func)->
-    ( func = prio; prio = 1 ) unless func?
-    @phaseList.push k:key,p:prio,f:func
-    return @
-  Spec.emphase = (key)->
-    list = @phaseList
-      .filter (o)-> o.k is key
-      .sort (a,b)-> a.p - b.p
-    await Promise.all list.map (o)->
-      try await o.f.call @
-      catch error
-        console.error ':phase'.red, (key+':'+o.p).bold
-        console.error error
-        console.debug "[phase-handler]", error, o.f.toCode().gray
-        process.exit 1
-    console.debug ':phase'.green, key.red
-    return @
-  Spec
-
-Phaser Bundinha::
+Bundinha::require = (query,p='')->
+  if 'string' is type = typeof query
+    query = $path.join p, query if p isnt ''
+    return true if @module[query]?
+    unless module.paths.includes path = $path.join RootDir,'node_modules'
+      module.paths.push path
+    mod = ( rest = ( file = query ).split '/' ).shift()
+    switch mod
+      when 'bundinha'     then file = $path.join BunDir,  'src', rest.join '/'
+      when AppPackageName then file = $path.join RootDir, 'src', rest.join '/'
+      else return require file
+    @module[query] = @module[file] = true
+    $$._BUND_INSTANCE_ = @; require file; $$._BUND_INSTANCE_ = false
+  else if Array.isArray query then for mod in query
+    @require mod, p
+  else if 'object' is type then for path, mod of query
+    @require mod, $path.join p, path
+  true
