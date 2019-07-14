@@ -15,6 +15,8 @@ $$.ArrayTools = ->
   Object.defineProperty String::, 'arrayWrap', get:-> [@]
   Object.defineProperty Array::,  'arrayWrap', get:-> @
   Object.defineProperties Array::,
+    first:   get: -> @[0]
+    last:    get: -> @[@length-1]
     trim:    get: -> return ( @filter (i)-> i? and i isnt false ) || []
     random:  get: -> @[Math.round Math.random()*(@length-1)]
     unique:  get: -> u={}; @filter (i)-> return u[i] = on unless u[i]; no

@@ -1,7 +1,15 @@
 
 $$.NodePromises = ->
-  $fs.touch =      (args...)-> $cp.spawn$    'touch', args
-  $fs.touch.sync = (args...)-> $cp.spawnSync 'touch', args
+  $fs.touch = (args...)->
+    if 'object' is typeof args.last
+      opts = args.pop()
+      args = ['-r',opts.ref,args].flat() if opts.ref
+    $cp.spawn$ 'touch', args
+  $fs.touch.sync = (args...)->
+    if 'object' is typeof args.last
+      opts = args.pop()
+      args = ['-r',opts.ref,args].flat() if opts.ref
+    $cp.spawnSync 'touch', args
   $fs.readUTF8Sync = (path)->
     path = $path.join.apply $path,path if Array.isArray path
     $fs.readFileSync path, 'utf8'
@@ -138,4 +146,16 @@ $$.NodePromises = ->
     opts.user = user #; console.log ' :SPAWN:1 '.black.greenBG.bold, @name, opts
     opts ).call opts.host || opts.host = name:$os.hostname(), localhost:true
   # console.log args.join(' ').gray, opts.stdio[0] id process.stdin
+  maskCall = (name,parent)->
+    real = $cp[name];
+    $cp[name] = (args...)->
+      res = real.apply $cp, args
+      console.log ' ___'.yellow.bold
+      console.log name.yellow.bold, args[0].bold.red, if Array.isArray args[1] then args[1] else args.length
+      console.log ' ='.yellow.bold, res
+      console.log ' '.yellow.bold
+      res
+  if process.env.DEBUG_NODE_SYSCALLS
+    maskCall name, $cp for name,f of $cp
+    maskCall name, $fs for name,f of $fs
   return
