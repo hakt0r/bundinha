@@ -183,9 +183,9 @@ ACME::renewDNS = (request)->
   {domain,dynamic,domains,subDomains,aliased,force,updateDNS,nameServer} = request
   writeNewConfig = ->
     return unless cert = await ACME.check()
-    $$.SSLHostKey = cert.key
+    $$.SSLHostKey   = cert.key
     $$.SSLFullchain = cert.cert
-    APP.writeConfig()
+    await APP.writeConfig()
     await Command.call 'install:nginx'
   try await $fs.unlink$ cachePath if force
   SSL = "  acme ".blue.whiteBG.bold + ' ' + domain.bold

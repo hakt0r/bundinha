@@ -113,6 +113,7 @@ $app.initConfig = (probeOnly=no)->
 
 $app.writeConfig = ->
   p = $path.join ConfigDir, AppPackage.name + '.json'
+  console.debug ' config:write '.white.inverse.bold, @configKeys
   $fs.writeFileSync p, JSON.stringify (
     o = {}
     o[k] = $$[k] for k in @configKeys
