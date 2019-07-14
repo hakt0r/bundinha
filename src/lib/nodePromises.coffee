@@ -64,6 +64,7 @@ $$.NodePromises = ->
     console.debug ' run$ '.white.redBG.bold, opts.args, opts.stdio[0] is process.stdin
     await $cp.awaitOutput s,opts
   $cp.spawnArgs = (args...)->
+    Host = byId:{} unless $$.Host
     # console.log ' :SPAWN:ARGS: ', @name, args
     if      1 <  args.length then opts = args:args
     else if 1 is args.length and args[0]?
@@ -74,6 +75,7 @@ $$.NodePromises = ->
     opts.host = opts.args.shift() if opts.args[0]?.constructor is Host
     opts
   $cp.spawnOpts = (opts)-> ( ->
+    Host = byId:{} unless $$.Host
     args = opts.args
     if args[0]?.constructor is Host
       console.log '####',  args[0].canonical
