@@ -13,12 +13,14 @@
 
 @config
   AdminUser: 'admin'
-  AdminPassword: $forge.util.bytesToHex $forge.random.getBytes 32
+  AdminPassword: false
 
 @preCommand ->
   try await $fs.mkdir$ '/tmp/auth'
   try rec = await APP.user.get AdminUser
   catch e
+    $$.AdminPassword = $forge.util.bytesToHex $forge.random.getBytes 32
+    await APP.writeConfig()
     seedSalt = Buffer.from($forge.random.getBytesSync 128).toString 'base64'
     hashedPass = SHA512 [ AdminPassword, seedSalt ].join ':'
     User.create args:id:AdminUser, pass:hashedPass, seedSalt:seedSalt, group:['admin']
