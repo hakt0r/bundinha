@@ -11,7 +11,10 @@
     k = true  if i.match /^(true|on|yes)$/
     k = num   if not isNaN num = parseFloat i
     process.env[k] = v
-  USER = process.env.USER || process.getuid()
+  if not $$.BaseUrl and process.env.URL
+    $$.BaseUrl = process.env.URL
+    await APP.writeConfig()
+  USER = process.env.USER || process.env.APP || process.getuid()
   HOME = process.env.HOME || os.homedir()
   PORT = process.env.PORT || $$.Port || throw new Error 'PORT= environment variable or argument required'
   CERT   = v if ( v = $$.SSLFullchain )?

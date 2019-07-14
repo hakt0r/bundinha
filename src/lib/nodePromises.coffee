@@ -61,7 +61,7 @@ $$.NodePromises = ->
   $cp.run$ = (args...)->
     opts = $cp.spawnOpts $cp.spawnArgs ...args
     s = $cp.spawn opts.args[0], opts.args.slice(1), opts
-    console.log '$run$'.white.redBG.bold, opts.args, opts.stdio[0] is process.stdin
+    console.debug ' run$ '.white.redBG.bold, opts.args, opts.stdio[0] is process.stdin
     await $cp.awaitOutput s,opts
   $cp.spawnArgs = (args...)->
     # console.log ' :SPAWN:ARGS: ', @name, args
@@ -99,6 +99,13 @@ $$.NodePromises = ->
         opts.needsInput = true
         args = ['sudo'].concat args
     args = ['--'].concat args if args.length > 0
+    argsFor =
+      ssh:(via)->
+        user = @user || 'root'
+        addr = via.name
+        addr = via.canonical if @staticIP
+        args = args.slice 3 if args[0] is '--' and args[1] is 'sh' and args[2] is '-c'
+        args = ['ssh','-o','LogLevel=QUIET','-t',user+"@"+addr].concat args
     if @virtual
       if parent = Host.byId[@parent[0]]
         if parent.localhost
@@ -109,8 +116,8 @@ $$.NodePromises = ->
             opts.needsInput = true
             args = ['sudo'].concat args
         else
-          user = parent.user || 'root'
-          args = ['ssh','-o','LogLevel=QUIET','-t',user+"@"+parent.name,'lxc-attach','-n',@name].concat args
+          args = ['lxc-attach','-n',@name].concat args
+          argsFor.ssh.call @, parent
       else throw new Error "No parent for Host[#{@name}]"
     else if @localhost
       if opts.preferTerm
@@ -118,12 +125,7 @@ $$.NodePromises = ->
           args = ['-e',"'#{args.slice(1).join ' '}'"]
         args = ['xterm'].concat args
       else args = args.slice 1
-    else if @staticIP
-      user = @user || 'root'
-      args = ['ssh','-o','LogLevel=QUIET','-t',user+"@"+@canonical].concat args
-    else
-      user = @user || 'root'
-      args = ['ssh','-o','LogLevel=QUIET','-t',user+"@"+@name].concat args
+    else argsFor.ssh.call @, @
     opts.stdio = opts.stdio || [null,null,null]
     if Array.isArray opts.stdio
       opts.stdio[0] = 'pipe' if opts.pipe
