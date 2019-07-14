@@ -17,7 +17,7 @@
   SSLGateDN:    "C=com,O=#{AppPackageName}.DOMAIN,CN=gate.#{AppPackageName}.DOMAIN.com"
 
 @command 'install:nginx',->
-  $$.ServerName = BaseUrl.replace(/https?:\/\//,'').replace(/\/.*/,'')
+  return false unless $$.ServerName = $$.ServerName || $$.BaseUrl?.replace(/https?:\/\//,'').replace(/\/.*/,'')
   await APP.initConfig()
   available = '/' + $path.join 'etc','nginx','sites-available',AppPackage.name+'.conf'
   enabled   = '/' + $path.join 'etc','nginx','sites-enabled',  AppPackage.name+'.conf'

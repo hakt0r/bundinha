@@ -2,12 +2,12 @@
 @require 'bundinha/backend/binary'
 
 @preCommand ->
-  domain = BaseUrl.replace(/.*:\/\//,'').replace(/\/.*/,'')
+  return false unless domain = $$.BaseUrl?.replace(/.*:\/\//,'').replace(/\/.*/,'')
   await ( acme = new ACME domain ).init() unless ACME.ca
   return
 
 @server.APP.getCerts = (require=false)->
-  domain = BaseUrl.replace(/.*:\/\//,'').replace(/\/.*/,'')
+  return false unless domain = $$.BaseUrl?.replace(/.*:\/\//,'').replace(/\/.*/,'')
   await ( new ACME domain ).init() unless ACME.ca
   if cert = await ACME.check()
     unless await ACME.usingForeignCerts()
