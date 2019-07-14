@@ -10,16 +10,13 @@
 @require 'bundinha/db/' + @AuthDB = @AuthDB || 'text'
 @db 'user',    plugin:@AuthDB, convert:true
 @db 'session', plugin:@AuthDB, convert:true
-
-@config
-  AdminUser: 'admin'
-  AdminPassword: false
+@config AdminUser:'admin', AdminPassword:false
 
 @preCommand ->
-  try await $fs.mkdir$ '/tmp/auth'
   try rec = await APP.user.get AdminUser
   catch e
-    $$.AdminPassword = $forge.util.bytesToHex $forge.random.getBytes 32
+    $$.AdminPassword = $$.AdminPassword || $forge.util.bytesToHex $forge.random.getBytes 32
+    $$.AdminUser     = $$.AdminUser     || 'admin'
     await APP.writeConfig()
     seedSalt = Buffer.from($forge.random.getBytesSync 128).toString 'base64'
     hashedPass = SHA512 [ AdminPassword, seedSalt ].join ':'
