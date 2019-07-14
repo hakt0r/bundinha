@@ -14,7 +14,10 @@
   if not $$.BaseUrl and process.env.URL
     $$.BaseUrl = process.env.URL
     await APP.writeConfig()
-  USER = process.env.USER || process.env.APP || process.getuid()
+  USER = process.env.USER || process.env.APP || process.userInfo().username
+  if USER is 'root'
+    console.error ' unpriv '.red.bold.inverse, "Can't install to root user. Set USER="
+    process.exit 1
   HOME = process.env.HOME || os.homedir()
   PORT = process.env.PORT || $$.Port || throw new Error 'PORT= environment variable or argument required'
   CERT   = v if ( v = $$.SSLFullchain )?
@@ -33,36 +36,63 @@
     @err 'In addition this requires:'
     @err "  sudo loginctl enable-linger #{USER}".yellow
     process.exit 1
-  dest = $path.join HOME, '.local','share','systemd','user',AppPackage.name + '.service'
-  @log ' instl '.blue.bold.whiteBG, 'systemd for', USER.green
+  $$.SystemdServiceExtra  = $$.SystemdServiceExtra || ''
+  isSystemUser = ( $cp.spawnSync 'sh',['-c',"getent passwd #{USER} | grep -q bin/false"] ).status is 0
+  if isSystemUser
+       $$.SystemdServiceExtra += "User=#{USER}\n"
+       $$.SystemdServiceExtra += "Group=#{USER}\n"
+       dest = $path.join '/etc/systemd/system', AppPackage.name + '.service'
+  else dest = $path.join HOME, '.local','share','systemd','user',AppPackage.name + '.service'
+  @log ' instl '.blue.bold.whiteBG, 'systemd for', USER.green, isSystemUser
   $cp.spawnSync 'mkdir',['-p',$path.dirname dest], stdio:'inherit'
   $fs.writeFileSync dest, """
     [Unit]
     Description=#{AppPackage.name} backend
 
     [Service]
-    #{$$.SystemdServiceExtra||''}
+    #{$$.SystemdServiceExtra}
     Environment=CONF=#{ConfigDir}
     ExecStart=#{process.execPath} #{__filename}
 
     [Install]
     WantedBy=multi-user.target
   """
-
   @log ' instl '.blue.bold.whiteBG, 'sudo snippet'
   $cp.sudoSnippet = """
-  [ "$USER" = "root" ] || { sudo='sudo'; [ -n "$DISPLAY" ] && { SUDO_ASKPASS=$(which ssh-askpass); [ -n "$SUDO_ASKPASS" ] && { ask='-A'; export SUDO_ASKPASS; }; }; }
-  """
-
+  if [ "$(whoami)" = "root" ]
+  then
+    appdo='sudo -E -u #{USER}'
+    sudo=''
+  else
+    appdo=''
+    sudo='sudo'
+    [ -n "$DISPLAY" ] && SUDO_ASKPASS=$(which ssh-askpass)
+    if [ -n "$SUDO_ASKPASS" ]
+    then ask='-A'; export SUDO_ASKPASS
+    fi
+  fi"""
   @log ' instl '.blue.bold.whiteBG, 'linger'
   $cp.spawnSync 'sh',['-c',"""
     #{$cp.sudoSnippet}
+    export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u root)/bus
+    $sudo $ask loginctl >/dev/null 2>&1 || $sudo $ask apt install dbus
     if ! $sudo $ask loginctl show-user #{USER} | grep -q linger=yes
     then $sudo $ask loginctl enable-linger #{USER}; fi
-    systemctl --user | grep -q #{AppPackage.name}.service &&
-      systemctl --user disable #{AppPackage.name}
-    systemctl --user enable  #{AppPackage.name}
-    systemctl --user restart #{AppPackage.name}
+    export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u #{USER})/bus
+    if #{if isSystemUser then 'false' else 'true'}
+    then
+      $appdo systemctl --user | grep -q #{AppPackage.name}.service &&
+        $appdo systemctl --user disable #{AppPackage.name}
+      $appdo systemctl --user enable  #{AppPackage.name}
+      $appdo systemctl --user restart #{AppPackage.name}
+    else
+      $sudo systemctl daemon-reload
+      $sudo systemctl | grep -q #{AppPackage.name}.service &&
+        $sudo systemctl disable #{AppPackage.name}
+      $sudo systemctl enable  #{AppPackage.name}
+      $sudo systemctl restart #{AppPackage.name}
+    fi
+    $sudo $ask chown -R #{USER}:#{USER} #{$path.dirname ConfigDir}
   """], stdio: 'inherit'
   @log ' instl '.blue.bold.whiteBG, 'config'
   APP.configKeys.pushUnique 'BaseUrl';      $$.BaseUrl      = 'https://' + DOMAIN
