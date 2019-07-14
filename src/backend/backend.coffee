@@ -80,10 +80,10 @@ $app.splash = ->
     '['+ 'bundinha'.yellow + '/'.gray + AppPackage.bundinha.gray +
     ( if DevMode then '/dev'.red else '/rel'.green ) + ']'
   console.log '------------------------------------'
-  console.log '    BaseUrl'.yellow, BaseUrl.bold.white
-  console.log '  ConfigDir'.yellow, ConfigDir.green
-  console.log '    RootDir'.yellow, RootDir.green
-  console.log '     WebDir'.yellow, WebDir.green
+  console.log '    BaseUrl'.yellow, $$.BaseUrl   ?.bold.white || 'undefined'.red.bold
+  console.log '  ConfigDir'.yellow, $$.ConfigDir ?.green      || 'undefined'.red.bold
+  console.log '    RootDir'.yellow, $$.RootDir   ?.green      || 'undefined'.red.bold
+  console.log '     WebDir'.yellow, $$.WebDir    ?.green      || 'undefined'.red.bold
   return
 
 $app.initConfig = (probeOnly=no)->
