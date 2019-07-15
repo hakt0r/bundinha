@@ -266,4 +266,4 @@ WebSock.defineMessage 'pub', (opts,req,res)->
     @broadcast 'sub', key
   @pub:(key,list...)->
     PubSub.lpub.add key
-    @subcast 'pub', list.wrapArray().length
+    @subcast 'pub', list.asArray.length

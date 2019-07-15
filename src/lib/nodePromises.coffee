@@ -1,5 +1,19 @@
 
 $$.NodePromises = ->
+  $fs.stat$      = $util.promisify $fs.stat
+  $fs.mkdir$     = $util.promisify $fs.mkdir
+  $fs.unlink$    = $util.promisify $fs.unlink
+  $fs.exists$    = $util.promisify $fs.exists
+  $fs.readdir$   = $util.promisify $fs.readdir
+  $fs.readFile$  = $util.promisify $fs.readFile
+  $fs.rename$    = $util.promisify $fs.rename
+  $fs.writeFile$ = $util.promisify $fs.writeFile
+  $fs.writeFileAsRoot$ = (path,data)->
+    opts = $cp.spawnOpts $cp.spawnArgs '$','tee',path
+    opts.stdio = ['pipe','pipe','pipe']
+    s = $cp.spawn opts.args[0], opts.args.slice(1), opts
+    s.stdin.write data; s.stdin.end()
+    await $cp.awaitOutput s,opts
   $fs.touch = (args...)->
     if 'object' is typeof args.last
       opts = args.pop()
@@ -16,20 +30,10 @@ $$.NodePromises = ->
   $fs.readBase64Sync = (path)->
     path = $path.join.apply $path,path if Array.isArray path
     $fs.readFileSync path, 'base64'
-  $fs.stat$      = $util.promisify $fs.stat
-  $fs.mkdir$     = $util.promisify $fs.mkdir
-  $fs.exists$    = $util.promisify $fs.exists
-  $fs.readdir$   = $util.promisify $fs.readdir
-  $fs.readFile$  = $util.promisify $fs.readFile
-  $fs.rename$    = $util.promisify $fs.rename
-  $fs.writeFile$ = $util.promisify $fs.writeFile
-  $fs.writeFileAsRoot$ = (path,data)->
-    opts = $cp.spawnOpts $cp.spawnArgs '$','tee',path
-    opts.stdio = ['pipe','pipe','pipe']
-    s = $cp.spawn opts.args[0], opts.args.slice(1), opts
-    s.stdin.write data; s.stdin.end()
-    await $cp.awaitOutput s,opts
-  $fs.unlink$    = $util.promisify $fs.unlink
+  $fs.mkdirp$ = (args...)->
+    0 is ( await $cp.run$ ['mkdir','-p',args].flat() ).status
+  $fs.mkdirp$.sync = (args...)->
+    0 is ( $cp.spawnSync$ 'mkdir',['-p',args].flat() ).status
   $cp.spawn$     = $util.promisify $cp.spawn
   $cp.spawn$$    = (cmd,args,opts)-> new Promise (resolve,reject)-> $cp.spawn(cmd,args,opts).on('error',reject).on('close',resolve)
   $cp.exec$      = $util.promisify $cp.exec
@@ -72,7 +76,7 @@ $$.NodePromises = ->
     console.debug ' run$ '.white.redBG.bold, opts.args, opts.stdio[0] is process.stdin
     await $cp.awaitOutput s,opts
   $cp.spawnArgs = (args...)->
-    Host = byId:{} unless $$.Host
+    $$.Host = byId:{} unless $$.Host
     # console.log ' :SPAWN:ARGS: ', @name, args
     if      1 <  args.length then opts = args:args
     else if 1 is args.length and args[0]?
@@ -83,7 +87,7 @@ $$.NodePromises = ->
     opts.host = opts.args.shift() if opts.args[0]?.constructor is Host
     opts
   $cp.spawnOpts = (opts)-> ( ->
-    Host = byId:{} unless $$.Host
+    $$.Host = byId:{} unless $$.Host
     args = opts.args
     if args[0]?.constructor is Host
       console.log '####',  args[0].canonical

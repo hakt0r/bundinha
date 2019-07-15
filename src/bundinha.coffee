@@ -23,12 +23,20 @@ $$.ENV = process.env
 $$.ARG = process.argv.slice 2
 ARG[v] = not v.match /^no-/ for v in process.argv
 
-$$.RootDir   = ENV.APP      || process.cwd()
-$$.ConfigDir = ENV.CONF     || $path.join RootDir, 'config'
-$$.BuildDir  = ENV.BASE     || $path.join RootDir, 'build'
-$$.TempDir   = ENV.TEMP     || $path.join $os.tmpdir(), 'bundinha'
-$$.BunDir    = ENV.BUNDINHA || $path.dirname $path.dirname __filename
-$$.WebDir    = ENV.HTML     || $path.join BuildDir, 'html'
+# global
+$$.TempDir   = ENV.TEMP      || $path.join $os.tmpdir(),'bundinha',$os.userInfo().username
+# project
+$$.RootDir   = ENV.APP       || process.cwd()
+$$.RootNpm   = ENV.ROOT_NPM  || $path.join RootDir,'node_modules'
+$$.ConfigDir = ENV.CONF      || $path.join RootDir,'config'
+$$.BuildDir  = ENV.BASE      || $path.join RootDir,'build'
+$$.GitDir    = ENV.GIT_DEPS  || $path.join RootDir,'node_modules','.git'
+# build
+$$.BuildNpm  = ENV.BUILD_NPM || $path.join BuildDir,'node_modules'
+$$.WebDir    = ENV.HTML      || $path.join BuildDir,'html'
+# bundinha
+$$.BunDir    = ENV.BUNDINHA  || $path.dirname $path.dirname __filename
+$$.BunNpm    = ENV.BUN_NPM   || $path.join BunDir,'node_modules'
 
 console.verbose = ->
 unless $$.DEBUG = ENV.DEBUG is 'true'
@@ -57,9 +65,12 @@ $$.Bundinha = class Bundinha extends require 'events'
     super()
     @module = {}
     $$.BUND = @ unless $$.BUND?
-    @requireScope = ['os','util','fs',['cp','child_process'],'path','colors']
-    @requireDevScope = []
-    @phaseList = []
+    @npmScope = ['os','util','fs',['cp','child_process'],'path','colors']
+    @npmDevScope = []
+    @gitDevScope = []
+    @aptDevScope = []
+    @aptScope    = []
+    @phaseList   = []
     @reqdir  TempDir
     @require 'bundinha/build/build'
     @require 'bundinha/build/backend'
@@ -85,7 +96,7 @@ Bundinha::readPackage = ->
 Bundinha::build = ->
   @require 'bundinha/backend/backend'
   @reqdir BuildDir
-  do @loadDependencies
+  await do @loadDependencies
   # console.verbose ':build'.green, @htmlFile
   @require @sourceFile || $path.join AppPackageName, AppPackageName
   @WebRoot  = $path.join BuildDir,'html'
@@ -96,7 +107,7 @@ Bundinha::build = ->
   @backendFile = @backendFile || 'backend.js'
   @reqdir WebDir
   @reqdir @AssetDir
-  do @loadDependencies
+  await do @loadDependencies
   await @emphase 'build:pre'
   await @emphase 'build'
   await @emphase 'build:post'
@@ -239,25 +250,40 @@ $$.accessor = (key)->
   return ".#{key}"  if key.match /^[a-z0-9_]+$/i
   return "[#{JSON.stringify key}]"
 
-Bundinha::npm = (spec)->
-  # console.debug '@npm:req', spec
-  @requireScope.push spec
-
-Bundinha::npmDev = (spec)->
-  # console.debug '@npm:dev', spec
-  @requireDevScope.push spec
+Bundinha::npm    = (spec)-> @npmScope   .push spec
+Bundinha::apt    = (spec)-> @aptScope   .push spec
+Bundinha::npmDev = (spec)-> @npmDevScope.push spec
+Bundinha::gitDev = (spec)-> @gitDevScope.push spec
+Bundinha::aptDev = (spec)-> @aptDevScope.push spec
 
 Bundinha::loadDependencies = ->
-  module.paths.pushUnique $path.join BuildDir, 'node_modules'
-  module.paths.pushUnique $path.join RootDir,  'node_modules'
-  module.paths.pushUnique $path.join BunDir,   'node_modules'
+  module.paths.insert $path.join BuildDir, 'node_modules'
+  module.paths.insert $path.join RootDir,  'node_modules'
+  module.paths.insert $path.join BunDir,   'node_modules'
   moduleName = (spec)-> if Array.isArray spec then spec[1] else spec
   filterForMissing = (scope,base)-> scope.map(moduleName).filter (spec)->
     return false if module.constructor.builtinModules.includes spec
-    # console.log $path.join base,'node_modules', spec
-    # console.log $fs.existsSync $path.join base,'node_modules', spec
     return false if $fs.existsSync $path.join base,'node_modules', spec
     true
+  installGit = (pkgs)->
+    return unless pkgs and pkgs.length > 0
+    await $fs.mkdirp$ GitDir
+    stat = await Promise.all pkgs.map (pkg)->
+      $fs.exists$ $path.join GitDir, $path.basename pkg
+    pkgs = pkgs.filter (pkg,idx)-> not stat[idx]
+    return unless pkgs and pkgs.length > 0
+    console.log 'git'.blue.bold, pkgs.join(' ').gray
+    await Promise.all pkgs.map (pkg)->
+      await $cp.run$ '#l','git','clone','--depth=1',pkg,
+        $path.join GitDir,$path.basename pkg
+  installApt = (pkgs)->
+    return unless pkgs and pkgs.length > 0
+    console.log 'apt'.blue.bold, pkgs.join(' ').gray
+    await $cp.run$
+      log: true
+      needsRoot: true
+      args: ['apt-get','install','-yq'].concat(pkgs)
+      env:  Object.assign {}, process.env, DEBIAN_FRONTEND:'noninteractive'
   installScope = (scope,base,arg)->
     missing = filterForMissing scope, base
     if missing.length > 0
@@ -270,9 +296,11 @@ Bundinha::loadDependencies = ->
         $$[dep[0]] = require dep[1]
       else $$[dep] = require dep
       console.debug ' $load$ '.white.redBG.bold, dep
-  installScope @requireDevScope, RootDir,   '--save-dev'
-  installScope @requireScope,    BuildDir,  '--save-opt'
-  return
+  await installApt [@aptDevScope,@aptScope].flat().unique
+  await installGit @gitDevScope
+  await installScope @npmDevScope, RootDir,   '--save-dev'
+  await installScope @npmScope,    BuildDir,  '--save-opt'
+  true
 
 #  █████  ███████ ███████ ███████ ████████ ███████
 # ██   ██ ██      ██      ██         ██    ██

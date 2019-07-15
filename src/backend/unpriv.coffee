@@ -95,13 +95,13 @@
     $sudo $ask chown -R #{USER}:#{USER} #{$path.dirname ConfigDir}
   """], stdio: 'inherit'
   @log ' instl '.blue.bold.whiteBG, 'config'
-  APP.configKeys.pushUnique 'BaseUrl';      $$.BaseUrl      = 'https://' + DOMAIN
-  APP.configKeys.pushUnique 'ServerName';   $$.ServerName   = DOMAIN
-  APP.configKeys.pushUnique 'SSLHostKey';   $$.SSLHostKey   = KEY
-  APP.configKeys.pushUnique 'SSLFullchain'; $$.SSLFullchain = CERT
-  APP.configKeys.pushUnique 'SSLBackend';   $$.SSLBackend   = false
-  APP.configKeys.pushUnique 'Protocol';     $$.Protocol     = 'http'
-  APP.configKeys.pushUnique 'Port';         $$.Port         = PORT
+  APP.configKeys.insert 'BaseUrl';      $$.BaseUrl      = 'https://' + DOMAIN
+  APP.configKeys.insert 'ServerName';   $$.ServerName   = DOMAIN
+  APP.configKeys.insert 'SSLHostKey';   $$.SSLHostKey   = KEY
+  APP.configKeys.insert 'SSLFullchain'; $$.SSLFullchain = CERT
+  APP.configKeys.insert 'SSLBackend';   $$.SSLBackend   = false
+  APP.configKeys.insert 'Protocol';     $$.Protocol     = 'http'
+  APP.configKeys.insert 'Port';         $$.Port         = PORT
   APP.writeConfig()
   await @sub 'install:nginx'
 

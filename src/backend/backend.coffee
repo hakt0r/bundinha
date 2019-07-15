@@ -52,7 +52,7 @@
 
 $app.arrayTools   = $$.ArrayTools
 $app.nodePromises = $$.NodePromises
-$app.require      = @requireScope
+$app.require      = @npmScope
 
 $app.loadDependencies = ->
   for dep in @require

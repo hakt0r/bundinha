@@ -1,5 +1,6 @@
 
-@npmDev '@fortawesome/fontawesome-free'
+@npmDev "@fortawesome/fontawesome-free"
+@gitDev "https://github.com/google/material-design-icons"
 
 @phase 'build:pre',-1,=>
   console.debug ':icons'.green, Object.keys(ICON).join(' ').gray
