@@ -1,43 +1,57 @@
 
 $$.NodePromises = ->
-  $fs.stat$      = $util.promisify $fs.stat
-  $fs.mkdir$     = $util.promisify $fs.mkdir
-  $fs.unlink$    = $util.promisify $fs.unlink
-  $fs.exists$    = $util.promisify $fs.exists
-  $fs.readdir$   = $util.promisify $fs.readdir
-  $fs.readFile$  = $util.promisify $fs.readFile
-  $fs.rename$    = $util.promisify $fs.rename
-  $fs.writeFile$ = $util.promisify $fs.writeFile
+  $fs[k+'$'] = $util.promisify $fs[k] for k in ['stat','mkdir','unlink','rmdir','exists','readdir','readFile','rename','writeFile']
+
+  $fs.escape = (key)->
+    key.toString().replace(/_/g,'_0').replace(/\0/g,'_1').replace(/\//g,'_2').replace(/\\/g,'_3').replace(/\|/g,'_4').replace(/\?/g,'_5').replace(/\*/g,'_6').replace(/\"/g,'_7').replace(/</g,'_8').replace(/>/g,'_9').replace(/:/g,'_A').replace(/"/g,'_B')
+
+  $fs.unescape = (key)->
+    key.toString().replace(/_1/g,'\0').replace(/_2/g,'/').replace(/_3/g,'\\').replace(/_4/g,'|').replace(/_5/g,'?').replace(/_6/g,'*').replace(/_7/g,'"').replace(/_8/g,'<').replace(/_9/g,'>').replace(/_A/g,':').replace(/_B/g,'"').replace(/_0/g,'_')
+
+  $fs.mkdirp$ = (args...)->
+    0 is ( await $cp.run$ ['mkdir','-p',args].flat() ).status
+
+  $fs.mkdirp$.sync = (args...)->
+    0 is ( $cp.spawnSync$ 'mkdir',['-p',args].flat() ).status
+
+  $fs.touch = (args...)->
+    if 'object' is typeof args.last
+      opts = args.pop()
+      args = ['-r',opts.ref,args].flat() if opts.ref
+    $cp.spawn$ 'touch', args
+
+  $fs.touch.sync = (args...)->
+    if 'object' is typeof args.last
+      opts = args.pop()
+      args = ['-r',opts.ref,args].flat() if opts.ref
+    $cp.spawnSync 'touch', args
+
   $fs.writeFileAsRoot$ = (path,data)->
     opts = $cp.spawnOpts $cp.spawnArgs '$','tee',path
     opts.stdio = ['pipe','pipe','pipe']
     s = $cp.spawn opts.args[0], opts.args.slice(1), opts
     s.stdin.write data; s.stdin.end()
     await $cp.awaitOutput s,opts
-  $fs.touch = (args...)->
-    if 'object' is typeof args.last
-      opts = args.pop()
-      args = ['-r',opts.ref,args].flat() if opts.ref
-    $cp.spawn$ 'touch', args
-  $fs.touch.sync = (args...)->
-    if 'object' is typeof args.last
-      opts = args.pop()
-      args = ['-r',opts.ref,args].flat() if opts.ref
-    $cp.spawnSync 'touch', args
+
   $fs.readUTF8Sync = (path)->
     path = $path.join.apply $path,path if Array.isArray path
     $fs.readFileSync path, 'utf8'
+
   $fs.readBase64Sync = (path)->
     path = $path.join.apply $path,path if Array.isArray path
     $fs.readFileSync path, 'base64'
-  $fs.mkdirp$ = (args...)->
-    0 is ( await $cp.run$ ['mkdir','-p',args].flat() ).status
-  $fs.mkdirp$.sync = (args...)->
-    0 is ( $cp.spawnSync$ 'mkdir',['-p',args].flat() ).status
-  $cp.spawn$     = $util.promisify $cp.spawn
-  $cp.spawn$$    = (cmd,args,opts)-> new Promise (resolve,reject)-> $cp.spawn(cmd,args,opts).on('error',reject).on('close',resolve)
-  $cp.exec$      = $util.promisify $cp.exec
-  $cp.awaitSilent = (s)-> new Promise (r,e)-> s.on('close',r).on('error',e)
+
+  $cp[k+'$'] = $util.promisify $cp[k] for k in ['spawn','exec']
+
+  $cp.spawn$$ = (cmd,args,opts)->
+    new Promise (resolve,reject)->
+      $cp.spawn cmd, args, opts
+      .on 'error', reject
+      .on 'close', resolve
+
+  $cp.awaitSilent = (s)->
+    new Promise (r,e)-> s.on('close',r).on('error',e)
+
   $cp.logOutput = (pre...)->
     s = pre.pop()
     log = (data)->
@@ -45,6 +59,7 @@ $$.NodePromises = ->
         console.log.apply console, pre.concat [line.gray]
     s.stdout.setEncoding 'utf8'; s.stdout.on 'data', log
     s.stderr.setEncoding 'utf8'; s.stderr.on 'data', log
+
   $cp.awaitOutput = (s,opts)-> new Promise (resolve)-> ( ->
     e = []; o = []; s.stderr.setEncoding 'utf8'
     if opts.log then s.stderr.on 'data', (data)=> data.trim().split('\n').map (line)=>
@@ -70,11 +85,13 @@ $$.NodePromises = ->
     opts = $cp.spawnOpts $cp.spawnArgs ...args
     $cp.spawn opts.args[0], opts.args.slice(1), opts
     await $cp.awaitOutput s,opts
+
   $cp.run$ = (args...)->
     opts = $cp.spawnOpts $cp.spawnArgs ...args
     s = $cp.spawn opts.args[0], opts.args.slice(1), opts
     console.debug ' run$ '.white.redBG.bold, opts.args, opts.stdio[0] is process.stdin
     await $cp.awaitOutput s,opts
+
   $cp.spawnArgs = (args...)->
     $$.Host = byId:{} unless $$.Host
     # console.log ' :SPAWN:ARGS: ', @name, args
@@ -86,6 +103,7 @@ $$.NodePromises = ->
     throw new Error " EXEC:FAIL #{JSON.stringify args}" unless opts
     opts.host = opts.args.shift() if opts.args[0]?.constructor is Host
     opts
+
   $cp.spawnOpts = (opts)-> ( ->
     $$.Host = byId:{} unless $$.Host
     args = opts.args

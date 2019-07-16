@@ -5,7 +5,40 @@
   await do APP.initDB if APP.initDB
   return
 
-@scope.db = (name,opts)->
+@group 'db', ['$admin','$db'], ->
+  if not ( name = @args.shift() ) or name is 'list'
+    return Object.keys Database.byName
+  unless db = Database.byName[name]
+    @error 404
+  switch cmd = @args.shift()
+    when 'put'  then return await db.put key = @args.shift(), @args.shift()
+    when 'get'  then return await db.get key = @args.shift()
+    when 'del'  then return await db.del key = @args.shift()
+    when 'edit' then return await new Promise (resolve)=>
+      key = @args.shift()
+      raw = @args.shift() is '-r'
+      unless u = await db.get key
+        @error "#{db}/#{key} does not exist:".bold, key, error
+      p = '/tmp/edit.' + SHA512 [db,key].join '|'
+      await new Promise (resolve)->
+        await $fs.writeFile$ p, u
+        e = $cp.spawn 'atom',['--wait',p]
+        e.on 'close', resolve
+      u = await $fs.readFile$ p, 'utf8'
+      @error "Not valid JSON" if not raw and not try JSON.parse u
+      await db.put key, u
+      try await $fs.unlink$ p
+      resolve true
+    when 'list' then return await new Promise (resolve)->
+      l = []
+      s = db.createReadStream()
+      s.on 'data', (r)-> l.push r.key
+      s.on 'error', (r)->
+      s.on 'end', (r)-> resolve l
+  @error 404
+
+@scope.db = (name,opts={})->
+  # @require 'bundinha/db/' + opts.plugin if opts.plugin
   if 'string' is typeof name
     @dbScope[name] = opts || {}
   else for typeName, opts of name
@@ -19,6 +52,7 @@
     plugin = opts.plugin || opts.plugin = 'level'
     console.debug '::::db'.yellow, ':' + name.bold, plugin, opts
     db = await Database.plugin[plugin].open(name,opts)
+    Database.byName[name] = db
     if ( typeName = opts.typeName )?
       Table = Database.extend $$[typeName], db, plugin
       Table.path = Table::path = path
@@ -29,6 +63,7 @@
   console.debug '::::db', 'ready'.green
 
 @server class Database
+  @byName:{}
   @extend:(Table,db,plugin)->
     p = Database.plugin[plugin].extend
     g = Database.plugin.generic
@@ -130,3 +165,17 @@ Database.Array = (len,types,data)->
   throw new Error 'TooLong'  if len < data.length
   # TODO
   data
+
+Database.addLocking = (Db)-> Object.assign Db,
+  lock:{}
+  cache:{}
+  lockRecord:(key,value)->
+    @cache[key] = value
+    unless @lock[key]
+      @lock[key] = []
+    else new Promise (resolve)=> @lock[key].push resolve
+  releaseRecord:(key,value)->
+    if @lock[key] and next = @lock[key].shift()
+      return next()
+    delete @cache[key]
+    delete @lock[key]

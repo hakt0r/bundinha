@@ -51,6 +51,7 @@ Command.consoleUser = ->
     console.debug ' call '.red.bold.whiteBG, "User unknown:".red, info?.username?.white.bold
     console.debug '    $ '.red.bold.whiteBG, info
     return process.exit 1
+  user = ( await User.get user ).record
   user = Object.assign user, info, console:true
   user.group = [user.group||[],'$console','$auth'].flat()
   UID:0, USER:user, GROUP:user.group, COOKIE:'$console'

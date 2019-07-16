@@ -8,8 +8,8 @@
 @flag 'UseAuth'
 
 @require 'bundinha/db/' + @AuthDB = @AuthDB || 'text'
-@db 'user',    plugin:@AuthDB, convert:true
-@db 'session', plugin:@AuthDB, convert:true
+@db 'user',    plugin:@AuthDB
+@db 'session', plugin:@AuthDB
 @config AdminUser:'admin', AdminPassword:false
 
 @preCommand ->
@@ -66,8 +66,9 @@ User.map = (callback)-> new Promise (resolve)->
 User.aliasSearch = (alias)-> new Promise (resolve)->
   a = []
   APP.user.createReadStream()
-  .on 'data', (u)->
-    try u = JSON.parse u.value catch e then console.log u
+  .on 'data', (data)->
+    try u = JSON.parse data.value
+    catch e then console.log data, e
     return unless ( u.id is alias ) or ( u.alias?.includes? alias )
     a.push u.id
   .on 'end',  (u)-> resolve a.shift()
