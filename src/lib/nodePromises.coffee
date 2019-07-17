@@ -20,7 +20,7 @@ $$.NodePromises = ->
     0 is ( await $cp.run$ ['mkdir','-p',args].flat() ).status
 
   $fs.mkdirp$.sync = (args...)->
-    0 is ( $cp.spawnSync$ 'mkdir',['-p',args].flat() ).status
+    0 is ( $cp.spawnSync 'mkdir',['-p',args].flat() ).status
 
   $fs.touch = (args...)->
     if 'object' is typeof args.last
