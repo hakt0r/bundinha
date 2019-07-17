@@ -321,7 +321,7 @@ Bundinha::reqdir = (dst...) ->
   dst = $path.join.apply $path, dst
   ok = -> console.debug ':::dir'.green, $path.basename(dst).yellow
   return do ok if $fs.existsSync dst
-  return do ok if $fs.mkdirSync dst
+  return do ok if $fs.mkdirp$.sync dst
 
 Bundinha::compileSources = (sources)->
   out = ''
