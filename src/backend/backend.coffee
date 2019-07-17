@@ -86,6 +86,7 @@ $app.splash = ->
   console.log '     WebDir'.yellow, $$.WebDir    ?.green      || 'undefined'.red.bold
   return
 
+@require 'bundinha/backend/command'
 $app.initConfig = (probeOnly=no)->
   return if @configWasRead
   unless $fs.existsSync confDir = $path.join ConfigDir

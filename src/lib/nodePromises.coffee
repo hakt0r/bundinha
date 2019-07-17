@@ -1,5 +1,13 @@
 
 $$.NodePromises = ->
+  Promise.cue = (worker)->
+    q = (task...)-> tip cue.push task
+    q.cue = cue = []; running = no
+    tip = -> unless running
+      return running = no unless task = cue.shift()
+      running = yes; worker task, -> tip running = no
+    return q
+
   $fs[k+'$'] = $util.promisify $fs[k] for k in ['stat','mkdir','unlink','rmdir','exists','readdir','readFile','rename','writeFile']
 
   $fs.escape = (key)->
@@ -42,6 +50,24 @@ $$.NodePromises = ->
     $fs.readFileSync path, 'base64'
 
   $cp[k+'$'] = $util.promisify $cp[k] for k in ['spawn','exec']
+
+  $cp.which = (name)->
+    if ( w = $cp.spawnSync 'which',[name] ).status isnt 0 then false else w.stdout.toString().trim()
+
+  $cp.which$ = (name)->
+    if ( w = await $cp.spawn$$ 'which',[name] ).status isnt 0 then false else w.stdout.toString().trim()
+
+  vars = ['SUDO_ASKPASS','SSH_ASKPASS','GIT_ASKPASS']
+  list = ['kasa-askpass','ssh-askpass-gnome','ssh-askpass','ksshaskpass','r-cran-askpass','lxqt-openssh-askpass','razorqt-openssh-askpass','ssh-askpass-fullscreen']
+  need = 0 isnt ( vars.filter (v)-> not process.env[v]? ).length
+  if need then for canidate in list
+    continue unless ASKPASS = $cp.which canidate
+    vars.map (i)-> process.env[i] = ASKPASS unless process.env[i]
+    break
+
+  $cp.setEncoding = (i,e)->
+    [i.stderr,i.stdout,i.stdin].map( (i)-> i.setEncoding e )
+    return i
 
   $cp.spawn$$ = (cmd,args,opts)->
     new Promise (resolve,reject)->
@@ -91,6 +117,41 @@ $$.NodePromises = ->
     s = $cp.spawn opts.args[0], opts.args.slice(1), opts
     console.debug ' run$ '.white.redBG.bold, opts.args, opts.stdio[0] is process.stdin
     await $cp.awaitOutput s,opts
+
+  $cp.sudo = Promise.cue (task,done)->
+    [ args, opts, callback ] = task
+    unless typeof opts is 'object'
+      callback = opts
+      opts = {}
+    do done unless ( args = args || [] ).length > 0
+    args.unshift '-A' if process.env.SUDO_ASKPASS and process.env.DISPLAY
+    sudo = $cp.spawn 'sudo', args, opts
+    # sudo.stderr.on 'data', (d)-> console.log d
+    # sudo.stdout.on 'data', (d)-> console.log d
+    console.debug '\x1b[32mSUDO\x1b[0m', process.env.DISPLAY, args.join ' '
+    if callback then callback sudo, done
+    else sudo.on 'close', done
+
+  $cp.sudo.read = (cmd,callback)->
+    console.debug '$cp.sudo.read', cmd
+    $cp.sudo ['sh','-c',cmd], (proc,done)->
+      $cp.setEncoding proc, 'utf8'
+      proc.stdout.once 'data', -> done null
+      $carrier.carry proc.stdout, callback
+
+  $cp.sudo.sync = (cmd)->
+    console.debug '$cp.sudo.sync', cmd
+    args = ['sh','-c',cmd]
+    args.unshift '-A' if process.env.DISPLAY
+    $cp.spawnSync 'sudo', args
+
+  $cp.sudo.script = (cmd,callback)->
+    console.debug '$cp.sudo.script', cmd
+    $cp.sudo ['sh','-c',cmd], (sudo,done)->
+      do done; $cp.setEncoding sudo, 'utf8'; out = []; err = []
+      $carrier.carry sudo.stdout, out.push.bind out
+      $carrier.carry sudo.stderr, err.push.bind out
+      sudo.on 'close', (status)-> callback status, out.join('\n'), err.join('\n')
 
   $cp.spawnArgs = (args...)->
     $$.Host = byId:{} unless $$.Host
@@ -180,4 +241,5 @@ $$.NodePromises = ->
   if process.env.DEBUG_NODE_SYSCALLS
     maskCall name, $cp for name,f of $cp
     maskCall name, $fs for name,f of $fs
+
   return
