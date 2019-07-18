@@ -6,7 +6,7 @@
 
 setImmediate ->
   $$.$coffee = require 'coffeescript'
-  new Bundinha().cmd_handle()
+  new Bundinha().handleCommand()
 
 require 'colors'
 
@@ -125,14 +125,12 @@ Bundinha::page = (opts={}) ->
 # ██      ██    ██ ██  ██  ██ ██  ██  ██ ██   ██ ██  ██ ██ ██   ██
 #  ██████  ██████  ██      ██ ██      ██ ██   ██ ██   ████ ██████
 
-Bundinha::cmd_handle = ->
-  try @readPackage()
-  return do @cmd_init       if ( ARG.init is true )
-  @readPackage()
-  return do @cmd_push_clean if ( ARG.push and ARG.clean ) is true
-  return do @cmd_push       if ( ARG.push is true )
-  return do @cmd_deploy     if ( ARG.deploy is true )
-
+Bundinha::handleCommand = ->
+  args = process.argv.slice 2; cmd = args.shift()
+  try @readPackage() # may fail, may not
+  return await @cmd.init.apply @, args if cmd is 'init'
+  @readPackage() # this one may not fail
+  return unless true is await func.apply @, args if func = @cmd.pre[cmd]
   @shared BuildId: @BuildId = @BuildId || SHA512 new Date
   @BuildLog = BuildId.substring(0,6).yellow
 
@@ -142,9 +140,13 @@ Bundinha::cmd_handle = ->
               '['+ 'bundinha'.yellow + '/'.gray + BunPackage.version.gray +
               ( '/dev'.red ) + ']'
   console.log '--------------------------------------' + ''.padStart(nameLength,'-')
-  await do @build
+  if func = @cmd[cmd]
+    return unless true is await func.apply @, args
+  else await do @build
+  if func = @cmd.post[cmd]
+    return unless true is await func.apply @, args
 
-Bundinha::cmd_init = ->
+Bundinha::cmd = pre:{}, post:{}, init: ->
   @require 'bundinha/build/build'
   console.log 'init'.yellow, RootDir
   @reqdir RootDir, 'src'
@@ -170,7 +172,12 @@ Bundinha::cmd_init = ->
     """
   process.exit 0
 
-Bundinha::cmd_push = (final=yes)->
+Bundinha::cmd.pre.push = (args...)->
+  if args.includes 'clean'
+    $cp.execSync """
+    ssh #{ARG[0]} 'killall node; cd /var/www/; rm -rf #{AppPackageName}/*'
+    """; return
+  final = true if args.includes 'final'
   [ url, user, host, path ] = @Deploy.url.match /^([^@]+)@([^:]+):(.*)$/
   process.stderr.write 'push'.yellow + ' ' + user.red.bold + '@' + host.green + ':' + path.gray
   console.debug ['rsync','-avzhL','--exclude','node_modules/','build/',@Deploy.url].join(' ')
@@ -178,9 +185,9 @@ Bundinha::cmd_push = (final=yes)->
   console.log if result.status is 0 then ' success'.green.bold else ' error'.red.bold
   process.exit result.status if final
 
-Bundinha::cmd_deploy = ->
+Bundinha::cmd.pre.deploy = ->
   return $cp.spawnSync 'sh',['-c',@Deploy.command] if @Deploy.command
-  @cmd_push no; [ url, user, host, path ] = @Deploy.url.match /^([^@]+)@([^:]+):(.*)$/
+  await   @cmd.push 'final'; [ url, user, host, path ] = @Deploy.url.match /^([^@]+)@([^:]+):(.*)$/
   process.stderr.write 'deploy'.yellow + ' ' + user.red.bold + '@' + host.green + ':' + path.gray
   result = $cp.spawnSync 'ssh',[user+'@'+host,"""
   cd '#{path}'; npm i -g .;
@@ -191,10 +198,8 @@ Bundinha::cmd_deploy = ->
   """], stdio:'inherit'
   console.log if result.status is 0 then ' success'.green.bold else ' error'.red.bold
 
-Bundinha::cmd_push_clean = ->
-  $cp.execSync """
-  ssh #{ARG[0]} 'killall node; cd /var/www/; rm -rf #{AppPackageName}/*'
-  """; return
+Bundinha::cmd.post.doc = ->
+  console.log $util.inspect @serverScope, depth:0
 
 # ████████  ██████   ██████  ██      ███████
 #    ██    ██    ██ ██    ██ ██      ██
