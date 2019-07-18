@@ -20,7 +20,7 @@
     fn = xclass
     xclass = ''
   btn = """<button id="#{key}" class="#{key} #{xclass}">#{I18[key]}</button>"""
-  btn = """<button id="#{key}" class="#{key} faw fa-#{ICON[key]}#{xclass}"><span>#{I18[key]}</span></button>""" if ICON[key]?
+  btn = """<button id="#{key}" class="#{key} faw #{ICON[key]}#{xclass}"><span>#{I18[key]}</span></button>""" if ICON[key]?
   btn = $.make btn
   btn.onclick = fn if fn?
   btn.onclick = fn

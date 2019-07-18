@@ -13,6 +13,8 @@
   $$.$path      = require 'path'
   $$.$fs        = require 'fs'
   $$.DEBUG      = no
+  $$.VERBOSE    = no
+  $$.ENV        = process.env
   $$.RootDir    = process.env.APP  || __dirname
   $$.WebDir     = process.env.HTML || $path.join RootDir, 'html'
   $$.AppPackage = JSON.parse $fs.readFileSync ($path.join RootDir, 'package.json' ), 'utf8'
@@ -21,7 +23,11 @@
   $$.ConfigDir  = process.env.CONF ||
     if DevMode then $path.join parentDir, 'config'
     else $path.join RootDir, 'config'
-  console.debug = ->
+  console._log = console.log; console._err = console.error
+  console.verbose = console.error
+  console.verbose = (->) unless ( $$.VERBOSE = ENV.VERBOSE )?
+  console.debug = console.error
+  console.debug = (->) unless ( $$.DEBUG   = ENV.DEBUG   )?
   return
 
 @phase 'build:pre',-1,=>
@@ -70,7 +76,8 @@ $app.readEnv = ->
   APP.port     =  $$.Port     || process.env.PORT  || 9999
   APP.addr     =  $$.Addr     || process.env.ADDR  || '127.0.0.1'
   APP.protocol =  $$.Protocol || process.env.PROTO || 'https'
-  console.debug = if DEBUG then console.log else ->
+  console.debug   = if DEBUG   then console.log else ->
+  console.verbose = if VERBOSE then console.log else ->
   return
 
 $app.splash = ->
@@ -114,7 +121,7 @@ $app.initConfig = (probeOnly=no)->
 
 $app.writeConfig = ->
   p = $path.join ConfigDir, AppPackage.name + '.json'
-  console.debug ' config:write '.white.inverse.bold, @configKeys
+  console.debug ' config:write '.white.inverse.bold, @configKeys.join(' ').gray
   $fs.writeFileSync p, JSON.stringify (
     o = {}
     o[k] = $$[k] for k in @configKeys

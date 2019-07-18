@@ -38,13 +38,11 @@ $$.WebDir    = ENV.HTML      || $path.join BuildDir,'html'
 $$.BunDir    = ENV.BUNDINHA  || $path.dirname $path.dirname __filename
 $$.BunNpm    = ENV.BUN_NPM   || $path.join BunDir,'node_modules'
 
-console.verbose = ->
-unless $$.DEBUG = ENV.DEBUG is 'true'
-  console.debug = ->
-if $$.VERBOSE = ENV.VERBOSE is 'true'
-  console.verbose = console.error
-console._log = console.log
-console._err = console.error
+console._log = console.log; console._err = console.error
+console.verbose = console.error
+console.debug   = console.error
+console.debug   = (->) unless ( $$.DEBUG   = ENV.DEBUG   )?
+console.verbose = (->) unless ( $$.VERBOSE = ENV.VERBOSE )?
 
 $$.COM =
   build: "bundinha"

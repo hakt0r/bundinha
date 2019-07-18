@@ -115,7 +115,8 @@ $$.NodePromises = ->
   $cp.run$ = (args...)->
     opts = $cp.spawnOpts $cp.spawnArgs ...args
     s = $cp.spawn opts.args[0], opts.args.slice(1), opts
-    console.debug ' run$ '.white.redBG.bold, opts.args, opts.stdio[0] is process.stdin
+    console.debug ' run$ '.white.redBG.bold, (a=opts.args)[0].bold, a.slice(1).join(' ').gray,
+      if opts.stdio[0] is process.stdin then '<0'.red.bold e else ''
     await $cp.awaitOutput s,opts
 
   $cp.sudo = Promise.cue (task,done)->

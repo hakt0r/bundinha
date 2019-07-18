@@ -1,43 +1,85 @@
-
 @npmDev "@fortawesome/fontawesome-free"
 @gitDev "https://github.com/google/material-design-icons"
 
+@client class Icon
+  constructor:(id,title)-> return $.make Icon.markup id, title
+  from:([id,title])-> new Icon
+  @markup:(id,title)-> """<i title="#{title}" class="faw #{id}"/>"""
+
+@icon = (args...)-> for spec in args
+  if typeOf spec is 'string'    
+    ICON[spec] = spec
+
 @phase 'build:pre',-1,=>
-  console.debug ':icons'.green, Object.keys(ICON).join(' ').gray
-  #module.paths.push $path.join RootDir, 'node_modules' # FIXME
-  #pack = $path.dirname $path.dirname require.resolve '@fortawesome/fontawesome-free'
-  # console.log pack
-  # pack = $path.join RootDir, 'node_modules'
-  pack = p if $fs.existsSync p = $path.join RootDir, 'node_modules', '@fortawesome','fontawesome-free'
-  pack = p if $fs.existsSync p = $path.join BunDir,  'node_modules', '@fortawesome','fontawesome-free'
-  repo = $path.join pack,'svgs'
-  dest = $path.join BuildDir,'fontawesome.css'
-  @css """
-  .fa,.faw { position: relative; min-width:2.5em; }
-  .fa span, .faw span { display:none; }
-  .fa:before,.faw:before {
+
+  # ███    ███  █████  ████████ ███████ ██████  ██  █████  ██       ██████  ███████ ███████ ██  ██████  ███    ██
+  # ████  ████ ██   ██    ██    ██      ██   ██ ██ ██   ██ ██       ██   ██ ██      ██      ██ ██       ████   ██
+  # ██ ████ ██ ███████    ██    █████   ██████  ██ ███████ ██ █████ ██   ██ █████   ███████ ██ ██   ███ ██ ██  ██
+  # ██  ██  ██ ██   ██    ██    ██      ██   ██ ██ ██   ██ ██       ██   ██ ██           ██ ██ ██    ██ ██  ██ ██
+  # ██      ██ ██   ██    ██    ███████ ██   ██ ██ ██   ██ ███████  ██████  ███████ ███████ ██  ██████  ██   ████
+
+  MaterialIcons = new Map
+  d = $path.join RootDir,'node_modules','.git','material-design-icons'
+  r = ( await $cp.run$ 'find',d,'-type','f' ).stdout.slice(0,-1).split('\n')
+  for line in r when line.match(/_48px\.svg$/) and line.match /production/
+    { dir, name, ext } = $path.parse line
+    tmp = name.split '_'; size = tmp.pop(); name = tmp.join('_').replace /ic_/,''
+    flavour = $path.basename dir
+    return if name is ''
+    MaterialIcons.set name, line
+  console.log ':material-icons'.green.bold, MaterialIcons.size.toString().blue.bold
+
+  # ███████  ██████  ███    ██ ████████  █████  ██     ██ ███████ ███████  ██████  ███    ███ ███████
+  # ██      ██    ██ ████   ██    ██    ██   ██ ██     ██ ██      ██      ██    ██ ████  ████ ██
+  # █████   ██    ██ ██ ██  ██    ██    ███████ ██  █  ██ █████   ███████ ██    ██ ██ ████ ██ █████
+  # ██      ██    ██ ██  ██ ██    ██    ██   ██ ██ ███ ██ ██           ██ ██    ██ ██  ██  ██ ██
+  # ██       ██████  ██   ████    ██    ██   ██  ███ ███  ███████ ███████  ██████  ██      ██ ███████
+
+  FontAwesome = new Map
+  d = $path.join RootDir,'node_modules','@fortawesome','fontawesome-free','svgs'
+  r = ( await $cp.run$ 'find',d,'-type','f' ).stdout.slice(0,-1).split('\n')
+  for line in r
+    { name } = $path.parse line
+    FontAwesome.set name, line
+  console.log ':fontawesome'.green.bold, FontAwesome.size.toString().blue.bold
+
+  # ██████   █████   ██████ ██   ██
+  # ██   ██ ██   ██ ██      ██  ██
+  # ██████  ███████ ██      █████
+  # ██      ██   ██ ██      ██  ██
+  # ██      ██   ██  ██████ ██   ██
+
+  collect = {}
+
+  for key, name of ICON
+    Array.requireOn(collect,name).insert key
+
+  @css ["""
+  .faw { position: relative; }
+  .faw:before {
     content: '';
     height: 100%;
     width: 100%;
     background-repeat: no-repeat;
     background-position: center;
     background-size: auto 1em;
-    position: absolute; top:0; left:0; }
-  .faw:before { filter: invert(100%); }
-  """ + ( for key, name of ICON
-    if $fs.existsSync icon = $path.join repo,'solid',"#{name}.svg"
-      icon = $fs.readFileSync icon, 'utf8'
-    else if $fs.existsSync icon = $path.join repo,'brands',"#{name}.svg"
-      icon = $fs.readFileSync icon, 'utf8'
-    if icon.match '\.svg$'
-      console.log '404'.red, name
+    position: absolute; top:0; left:0;
+    filter: invert(100%); }
+  .faw span { display:none; }
+  body.light-theme .faw:before { filter: unset; }
+  """].concat( for name, keys of collect
+    icon = $fs.readFileSync path, 'utf8' if path = FontAwesome.get name
+    icon = $fs.readFileSync path, 'utf8' if path = MaterialIcons.get name
+    unless icon
+      console.log 'Icon not found:'.red, name, "(#{key})"
       continue
-    icon = ".fa-#{name}:before{
-      background-image:url('data:image/svg+xml;utf8," + Buffer.from(
+    classes = [name,keys].flat().unique
+    .map (name)-> ".faw.#{name}:before"
+    .join ','
+    icon = "#{classes}{background-image:url('data:image/svg+xml;utf8," + Buffer.from(
       icon
       .replace /<!--[\s\S]+/gm, ''
       .trim()
-    ).toString('utf8') + '\'); }'
+    ).toString('utf8') + '\');}'
   ).join '\n'
-
-  console.debug ':icons'.green, Object.keys(ICON).join(' ').gray
+  console.debug ':icons'.green, Object.keys(collect).join(' ').gray
