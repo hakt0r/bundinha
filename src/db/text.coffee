@@ -55,7 +55,8 @@ Database.plugin.text =
     e = new (require 'events').EventEmitter
     readFile = (key)=>
       return if key.match /\.\$\$$/
-      e.emit 'data', key:key, value:await @get key, true
+      path = $path.join @path, key
+      e.emit 'data', path:path, key:key, value:await @get key, true
     setTimeout =>
       await Promise.all ( readFile key for key in await $fs.readdir$ @path )
       e.emit 'end'

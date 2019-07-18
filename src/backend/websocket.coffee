@@ -100,11 +100,11 @@ WebSock.init = ->
     try
       request.htReq = request
       await RequireAuth request
-    catch error then console.log error; socket.destroy()
+    catch error then console.error 'ws'.red.bold, error; socket.destroy()
     wss.handleUpgrade request, socket, head, (ws)-> wss.emit 'connection', ws, request
     return
   wss.on 'connection', (s,r)-> s = new WebSock s,r
-  console.log APP.Protocol, 'websockets'.green
+  console.debug APP.Protocol, 'websockets'.green
 
 
 

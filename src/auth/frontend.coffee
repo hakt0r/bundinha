@@ -17,8 +17,7 @@
     hashedPass = SHA512 [ pass,       challenge.seedSalt    ].join ':'
     hashedPass = SHA512 [ hashedPass, challenge.storageSalt ].join ':'
     hashedPass = SHA512 [ hashedPass, clientSalt            ].join ':'
-  CALL 'login', id:user, pass:hashedPass, salt:clientSalt
-  .then LoginResult
+  LoginResult await CALL 'login', id:user, pass:hashedPass, salt:clientSalt
 
 @client.CheckLoginCookie = ->
   if document.cookie.match /SESSION=/
@@ -46,12 +45,13 @@
   btn
 
 @client.Login = (user,pass)->
-  CALL 'login', id:user
-  .then (challenge)-> RequestLogin user, pass, challenge
+  challenge = await CALL 'login', id:user
+  RequestLogin user, pass, challenge
 
 @client.LoginResult = (result)->
   $$.GROUP = result.groups
   result.success || false
+  result
 
 # ██       ██████   ██████  ██ ███    ██
 # ██      ██    ██ ██       ██ ████   ██
@@ -69,7 +69,7 @@ if @AppLogo
     i
 
 @client.LoginForm = -> requestAnimationFrame ->
-  document.querySelector('content').innerHTML = """
+  $('content').innerHTML = """
   <div class="window modal monolithic" id="loginWindow">
     <form id="login">
       <input type="email"    name="id"                   placeholder="#{I18.Username}" autocomplete="username" autofocus="true" />
@@ -78,24 +78,30 @@ if @AppLogo
   </div>
   """
   document.getElementById('loginWindow').prepend GetAppLogo()
+  navigation$ = $ 'navigation'
   form$ = document.getElementById 'login'
-  navigation$ = document.querySelector('navigation')
-  navigation$.innerHTML = ''
-  navigation$.append IconButton 'Register', RegisterForm
-  navigation$.append IconButton 'Login', ' default', form$.onsubmit = (e) ->
-    e.preventDefault()
-    user = ( user$ = document.querySelector '[name=id]' ).value
-    pass = ( pass$ = document.querySelector '[name=pass]' ).value
+  name$ = form$.find '[name=id]'
+  pass$ = form$.find '[name=pass]'
+  form$.onsubmit = (evt) ->
+    console.log 'onsubmit'
+    evt.preventDefault()
+    user = ( user$ = $ '[name=id]'   ).value
+    pass = ( pass$ = $ '[name=pass]' ).value
     window.UserID = user
-    Login user, pass
-    .then  (response)-> window.dispatchEvent new Event 'login'
-    .catch (error)->
+    try
+      response = await Login user, pass
+      window.dispatchEvent new Event 'login'
+    catch error
       NotificationToast.show error
       user$.setCustomValidity error
       setTimeout ( -> user$.setCustomValidity '' ), 3000
-    null
+  name$.onkeydown = (evt)-> pass$.focus    evt if evt.key is 'Enter' or evt.key is 'Tab'
+  pass$.onkeydown = (evt)-> form$.onsubmit evt if evt.key is 'Enter'
+  navigation$.innerHTML = ''
+  navigation$.append IconButton 'Register', RegisterForm
+  navigation$.append IconButton 'Login', ' default', form$.onsubmit
   window.dispatchEvent new Event 'loginform'
-  null
+  return
 
 # ██████  ███████  ██████  ██ ███████ ████████ ███████ ██████
 # ██   ██ ██      ██       ██ ██         ██    ██      ██   ██
@@ -104,7 +110,7 @@ if @AppLogo
 # ██   ██ ███████  ██████  ██ ███████    ██    ███████ ██   ██
 
 @client.RegisterForm = -> requestAnimationFrame ->
-  document.querySelector('content').innerHTML = """
+  $('content').innerHTML = """
   <div class="window modal monolithic" id="registerWindow">
     <form id="register" action="/api/register" method="post">
       <input type="email"    name="user"      placeholder="#{I18.Username}"        autocomplete="username"         autofocus="true"/>
@@ -114,18 +120,18 @@ if @AppLogo
     </form>
   </div>"""
   document.getElementById('registerWindow').prepend GetAppLogo()
-  form$      = document.getElementById 'register'
-  pass$      = document.querySelector '[name=pass]'
-  confirm$   = document.querySelector '[name=confirm]'
-  navigation$ = document.querySelector('navigation')
+  form$       = document.getElementById 'register'
+  pass$       = $ '[name=pass]'
+  confirm$    = $ '[name=confirm]'
+  navigation$ = $ 'navigation'
   navigation$.innerHTML = ''
   navigation$.append IconButton 'Login', LoginForm
   navigation$.append IconButton 'Register', ' default', form$.onsubmit = (e) ->
     form$      = document.getElementById 'register'
-    user$      = document.querySelector '[name=user]'
-    pass$      = document.querySelector '[name=pass]'
-    confirm$   = document.querySelector '[name=confirm]'
-    inviteKey$ = document.querySelector '[name=inviteKey]'
+    user$      = $ '[name=user]'
+    pass$      = $ '[name=pass]'
+    confirm$   = $ '[name=confirm]'
+    inviteKey$ = $ '[name=inviteKey]'
     e.preventDefault()
     user = user$.value
     pass = pass$.value

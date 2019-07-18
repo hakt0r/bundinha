@@ -381,6 +381,7 @@ require './lib/nodePromises'; do Bundinha::nodePromises = $$.NodePromises
 Bundinha::touch = $fs.touch
 require './lib/arrayTools'  ; do Bundinha::arrayTools   = $$.ArrayTools
 require './lib/phaser'      ; Phaser Bundinha::
+require './lib/cronish'
 
 # ██████  ███████  ██████  ██    ██ ██ ██████  ███████
 # ██   ██ ██      ██    ██ ██    ██ ██ ██   ██ ██

@@ -6,11 +6,14 @@
 # ███████ ███████ ██   ██   ████   ███████ ██   ██
 
 @flag 'UseAuth'
-
 @require 'bundinha/db/' + @AuthDB = @AuthDB || 'text'
 @db 'user',    plugin:@AuthDB
 @db 'session', plugin:@AuthDB
-@config AdminUser:'admin', AdminPassword:false
+
+@config
+  AdminUser:'admin'
+  AdminPassword:false
+  SessionTimeout: 3600000
 
 @preCommand ->
   try rec = await APP.user.get AdminUser
@@ -21,6 +24,22 @@
     seedSalt = Buffer.from($forge.random.getBytesSync 128).toString 'base64'
     hashedPass = SHA512 [ AdminPassword, seedSalt ].join ':'
     User.create args:id:AdminUser, pass:hashedPass, seedSalt:seedSalt, group:['admin']
+  return
+
+@server.Cronish = $$.Cronish
+@server.init = ->
+  Cronish.from id:'session:prune',interval:60e3,worker:->
+    new Promise (resolve)->
+      APP.session.createReadStream()
+      .on 'data', (entry)->
+        { key, value, path } = entry
+        return unless try value = JSON.parse value
+        [ id, date ] = value
+        return if isNaN date = parseInt date
+        return if Date.now() < date + SessionTimeout
+        console.debug 'session'.yellow.bold, 'reap', id.bold, (( Date.now() - date ) / SessionTimeout ) + 'm old'
+        APP.session.del key
+      .on 'close', resolve
   return
 
 # ██    ██ ███████ ███████ ██████
@@ -105,7 +124,7 @@ User.aliasSearch = (alias)-> new Promise (resolve)->
   console.debug 'COOKIE'.yellow, req.USER.id, req.USER.group
   req.setHeader 'Set-Cookie', "SESSION=#{cookie}; expires=#{new Date(new Date().getTime()+86409000).toUTCString()}; path=/;#{$$.CookieDomain||''}"
   req.COOKIE = cookie
-  APP.session.put cookie, req.USER.id
+  APP.session.put cookie, JSON.stringify [req.USER.id,Date.now()]
 
 @server.RequireAuth = (req)->
   unless ( await ReadAuth req ) and req.USER? and req.GROUP?.includes? '$auth'
@@ -119,11 +138,19 @@ User.aliasSearch = (alias)-> new Promise (resolve)->
     return false unless user = try JSON.parse await APP.user.get auth[0]
     return false unless await User.authenticatePlain auth[0], auth[1], user
     AddAuthToRequest req, user, false
-  else
-    return false unless cookies = req.htReq.headers.cookie
-    return false unless cookie  = ( cookies.match /SESSION=([A-Za-z0-9+/=]+={0,3});?/ )?[1]
-    return false unless user    = try await APP.user.get id = try await APP.session.get cookie
-    AddAuthToRequest req, JSON.parse(user), cookie
+    return true
+  return false unless cookies = req.htReq.headers.cookie
+  return false unless cookie = ( cookies.match /SESSION=([A-Za-z0-9+/=]+={0,3});?/ )?[1]
+  return false unless ( session = try JSON.parse await APP.session.get cookie )?
+  [ id, date ] = session
+  date = parseInt date
+  return false     if isNaN date = parseInt date
+  minute = 60000
+  if Date.now() > date + SessionTimeout
+    console.debug 'session'.red.bold, 'reject', id.bold, ((( date + 3600e3 ) -  Date.now() ) / minute ) + 'm old'
+    return false
+  return false unless user = try await APP.user.get id
+  AddAuthToRequest req, JSON.parse(user), cookie
   true
 
 @server.AddAuthToRequest = (req,rec,cookie)->
@@ -156,11 +183,11 @@ User.aliasSearch = (alias)-> new Promise (resolve)->
   throw new Error 'Access Denied' + reason
 
 @server.Logout = (req)->
-  console.log 'out', req
   return true unless req.COOKIE
-  req.setHeader 'Set-Cookie', "SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"
+  if req.htReq
+    req.setHeader 'Set-Cookie', "SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"
   await APP.session.del req.COOKIE
-  console.log 'DEAUTH'.yellow, req.USER.id, req.USER.group
+  console.debug 'DEAUTH'.yellow, req.USER.id, req.USER.group
   true
 
 # ██████  ███████  ██████  ██    ██ ███████ ███████ ████████ ███████

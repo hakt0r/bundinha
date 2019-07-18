@@ -38,7 +38,6 @@
   @error 404
 
 @scope.db = (name,opts={})->
-  # @require 'bundinha/db/' + opts.plugin if opts.plugin
   if 'string' is typeof name
     @dbScope[name] = opts || {}
   else for typeName, opts of name
