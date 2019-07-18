@@ -29,12 +29,12 @@ APP.handleRequest = (req,res)->
 RPC.Web::execute = ->
   await ReadAuth @
   if @method is 'GET'
-    if @url.match /^\/api\//
-      @cmd = @url.replace(/^\/api\//,'').split()
-    else for rule in RPC.match
+    for rule in RPC.match
       continue unless m = rule.expr.exec @url
       @cmd = [rule.key,m.slice 2].flat(); @parsedUrl = m
       break
+    if not @cmd and @url.match /^\/api\//
+      @cmd = @url.replace(/^\/api\//,'').split()
     console.debug 'GET', @url, @cmd
     return APP.fileRequest @htReq, @htRes unless @cmd # fallback to fileRequest
   else if @method is 'POST' and @url is '/api'

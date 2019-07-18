@@ -199,7 +199,9 @@ WebSock::query = (call,data)-> new Promise (resolve,reject)=>
     return unless CALL.socket.readyState is @OPEN
     CALL.socket.send JSON.stringify [id,call,data]
     return
-  LoginForm()
+  if $$.GROUP
+    ButtonReconnect()
+  else LoginForm()
   NotificationToast.show 1000, """
   <div class=error>
     <h1>Connection Error:</h1>

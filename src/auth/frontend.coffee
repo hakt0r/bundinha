@@ -44,6 +44,19 @@
   btn.onclick = Logout
   btn
 
+@client.ButtonReconnect = ->
+  unless btn = $ '#reconnect'
+    btn = IconButton 'Reconnect'
+    btn.id = 'reconnect'
+    btn.onclick = Reconnect
+  NAVI.prepend btn
+
+@client.Reconnect = (user,pass)->
+  if loggedIn = await CheckLoginCookie()
+    $$.dispatchEvent new Event 'login'
+    ( $ '#reconnect' ).remove()
+  else return ButtonReconnect()
+
 @client.Login = (user,pass)->
   challenge = await CALL 'login', id:user
   RequestLogin user, pass, challenge

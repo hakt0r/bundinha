@@ -19,8 +19,11 @@
   if typeof xclass is 'function'
     fn = xclass
     xclass = ''
-  btn = """<button id="#{key}" class="#{key} #{xclass}">#{I18[key]}</button>"""
-  btn = """<button id="#{key}" class="#{key} faw #{ICON[key]}#{xclass}"><span>#{I18[key]}</span></button>""" if ICON[key]?
+  i = I18[key] || key
+  i18 = """title="#{i}" """
+  t18 = """<span>#{i}</span>"""
+  btn = """<button id="#{key}" #{i18}class="#{key} #{xclass}">#{i}</button>"""
+  btn = """<button id="#{key}" #{i18}class="#{key} faw #{ICON[key]}#{xclass}">#{t18}</button>""" if ICON[key]?
   btn = $.make btn
   btn.onclick = fn if fn?
   btn.onclick = fn

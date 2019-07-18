@@ -7,7 +7,7 @@
   @markup:(id,title)-> """<i title="#{title}" class="faw #{id}"/>"""
 
 @icon = (args...)-> for spec in args
-  if typeOf spec is 'string'    
+  if typeOf spec is 'string'
     ICON[spec] = spec
 
 @phase 'build:pre',-1,=>
@@ -68,8 +68,11 @@
   .faw span { display:none; }
   body.light-theme .faw:before { filter: unset; }
   """].concat( for name, keys of collect
-    icon = $fs.readFileSync path, 'utf8' if path = FontAwesome.get name
-    icon = $fs.readFileSync path, 'utf8' if path = MaterialIcons.get name
+    if      path =   FontAwesome.get name
+    else if path = MaterialIcons.get name
+    else if path =   FontAwesome.get n = name.replace /^fa:/,'' then name = n
+    else if path = MaterialIcons.get n = name.replace /^ma:/,'' then name = n
+    icon = try $fs.readFileSync path, 'utf8' if path
     unless icon
       console.log 'Icon not found:'.red, name, "(#{key})"
       continue
