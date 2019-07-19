@@ -5,28 +5,23 @@
 # ██   ██ ██    ██    ██       ██    ██    ██ ██  ██ ██      ██
 # ██████   ██████     ██       ██     ██████  ██   ████ ███████
 
-@client.SubmitButton = (key,xclass='',fn)->
-  b = IconButton key,xclass,fn
+@client.SubmitButton = (key,css='',fn)->
+  b = IconButton key,css,fn
   b.type='submit'
   b
 
-@client.ResetButton = (key,xclass='',fn)->
-  b = IconButton key,xclass,fn
+@client.ResetButton = (key,css='',fn)->
+  b = IconButton key,css,fn
   b.type='reset'
   b
 
-@client.IconButton = (key,xclass='',fn)->
-  if typeof xclass is 'function'
-    fn = xclass
-    xclass = ''
-  i = I18[key] || key
-  i18 = """title="#{i}" """
-  t18 = """<span>#{i}</span>"""
-  btn = """<button id="#{key}" #{i18}class="#{key} #{xclass}">#{i}</button>"""
-  btn = """<button id="#{key}" #{i18}class="#{key} faw #{ICON[key]}#{xclass}">#{t18}</button>""" if ICON[key]?
+@client.IconButton = (key,css='',fn)->
+  [fn,css] = [css,''] if typeof css is 'function'
+  i18 = """title="#{i = I18[key] || key}" """; t18 = """<span>#{i}</span>"""
+  btn = """<button id="#{key}" #{i18}class="#{key} #{css}">#{i}</button>"""
+  btn = """<button id="#{key}" #{i18}class="#{key} faw #{ICON[key]}#{css}">#{t18}</button>""" if ICON[key]?
   btn = $.make btn
   btn.onclick = fn if fn?
-  btn.onclick = fn
   btn
 
 @client.ModalWindowButton = (opts)->

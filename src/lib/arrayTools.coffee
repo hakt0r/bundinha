@@ -1,9 +1,9 @@
 
 $$.ArrayTools = ->
   return if Array::unique
-  Object.forEach = (o,c)-> c k,v for k,v of o
-  Object.filter  = (o,c)-> r = {}; r[k] =         v for k,v of o when c k,v    ; r
-  Object.map     = (o,c)-> r = {}; r[x[0]] = [x[1]] for k,v of o when x = c k,v; r
+  Object.forEach = (o,c)-> await Promise.all ( await c k,v for k,v of o )
+  Object.filter  = (o,c)-> r = {}; await Promise.all ( ( r[k] = v if await c k,v ) for k,v of o ); r
+  Object.map = (o,c)-> r = {}; await Promise.all ( ( r[x[0]] = x[1] if x = await c k,v ) for k,v of o ); r
   unless Array::flat then Object.defineProperty Array::,'flat',enumerable:false,value:->
     depth = if isNaN(arguments[0]) then 1 else Number(arguments[0])
     if depth then Array::reduce.call(@, ((acc, cur) ->
@@ -16,7 +16,7 @@ $$.ArrayTools = ->
     asArray: get:-> [@]
   Array.requireOn = (o,k)-> o[k] || o[k] = []
   Object.defineProperties Array::,
-    toObject: value: (callback)-> o = {}; @forEach((d)-> if r = callback d then ([k,v]=r;o[k]=v)); o
+    toObject: value: (callback)-> o = {}; await Promise.all @map( (d)-> o[r[0]] = r[1] if r = await callback d ); o
     asValue: get: -> l = @length; `l==0?false:l==1?this[0]:this`
     asArray: get: -> @
     first:   get: -> @[0]
