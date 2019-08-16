@@ -1,8 +1,8 @@
 
-@HasBackend = if @HasBackend? then @HasBackend else true
+@hasBackend = if @hasBackend? then @hasBackend else true
 
 @phase 'build',9999,=>
-  return if @HasBackend is false
+  return if @hasBackend is false
   await do @buildBackend
 
 # ███████  ██████  ██████  ██████  ███████ ███████
@@ -129,7 +129,7 @@ Bundinha::buildBackend = ->
     p.dependencies[k] = v
   p.bundinha = BunPackage.version
   p.name = p.name.replace /-devel$/,''
-  if @HasBackend is true
+  if @hasBackend is true
     AppPackage.main = './backend.js'
     AppPackage.bin[AppPackageName+'-backend'] = './backend.js'
   else

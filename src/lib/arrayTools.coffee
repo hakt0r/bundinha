@@ -15,6 +15,7 @@ $$.ArrayTools = ->
     asValue: get:->  @
     asArray: get:-> [@]
   Array.requireOn = (o,k)-> o[k] || o[k] = []
+  Array.wrap = (a)-> if Array.isArray(a) then a else if a[0]? then Array.from(a) else [a]
   Object.defineProperties Array::,
     toObject: value: (callback)-> o = {}; await Promise.all @map( (d)-> o[r[0]] = r[1] if r = await callback d ); o
     asValue: get: -> l = @length; `l==0?false:l==1?this[0]:this`

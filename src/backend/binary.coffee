@@ -58,7 +58,7 @@
     rm -rf /tmp/#{@bin}-#{@version}
     """
     try
-      await $cp.run$ '$l','sh','-c',script.join '\n'
+      await $cp.run$ 'sh','-c',script.join '\n'
       resolve()
     catch e
       console.error 'Error'.red.bold, 'building SystemPackage:', @bin.bold

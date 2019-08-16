@@ -112,11 +112,11 @@ Bundinha::build = ->
   return
 
 Bundinha::page = (opts={}) ->
-  opts.HasBackend = no
+  opts.hasBackend = no
   opts.BuildId = @BuildId
   b = new Bundinha
-  b.readPackage()
   Object.assign b, opts
+  b.readPackage()
   await do b.build
 
 #  ██████  ██████  ███    ███ ███    ███  █████  ███    ██ ██████
@@ -290,7 +290,7 @@ Bundinha::loadDependencies = ->
   installScope = (scope,base,arg)->
     missing = filterForMissing scope, base
     if missing.length > 0
-      console.debug ':::build:npm', missing
+      console.debug ':::build:npm', arg, missing
       process.chdir base
       $cp.spawnSync 'npm',['i',arg].concat(missing),stdio:'inherit'
     for dep in scope
@@ -302,7 +302,7 @@ Bundinha::loadDependencies = ->
   await installApt [@aptDevScope,@aptScope].flat().unique
   await installGit @gitDevScope
   await installScope @npmDevScope, RootDir,   '--save-dev'
-  await installScope @npmScope,    BuildDir,  '--save-opt'
+  await installScope @npmScope,    BuildDir,  '--save-opt' unless ( @hasBackend is no ) or ( AppPackage.hasBackend is no )
   true
 
 #  █████  ███████ ███████ ███████ ████████ ███████
@@ -360,11 +360,13 @@ Bundinha::loadAsset = (path)->
   throw new Error 'NOT IMPLEMENTED YET' if path.match /https?:/
   file = $path.join @AssetURL, $path.basename path
   dest = $path.join @AssetDir, $path.basename path
-  # console.debug ' LOAD '.red.inverse, file, path
+  console.debug 'load'.yellow.bold, file, path
   $fs.readFileSync path, 'utf8'
 
 Bundinha::linkAsset = (path)->
   path = $path.join.apply $path, path if Array.isArray path
+  return if path?.match? /^href:/
+  console.debug 'link'.yellow.bold, path
   throw new Error 'NOT IMPLEMENTED YET' if path.match /https?:/
   file = $path.join @AssetURL, $path.basename path
   dest = $path.join @AssetDir, $path.basename path

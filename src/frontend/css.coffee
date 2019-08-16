@@ -24,14 +24,14 @@
     # console.debug "  CSS ".red.bold.inverse, @cssScope
     CleanCSS = require 'clean-css' if @minify
     styles = ''
-    for href in @cssScope.asset when href.match and url = href.match /^href:\/(.*)$/
-      @insertStyles += """<link rel=stylesheet href="#{url[1]}"/>"""
+    for href in @cssScope.asset when Array.isArray(href) and href[0]?.match? and href[0]?.match /^href:/
+      @insertStyles += """<link rel=stylesheet href="#{href.slice(1).join '/'}"/>"""
     if @concatStyles
       styles += ( await @loadAsset href ) + '\n' for href     in @cssScope.asset when href.match and not href.match /^href:(.*)$/
       styles += ( styles.join '\n'      ) + '\n' for k,styles of @cssScope       when k isnt 'asset'
     else
       for href in @cssScope.asset
-        continue if href.match and href.match /^href:/
+        continue if Array.isArray(href) and href[0]?.match? and href[0]?.match /^href:/
         [file,data] = await @linkAsset href
         @insertStyles += """<link rel=stylesheet href="#{file.replace /^\//,''}"/>"""
         @stylesHash.push "'" + ( contentHash data ) + "'"

@@ -8,7 +8,7 @@
 @phase 'build:pre', =>
   @manifestPolicy = "'self'"
   @server.AppManifest = @manifest = {}
-  return if @HasBackend is no
+  return if @hasBackend is no
   console.debug " backend:dynamic ".blue.inverse, @AssetDir, 'manifest.json'
   @manifestPolicy = "'self' https:"
   @insertManifest = """<link rel=manifest crossorigin="use-credentials" href="#{$path.join @AssetURL,'manifest.json'}"/>"""
@@ -50,13 +50,13 @@
     """
 
 @phase 'build:frontend:metadata', =>
-  return if @HasBackend is no
+  return if @hasBackend is no
   console.debug 'build:manifest'.bold.yellow, @workerHash
   return do @buildInlineManifest if @inlineManifest is yes
   return
 
 @phase 'build:frontend:write', =>
-  if @HasBackend is no
+  if @hasBackend is no
     console.debug " write ".red.inverse, @AssetDir, 'manifest.json', 'static'.red
     $fs.writeFileSync $path.join(@AssetDir,'manifest.json'), JSON.stringify @manifest
     return

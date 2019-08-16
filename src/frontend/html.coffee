@@ -11,7 +11,7 @@
   value = value[0] if Array.isArray value
   @htmlScope[prop] = @htmlScope[prop] || []
   @htmlScope[prop].push value
-  # console.debug '::html:'.bold.inverse.yellow, prop.bold, value
+  console.debug '::html:'.bold.inverse.yellow, prop.bold, value
   true
 
 @phase 'build:frontend:hash', =>
@@ -63,4 +63,4 @@
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
   #{insertHead.join '\n'}
   </head><body>#{@insertHtml.body}</body></html>"""
-  console.debug ':write'.green, @htmlPath.bold
+  console.debug ':write'.green.bold, @htmlPath.bold
