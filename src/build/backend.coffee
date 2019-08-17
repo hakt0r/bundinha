@@ -138,4 +138,6 @@ Bundinha::buildBackend = ->
     if 1 < Object.keys(AppPackage.bin).length
       delete AppPackage.bin[AppPackageName+'-backend']
     else delete AppPackage.bin
+
+  $fs.mkdirp$ BuildDir unless $fs.existsSync $path.join BuildDir
   $fs.writeFileSync $path.join(BuildDir,'package.json'), JSON.stringify AppPackage, null, 2
