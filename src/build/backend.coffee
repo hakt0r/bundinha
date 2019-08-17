@@ -131,6 +131,7 @@ Bundinha::buildBackend = ->
   p.name = p.name.replace /-devel$/,''
   if @hasBackend is true
     AppPackage.main = './backend.js'
+    AppPackage.bin = AppPackage.bin || {}
     AppPackage.bin[AppPackageName+'-backend'] = './backend.js'
   else
     delete AppPackage.main = './backend.js'

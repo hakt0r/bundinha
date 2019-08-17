@@ -1,13 +1,21 @@
 
 @require 'bundinha/frontend/frontend'
 
-@client.init = ->
-  QR.write = qrcode
-  QR.read  = jsQR
-  return
+@npmDev 'jsqr'
+@npmDev 'qrcode-generator'
 
-@script [[BunDir,'node_modules','qrcode-generator','qrcode.js']]
-@script [[BunDir,'node_modules','jsqr','dist','jsQR.js']]
+@phase 'build:pre', =>
+  @script [[RootDir,'node_modules','qrcode-generator','qrcode.js']]
+  @script [[RootDir,'node_modules','jsqr','dist','jsQR.js']]
+  @webWorker 'CodeScanner', ( ->
+    self.onmessage = (msg)->
+      msg = msg.data.data
+      result = jsQR msg.data, msg.width, msg.height
+      self.postMessage (
+        if result then result else error:true )
+      null
+    null
+  ), [RootDir,'node_modules','jsqr','dist','jsQR.js']
 
 #  ██████  ██████  ██      ██ ██████
 # ██    ██ ██   ██ ██      ██ ██   ██
@@ -15,6 +23,11 @@
 # ██ ▄▄ ██ ██   ██ ██      ██ ██   ██
 #  ██████  ██   ██ ███████ ██ ██████
 #     ▀▀
+
+@client.init = ->
+  QR.write = qrcode
+  QR.read  = jsQR
+  return
 
 @client.Sleep = (ms)-> new Promise (resolve)->
   setTimeout resolve, ms
@@ -99,15 +112,3 @@ QR.processWorkerResult = (msg)->
   ctx.lineTo.apply ctx, Object.values(result.location.topLeftCorner)
   ctx.stroke()
   QR.stopScan result.data
-
-# WebWorker does the processing using jsQR
-
-@webWorker 'CodeScanner', ( ->
-  self.onmessage = (msg)->
-    msg = msg.data.data
-    result = jsQR msg.data, msg.width, msg.height
-    self.postMessage (
-      if result then result else error:true )
-    null
-  null
-), [BunDir,'node_modules','jsqr','dist','jsQR.js']

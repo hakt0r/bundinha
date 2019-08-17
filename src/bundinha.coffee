@@ -95,7 +95,7 @@ Bundinha::build = ->
   @require 'bundinha/backend/backend'
   @reqdir BuildDir
   await do @loadDependencies
-  # console.verbose ':build'.green, @htmlFile
+  console.debug ':build'.green, @htmlFile
   @require @sourceFile || $path.join AppPackageName, AppPackageName
   @WebRoot  = $path.join BuildDir,'html'
   @AssetURL = '/app' unless @AssetURL?
@@ -255,7 +255,9 @@ $$.accessor = (key)->
 
 Bundinha::npm    = (spec)-> @npmScope   .push spec
 Bundinha::apt    = (spec)-> @aptScope   .push spec
-Bundinha::npmDev = (spec)-> @npmDevScope.push spec
+Bundinha::npmDev = (spec)->
+  console.debug ' npmDev '.yellow.bold.inverse, spec
+  @npmDevScope.push spec
 Bundinha::gitDev = (spec)-> @gitDevScope.push spec
 Bundinha::aptDev = (spec)-> @aptDevScope.push spec
 
@@ -288,6 +290,7 @@ Bundinha::loadDependencies = ->
       args: ['apt-get','install','-yq'].concat(pkgs)
       env:  Object.assign {}, process.env, DEBIAN_FRONTEND:'noninteractive'
   installScope = (scope,base,arg)->
+    console.debug ' npm '.yellow.bold.inverse, base, scope.flat().join(' ')
     missing = filterForMissing scope, base
     if missing.length > 0
       console.debug ':::build:npm', arg, missing
