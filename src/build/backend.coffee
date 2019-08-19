@@ -26,6 +26,13 @@
 
 Bundinha::buildBackend = ->
   console.log ':build:'.bold.inverse.green, 'backend'.bold, @backendFile.yellow
+
+  if not await $fs.exists$ BuildDir
+    console.debug " build/ ".yellow.bold.inverse
+    $fs.mkdirp$ BuildDir
+  else
+    console.debug " build/ ".green.bold.inverse, BuildDir
+
   @loadDependencies()
   out = '( function(){ ' + (
     @serverHeader.map (i)-> i.toBareCode()
@@ -138,10 +145,5 @@ Bundinha::buildBackend = ->
     if 1 < Object.keys(AppPackage.bin).length
       delete AppPackage.bin[AppPackageName+'-backend']
     else delete AppPackage.bin
-  if not await $fs.exists$ BuildDir
-    console.debug " build/ ".yellow.bold.inverse
-    $fs.mkdirp$ BuildDir
-  else
-    console.debug " build/ ".green.bold.inverse, BuildDir
   console.debug " build/package.json ".yellow.bold.inverse
   $fs.writeFileSync $path.join(BuildDir,'package.json'), JSON.stringify AppPackage, null, 2
