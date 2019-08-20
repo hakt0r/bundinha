@@ -44,6 +44,8 @@ Command.init = ->
 
 Command.consoleUser = ->
   info = $os.userInfo()
+  unless User?
+    return Object.assign info, UID:0, USER:info.username, GROUP:['$console'], COOKIE:'$console'
   user = try await User.aliasSearch info.username
   unless user
     user = try ( await do User.admins ).shift()

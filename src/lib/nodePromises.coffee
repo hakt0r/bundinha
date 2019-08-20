@@ -166,7 +166,6 @@ $$.NodePromises = ->
   class $cp.SpawnOpts
     constructor:(args...)->
       if args[0]?.script?
-        debugger
         return args[0]
       if typeof args[0] is 'string' and args.length is 1
              opts = args:[args[0]]
@@ -184,9 +183,9 @@ $$.NodePromises = ->
       @handleModifiers()
       @handleScript()
       @env = @env || process.env
-      if      @host.localhost then @argsLocal()
-      else if @host.virtual   then @argsVirtual()
-      else                         @argsRemote()
+      if      @host?.localhost then @argsLocal()
+      else if @host?.virtual   then @argsVirtual()
+      else                          @argsRemote()
       @pipeSetup()
       # @debug()
     handleHost:->
