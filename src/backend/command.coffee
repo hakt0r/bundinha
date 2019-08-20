@@ -44,12 +44,14 @@ Command.init = ->
 
 Command.consoleUser = ->
   info = $os.userInfo()
-  unless User?
+  unless User?.aliasSearch?
     return Object.assign info, UID:0, USER:info.username, GROUP:['$console'], COOKIE:'$console'
   user = try await User.aliasSearch info.username
   unless user
     user = try ( await do User.admins ).shift()
   unless user
+    return Object.assign info, UID:0, USER:info.username, GROUP:['$console'], COOKIE:'$console'
+  unless user # deprecate
     console.debug ' call '.red.bold.whiteBG, "User unknown:".red, info?.username?.white.bold
     console.debug '    $ '.red.bold.whiteBG, info
     return process.exit 1
