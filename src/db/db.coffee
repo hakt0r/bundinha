@@ -54,7 +54,7 @@
     Database.byName[name] = db
     if ( typeName = opts.typeName )?
       Table = Database.extend $$[typeName], db, plugin
-      Table.path = Table::path = path
+      Table.path = Table::path = opts.path
     else APP[name] = Table = db
     console.debug '::::db', ':' + name.bold, opts
     Table
