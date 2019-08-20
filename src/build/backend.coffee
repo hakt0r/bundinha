@@ -117,7 +117,11 @@ Bundinha::buildBackend = ->
   do @buildPackageJSON
 
   unless $fs.existsSync $path.join BuildDir,'node_modules'
-    $cp.execSync "mkdir -p #{BuildDir}; cd #{BuildDir}; npm i", stdio:'inherit'
+    await $cp.exec$ args:["""
+      mkdir -p #{BuildDir}
+      cd #{BuildDir}
+      npm i
+    """], log:true
 
   return
 

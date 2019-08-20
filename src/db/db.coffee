@@ -64,7 +64,7 @@
 @server class Database
   @byName:{}
   @extend:(Table,db,plugin)->
-    p = Database.plugin[plugin].extend
+    p = Database.plugin[plugin].extend || {}
     g = Database.plugin.generic
     Table.db = Table::db = db
     Table.createFrom = fn.bind Table if fn = p.createFrom || g.createFrom
