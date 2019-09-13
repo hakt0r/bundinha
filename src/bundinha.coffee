@@ -172,6 +172,61 @@ Bundinha::cmd = pre:{}, post:{}, init: ->
     """
   process.exit 0
 
+#  █████  ██    ██ ████████  ██████  ██████  ██    ██ ██ ██      ██████
+# ██   ██ ██    ██    ██    ██    ██ ██   ██ ██    ██ ██ ██      ██   ██
+# ███████ ██    ██    ██    ██    ██ ██████  ██    ██ ██ ██      ██   ██
+# ██   ██ ██    ██    ██    ██    ██ ██   ██ ██    ██ ██ ██      ██   ██
+# ██   ██  ██████     ██     ██████  ██████   ██████  ██ ███████ ██████
+
+Bundinha::cmd.pre.autobuild = (args...)->
+  project = process.cwd()
+  @error 'Not a project'       unless $fs.existsSync project + "/package.json"
+  @error 'No source directory' unless $fs.existsSync project + "/src"
+  watch = {}; lock = false; linger = false
+  build = ->
+    return if lock
+    # if linger
+    #   try linger.kill('SIGHUP')
+    #   try linger.kill('SIGKILL')
+    lock = true
+    console.log 'run'.green.bold, $path.basename project
+    p = $cp.spawn 'bundinha', stdio:'inherit'
+    await new Promise (resolve)-> p.on 'close', resolve
+    if args.length > 0
+      p = $cp.spawn 'sh',['-c',args.shift()], stdio:'inherit'
+      await new Promise (resolve)-> p.on 'close', resolve
+    setTimeout ( ->
+      console.log 'unlock'.yellow.bold
+      lock = false
+    ), 2000
+  arm = (p,i)-> (l,c)->
+    return if l.mtimeMs is c.mtimeMs
+    console.log 'trig'.yellow.bold, $path.basename p
+    clearTimeout splint
+    splint = setTimeout build
+  scan = (dir)->
+    items = await $fs.readdir$ dir
+    stats = await Promise.all items.map (i)-> $fs.stat$ $path.join dir, i
+    await Promise.all ( stats
+    .map  (i,k)->
+      p = $path.join dir, items[k]
+      return p if i.isDirectory()
+      watch[p] = $fs.watchFile p, interval:100, arm p, i unless watch[p]
+      false
+    .filter (i)-> i isnt false
+    .map    (i)-> scan i )
+  scanner = ->
+    await scan $path.join project, 'src'
+    await scan $path.join BunDir
+    timer = setTimeout scanner, 1000
+  timer   = setTimeout scanner
+
+# ██████  ██    ██ ███████ ██   ██
+# ██   ██ ██    ██ ██      ██   ██
+# ██████  ██    ██ ███████ ███████
+# ██      ██    ██      ██ ██   ██
+# ██       ██████  ███████ ██   ██
+
 Bundinha::cmd.pre.push = (args...)->
   if args.includes 'clean'
     $cp.execSync """
@@ -184,6 +239,12 @@ Bundinha::cmd.pre.push = (args...)->
   result = $cp.spawnSync 'rsync',['-avzhL','--exclude','node_modules/','build/',@Deploy.url] ,stdio:'inherit'
   console.log if result.status is 0 then ' success'.green.bold else ' error'.red.bold
   process.exit result.status if final
+
+# ██████  ███████ ██████  ██       ██████  ██    ██
+# ██   ██ ██      ██   ██ ██      ██    ██  ██  ██
+# ██   ██ █████   ██████  ██      ██    ██   ████
+# ██   ██ ██      ██      ██      ██    ██    ██
+# ██████  ███████ ██      ███████  ██████     ██
 
 Bundinha::cmd.pre.deploy = ->
   return $cp.spawnSync 'sh',['-c',@Deploy.command] if @Deploy.command

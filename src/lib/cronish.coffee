@@ -25,3 +25,11 @@ Cronish.byId = {}
 Cronish.from = (opts)->
   return false if Cronish[opts.id]?
   new Cronish opts
+
+Bundinha::serverCron = (func)->
+  @server.Cronish = $$.Cronish
+  @server.init = func
+
+Bundinha::clientCron = (func)->
+  @client.Cronish = $$.Cronish
+  @client.init = func

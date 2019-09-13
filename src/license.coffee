@@ -5,6 +5,9 @@
 # ██      ██ ██      ██      ██  ██ ██      ██ ██
 # ███████ ██  ██████ ███████ ██   ████ ███████ ███████
 
+@phase 'build', @buildLicense = =>
+  @client.AppPackageLicense = "asdf"
+
 return
 @npmDev [false,'legally']
 

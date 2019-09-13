@@ -1,6 +1,13 @@
 
 @require 'bundinha/frontend/frontend'
 
+$$.QR = useBackend: =>
+  @npm 'jsqr'
+  @npm 'qrcode-generator'
+  @server.init = ->
+    $$.QR = write: require 'qrcode-generator'
+    return
+
 @npmDev 'jsqr'
 @npmDev 'qrcode-generator'
 
@@ -13,8 +20,8 @@
       result = jsQR msg.data, msg.width, msg.height
       self.postMessage (
         if result then result else error:true )
-      null
-    null
+      return
+    return
   ), [RootDir,'node_modules','jsqr','dist','jsQR.js']
 
 #  ██████  ██████  ██      ██ ██████

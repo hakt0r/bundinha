@@ -26,20 +26,18 @@
     User.create args:id:AdminUser, pass:hashedPass, seedSalt:seedSalt, group:['admin']
   return
 
-@server.Cronish = $$.Cronish
-@server.init = ->
-  Cronish.from id:'session:prune',interval:60e3,worker:->
-    new Promise (resolve)->
-      APP.session.createReadStream()
-      .on 'data', (entry)->
-        { key, value, path } = entry
-        return unless try value = JSON.parse value
-        [ id, date ] = value
-        return if isNaN date = parseInt date
-        return if Date.now() < date + SessionTimeout
-        console.debug 'session'.yellow.bold, 'reap', id.bold, (( Date.now() - date ) / SessionTimeout ) + 'm old'
-        APP.session.del key
-      .on 'close', resolve
+@serverCron ->
+  Cronish.from id:'session:prune', interval:60e3, worker:-> new Promise (resolve)->
+    APP.session.createReadStream()
+    .on 'data', (entry)->
+      { key, value, path } = entry
+      return unless try value = JSON.parse value
+      [ id, date ] = value
+      return if isNaN date = parseInt date
+      return if Date.now() < date + SessionTimeout
+      console.debug 'session'.yellow.bold, 'reap', id.bold, (( Date.now() - date ) / SessionTimeout ) + 'm old'
+      APP.session.del key
+    .on 'close', resolve
   return
 
 # ██    ██ ███████ ███████ ██████
@@ -122,7 +120,11 @@ User.aliasSearch = (alias)-> new Promise (resolve)->
 @server.AddAuthCookie = (req)->
   cookie = User.getUID()
   console.debug 'COOKIE'.yellow, req.USER.id, req.USER.group
-  req.setHeader 'Set-Cookie', "SESSION=#{cookie}; expires=#{new Date(new Date().getTime()+86409000).toUTCString()}; path=/;#{$$.CookieDomain||''}"
+  header  = "SESSION=#{cookie};"
+  header += " expires=#{new Date(new Date().getTime()+86409000).toUTCString()};"
+  header += " path=/;"
+  header += " domain=#{$$.CookieDomain};" if $$.CookieDomain?
+  req.setHeader 'Set-Cookie', header
   req.COOKIE = cookie
   APP.session.put cookie, JSON.stringify [req.USER.id,Date.now()]
 

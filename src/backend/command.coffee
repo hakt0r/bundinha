@@ -10,6 +10,12 @@
 
 @server class Command
 
+Command.call = (request,args...)->
+  return request.sub.apply request, args if request?.sub?
+  user = await Command.consoleUser()
+  call = new RPC.Console args, user
+  await call.execute()
+
 @command = (name,opts)=>
   if typeof name is 'object' then for name, opts of name
        @group name, ['$console','admin'], opts

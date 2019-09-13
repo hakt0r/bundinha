@@ -206,11 +206,10 @@ $$.NodePromises = ->
       @log = true         if m[4]?.match 'e'
       @preferTerm  = true if m[4]?.match 't'
       @preferX11   = true if m[4]?.match 'x'
-      @shellScript = true if m[4]?.match '!'
       @user = m[1].substring 0, -1 if m[1]
       @host = Host.byId[m[2]]      if m[2]
     handleScript:->
-      return if @script
+      return if @script or @host?.localhost
       @script = @args.shift() if @args.length is 1 and not @args[0].match /^[^ ]+$/
       @script = "eval \"$(echo #{(Buffer.from do @script.toString).toString('base64').replace(/\n/,'')}|base64 -d)\"" if @script
     argsLocal:->
@@ -237,7 +236,7 @@ $$.NodePromises = ->
     argsRemote:->
       if @script
            @args = ['ssh','-o','LogLevel=QUIET','-t',@host.sshArgs(),'--',@script].flat()
-      else @args = ['ssh','-o','LogLevel=QUIET','-t',@host.sshArgs(),'--',@args].flat()
+      else @args = ['ssh','-o','LogLevel=QUIET','-t',@host.sshArgs(),'--',@args]  .flat()
     pipeSetup:->
       @stdio = @stdio || [null,null,null]
       return unless Array.isArray @stdio

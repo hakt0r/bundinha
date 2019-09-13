@@ -13,10 +13,12 @@ Database.plugin.text =
   del: (id)-> new Promise (resolve)=>
     @db.del id
     resolve true
-  createFrom: (req)->
-    try evt = await @db.get req.args.id
-    throw new Error 'Exists' if evt?
-    evt = @create req
+  extend:
+    get:(key)-> await @db.get key
+    createFrom: (req)->
+      try evt = await @db.get req.args.id
+      throw new Error 'Exists' if evt?
+      evt = @create req
 
 @server class Database.Text
   constructor:(@name,opts)->

@@ -43,8 +43,8 @@
        $$.SystemdServiceExtra += "Group=#{USER}\n"
        dest = $path.join '/etc/systemd/system', AppPackage.name + '.service'
   else dest = $path.join HOME, '.local','share','systemd','user',AppPackage.name + '.service'
-  @log ' instl '.blue.bold.whiteBG, 'systemd for', USER.green, isSystemUser
-  $cp.spawnSync 'mkdir',['-p',$path.dirname dest], stdio:'inherit'
+  @log ' instl '.blue.bold.whiteBG, 'systemd for', USER.green, isSystemUser, dest
+  await $fs.mkdirp$ $path.dirname dest
   $fs.writeFileSync dest, """
     [Unit]
     Description=#{AppPackage.name} backend

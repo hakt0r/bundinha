@@ -1,6 +1,22 @@
 
 @require 'bundinha/backend/backend'
 
+@server.APP.initDB = ->
+  initTable = (name, opts)->
+    plugin = opts.plugin || opts.plugin = 'level'
+    console.debug '::::db'.yellow, ':' + name.bold, plugin, opts
+    db = await Database.plugin[plugin].open(name,opts)
+    Database.byName[name] = db
+    if ( typeName = opts.typeName )?
+      Table = Database.extend $$[typeName], db, plugin, opts
+      Table.path = Table::path = opts.path
+      Table.fields = opts.fields
+    else APP[name] = Table = db
+    console.debug '::::db', ':' + name.bold, opts
+    Table
+  await Promise.all ( initTable name, opts for name, opts of APP.db )
+  console.debug '::::db', 'ready'.green
+
 @preCommand ->
   await do APP.initDB if APP.initDB
   return
@@ -42,28 +58,19 @@
     @dbScope[name] = opts || {}
   else for typeName, opts of name
     opts.typeName = typeName
-    opts.file = opts.file || typeName
-    opts.fields = opts.fields || $$[typeName].fields || {}
+    opts.file     = opts.file   || typeName
+    opts.fields   = opts.fields || $$[typeName].fields || {}
     @dbScope[opts.file] = opts
 
-@server.APP.initDB = ->
-  initTable = (name, opts)->
-    plugin = opts.plugin || opts.plugin = 'level'
-    console.debug '::::db'.yellow, ':' + name.bold, plugin, opts
-    db = await Database.plugin[plugin].open(name,opts)
-    Database.byName[name] = db
-    if ( typeName = opts.typeName )?
-      Table = Database.extend $$[typeName], db, plugin
-      Table.path = Table::path = opts.path
-    else APP[name] = Table = db
-    console.debug '::::db', ':' + name.bold, opts
-    Table
-  await Promise.all ( initTable name, opts for name, opts of APP.db )
-  console.debug '::::db', 'ready'.green
+# ██████   █████  ████████  █████  ██████   █████  ███████ ███████
+# ██   ██ ██   ██    ██    ██   ██ ██   ██ ██   ██ ██      ██
+# ██   ██ ███████    ██    ███████ ██████  ███████ ███████ █████
+# ██   ██ ██   ██    ██    ██   ██ ██   ██ ██   ██      ██ ██
+# ██████  ██   ██    ██    ██   ██ ██████  ██   ██ ███████ ███████
 
 @server class Database
   @byName:{}
-  @extend:(Table,db,plugin)->
+  @extend:(Table,db,plugin,opts)=>
     p = Database.plugin[plugin].extend || {}
     g = Database.plugin.generic
     Table.db = Table::db = db
@@ -72,20 +79,32 @@
     Table.put        = fn.bind Table if fn = p.put        || g.put
     Table.del        = fn.bind Table if fn = p.del        || g.del
     Table.verify     = fn.bind Table if fn = p.verify     || g.verify
-    Table::verify    = fn.bind Table if fn = p.verify     || g.verify
-    Table::toJSON    = fn.bind Table if fn = p.toJSON     || g.toJSON
-    Table::toString  = fn.bind Table if fn = p.toString   || g.toString
+    Table::verify    = fn            if fn = p.verify     || g.verify
+    Table::toJSON    = fn            if fn = p.toJSON     || g.toJSON
+    Table::toString  = fn            if fn = p.toString   || g.toString
+    Object.assign Table, opts
+    defineField = (key,spec)->
+      console.debug opts.file, key.blue, spec
+      Object.defineProperty Table::, key,
+        get:(value)-> @record[key]
+        set:(value)-> @record[key] = value; @isDirty = true
+        enumerable: true
+    if Table.fields?
+      for key,spec of Table.fields
+        spec.rw = spec.rw || Table.access
+        defineField key,spec
     Table
-  @plugin:generic:{}
+  @plugin: generic:
+    toJSON:   (req)-> await @verify @record, req, 'r'
+    toString: (req)-> JSON.stringify await @toJSON req
 
-Database.plugin.generic.toJSON = (req)-> await @verify @record, req, 'r'
-Database.plugin.generic.toString = (req)-> JSON.stringify await @toJSON req
-Database.plugin.generic.verify = (data,req,access)->
+Database.plugin.generic.verify = (data,req,access,create)->
+  console.debug 'verify', access, Object.keys(data).join(',').gray, create || ''
   verified   = {}
   errors     = {}
   hadError   = false
-  specFields = @fields
-  hasGroups  = req.USER.group
+  specFields = @fields || @constructor.fields
+  hasGroups  = req.USER.group || []
   accessType = if access is 'r' then 0 else 1
   for fieldName, value of data
     if ( not opts = specFields[fieldName] ) and ( access is 'w' )
@@ -98,7 +117,7 @@ Database.plugin.generic.verify = (data,req,access)->
     for testName in testSpecKeys
       try
         value = Database[testName].apply null, testSpec[testName].concat value
-        if RequireGroupBare hasGroups, accessGroups
+        if create or RequireGroupBare hasGroups, accessGroups
           verified[fieldName] = value
         else if access is 'w'
           DenyAuth ': cannot write to: ' + fieldName;
@@ -107,9 +126,15 @@ Database.plugin.generic.verify = (data,req,access)->
         errors[fieldName][testName] = e
         hadError = true
   if hadError
-    console.error 'access'.red.bold, req.UID, errors
+    req.err 'access'.red.bold, req.UID, errors
     throw ( e = new Error 'VerificationError'; e.data = errors; e )
   verified
+
+# ███████ ██ ███████ ██      ██████      ████████ ██    ██ ██████  ███████ ███████
+# ██      ██ ██      ██      ██   ██        ██     ██  ██  ██   ██ ██      ██
+# █████   ██ █████   ██      ██   ██        ██      ████   ██████  █████   ███████
+# ██      ██ ██      ██      ██   ██        ██       ██    ██      ██           ██
+# ██      ██ ███████ ███████ ██████         ██       ██    ██      ███████ ███████
 
 Database.String = (len,data)->
   throw new Error 'Required' unless data?

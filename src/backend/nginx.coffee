@@ -22,9 +22,13 @@
   available = '/' + $path.join 'etc','nginx','sites-available',AppPackage.name+'.conf'
   enabled   = '/' + $path.join 'etc','nginx','sites-enabled',  AppPackage.name+'.conf'
   # $fs.writeFileSync path = $path.join(ConfigDir,'nginx.site.conf'), NGINX.config()
-  await $fs.writeFileAsRoot$ available, config = NGINX.config()
-  await $cp.run$ '$','ln','-sf',available,enabled
-  await $cp.run$ '$','/etc/init.d/nginx','restart'
+  try
+    await $fs.writeFileAsRoot$ available, config = NGINX.config()
+    await $cp.run$ '$','ln','-sf',available,enabled
+    await $cp.run$ '$','/etc/init.d/nginx','restart'
+  catch error
+    @err error
+    return false
   r = await $cp.run$ '$','nginx','-t'
   if r.status isnt 0
     @err ' nginx '.blue.whiteBG.bold, 'install'.red.bold
@@ -34,8 +38,10 @@
     @err '',"#{'SSLFullchain'.padEnd(13).bold.yellow}: #{$$.SSLFullchain.bold.white}"
     @err '',"#{'Protocol'.padEnd(13).bold.yellow}: #{$$.Protocol.bold.white}"
     @err '',"#{'Port'.padEnd(13).bold.yellow}: #{$$.Port.bold.white}"
+    @err '---'
     @err r.stdout
     @err r.stderr
+    @err '---'
     @err config
     @error 'NGINX config error'
   @log ' nginx '.blue.whiteBG.bold, 'install'.green.bold

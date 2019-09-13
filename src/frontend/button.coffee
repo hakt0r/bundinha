@@ -73,10 +73,10 @@
     document.addEventListener 'keyup', keyClose = (e)->
       return false unless e.key is 'Escape'
       close e
-    html
+    return html
 
 @client.ModalWindow.section = (name,value)->
-  return unless value?
+  return unless value? and value isnt false
   switch typeof value
     when 'function' then @section name, value()
     when 'string'   then @append @body = $.make value
@@ -86,3 +86,53 @@
         ( @body.append e for e in value )
       else @append @body = value
     else throw new Error """ModalWindow::section(#{name},#{value}) Unexpected: #{typeof value}"""
+
+@client class Button
+  constructor:(opts={})->
+    btn = document.createElement 'button'
+    Object.assign btn, opts
+    btn.classList.add btn.key
+    btn.title = btn.title || I18[btn.key] || btn.key
+    btn.classList.add c for c in @classList.split ' ' if @classList?
+    unless off is btn.icon
+      btn.classList.add 'faw'
+      btn.classList.add ( ICON[btn.icon || btn.key] )
+    btn.on 'click', opts.click if opts.click?
+    btn.append $.make "<span class=title>#{btn.title}</span>"
+    return btn
+
+@client.FormTool = (name,opts,build)->
+  unless build?
+    build = opts
+    opts = {}
+  _button = (form)-> (opts)->
+    form.append new Button opts
+  _group = (form)-> (build)->
+    ff = $$$.createElement 'group'
+    build.call
+      button: _button ff
+      group:   _group ff
+      input:   _input ff
+    form.append ff
+  _input = (form)-> (opts)->
+    for field, o of opts
+      tag = o.tag || 'input'
+      e = $$$.createElement tag
+      switch tag
+        when 'input'
+          attr = Object.assign {}, e, {
+            type         : 'text'
+            autocomplete : 'off'
+          }, o
+          e.setAttribute k,v for k,v of attr
+      e.name = o.name || field.toLowerCase()
+      form.append e
+    return
+  form = $$$.createElement 'form'
+  form.id = form.name = name
+  form.addClass c for c in opts.css if opts.css
+  build.call
+    button: _button form
+    group:   _group form
+    input:   _input form
+  form

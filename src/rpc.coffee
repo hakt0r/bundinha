@@ -40,6 +40,7 @@
         return unless e
         e = e.join ' ' if e.join
         e.toString().replace(/Error: /,'')
+      console.log error
     @respond @data
   execute:->
     @cmd = [@cmd] unless Array.isArray @cmd

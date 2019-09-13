@@ -104,12 +104,13 @@ ACME::list = ->
 # ██   ██ ███████ ██   ████ ███████  ███ ███
 
 ACME::renewHTTP = (req)->
+  # req.log "acme".yellow.bold, 'renew'.red.bold
   throw new Error 'Undefined: ServerName' unless $$.ServerName
-  await @nginxRedirectOn()
+  await @nginxRedirectOn req
   { stdout } = acmeResult = await $cp.run$ [
     ACME.call,"--issue","-d",$$.ServerName,"--standalone","--httpport",APP.port + 1776].flat()
   result = ACME.parseResult req, acmeResult, $$.ServerName
-  await @nginxRedirectOff()
+  await @nginxRedirectOff req
   result
 @command 'acme:renew',      (args...)-> await ACME.renew ...args
 @command 'acme:renew:http', (args...)-> await ACME.renew ...args
@@ -146,12 +147,12 @@ ACME::parseResult = (request,{stdout,stderr},domain,firstStep=false)->
 
 ACME::nginxRedirectOff = -> if NGINX.httpRedirect is @httpRedirect
   NGINX.httpRedirect = ACME.oldRedirect
-  await Command.call 'install:nginx'
+  await Command.call req, 'install:nginx'
 
-ACME::nginxRedirectOn = ->
+ACME::nginxRedirectOn = (req)->
   @oldRedirect = NGINX.httpRedirect if NGINX.httpRedirect isnt @httpRedirect
   NGINX.httpRedirect =  ACME.httpRedirect
-  await Command.call 'install:nginx'
+  await Command.call req, 'install:nginx'
 
 ACME::httpRedirect = -> """
   server {
