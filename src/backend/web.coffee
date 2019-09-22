@@ -56,6 +56,14 @@ RPC.Web::respond = (data)->
   @writeHead @statusCode
   @end JSON.stringify data
 
+RPC.Web::redirect = (code,url)->
+  unless url
+    url = code
+    code = 302
+  @writeHead @statusCode = code,
+    Location: url
+  @end()
+
 RPC.Web::handlePostBody = ->
   @stream = undefined
   switch (@htReq.headers['content-encoding'] or 'raw').toLowerCase()

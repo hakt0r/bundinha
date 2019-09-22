@@ -57,6 +57,7 @@ Bundinha::ServiceWorker = ->
   self.addEventListener 'fetch', (event)->
     { url } = req = event.request
     return if req.method is "POST"
+    return if url.match /\.html$/
     return if url.match /\.(mp3|ogg|opus|mkv|mp4|avi|mpe?g|ts)$/
     event.respondWith new Promise (resolve)->
       res = await caches.match req
