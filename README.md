@@ -219,8 +219,8 @@ bundinha/backend/websocket # websocket api
 
 ## Copyrights
 
-   - **bundinha** c) 2018-2019 Sebastian Glaser <anx@hakt0r.de>
-   - derived from **htx**: c) 2013 Sebastian Glaser <anx@hakt0r.de>
+   - **bundinha** c) 2018-2019 Sebastian Glaser <anx@hktr.de>
+   - derived from **htx**: c) 2013 Sebastian Glaser <anx@hktr.de>
 
 ## GPL compiler exemption
 

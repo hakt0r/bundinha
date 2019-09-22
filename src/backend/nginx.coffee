@@ -162,7 +162,7 @@ NGINX.multiFactor = (clientCA,gateDN)-> """
   if ( $ssl_client_verify = SUCCESS       ) { set $factor "${factor}s"; set $has_cert 1; }
   if ( $ssl_client_s_dn != ''             ) { set $auth_dn $ssl_client_s_dn;    }
   if ( $ssl_client_s_dn = $gate_dn        ) { set $auth_dn $http_x_gate_s_dn;   }
-  if ( $auth_dn ~ ([a-z]+).casa.hakt0r.de ) { set $auth_user_ssl $1;      }
+  if ( $auth_dn ~ ([a-z]+).casa.hktr.de ) { set $auth_user_ssl $1;      }
   if ( $auth_user_ssl = 'gate'            ) { return 403; }
   if ( $factor = 'cs'                     ) { set $grant 1; }
   """
