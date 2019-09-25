@@ -180,8 +180,17 @@ ACME::httpRedirect = -> """
 # ██████  ██   ████ ███████
 return unless @acmeDNS
 
-ACME::renewDNS = (request)->
-  {domain,dynamic,domains,subDomains,aliased,force,updateDNS,nameServer} = request
+ACME::renewDNS = (request,opts)->
+  {domain,dynamic,domains,subDomains,aliased,force,nameServer} = opts
+  updateDNS = (list=[],mode='add',request)->
+    list
+    .map ([type,key,val,ttl])->
+      switch type
+        when 'txt'   then DNS.txtRecord key, val, ttl
+        when 'cname' then """C#{key}:#{val}:#{ttl}\n"""
+        else throw new Error "Unknown DNS Record: #{type} #{key} #{val}"
+    .map (line)-> DNS.tempRecords[mode](line)
+    await DNS.update request
   writeNewConfig = ->
     return unless cert = await ACME.check()
     $$.SSLHostKey   = cert.key
@@ -218,7 +227,7 @@ ACME::renewDNS = (request)->
     break unless n? and m?
     stdout = stdout.substring n.index + tok.length
     challenge.push ['txt',"_acme-challenge.#{dom}.",tok,300]
-    check.push ACME.checkDNS dom, tok, nameServer
+    check.push ACME.checkDNS request, dom, tok, nameServer
   domains.forEach (domain)-> if domain isnt dynamic and not aliased.includes domain
     challenge.push ['cname',"_acme-challenge.#{domain}.","_acme-challenge.#{dynamic}.",300]
   subDomains.forEach (domain)->
@@ -237,7 +246,7 @@ ACME::renewDNS = (request)->
     true
   else false
 
-ACME::checkDNS = (domain,token,nameServer)-> ->
+ACME::checkDNS = (request,domain,token,nameServer)-> ->
   SSL = "  acme ".blue.whiteBG.bold + ' ' + domain.bold
   r = await $cp.run$ 'host','-t','TXT',"_acme-challenge.#{domain}", nameServer
   if r?.stdout?.includes? token

@@ -491,6 +491,7 @@ require.extensions['.coffee'] = (module,filename)=>
     else compile() )
   scpt = '( function(){\n' + scpt + '\n}).apply(_BUND_INSTANCE_);\n'
   delete require.cache[filename]
+  console.debug "::require".yellow, filename.bold
   return module._compile scpt, filename
 
 Bundinha::require = (query,p='')->

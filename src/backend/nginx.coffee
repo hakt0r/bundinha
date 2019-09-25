@@ -6,9 +6,13 @@
 @preCommand ->
   await APP.getCerts()
 
-@require 'bundinha/backend/backend'
-@require 'bundinha/backend/web'
-@require 'bundinha/backend/acme'
+unless @nginxLight
+  @require 'bundinha/backend/backend'
+  @require 'bundinha/backend/web'
+  @require 'bundinha/backend/acme'
+else
+  @server.APP.getCerts = ->
+  @server.APP.startServer = ->
 
 @config
   SSLFullchain: "/path/to/fullchain.crt"
@@ -34,10 +38,10 @@
     @err ' nginx '.blue.whiteBG.bold, 'install'.red.bold
     @err '',"#{'BaseUrl'.padEnd(13).bold.yellow}: #{$$.BaseUrl.bold.white}"
     @err '',"#{'ServerName'.padEnd(13).bold.yellow}: #{$$.ServerName.bold.white}"
-    @err '',"#{'SSLHostKey'.padEnd(13).bold.yellow}: #{$$.SSLHostKey.bold.white}"
-    @err '',"#{'SSLFullchain'.padEnd(13).bold.yellow}: #{$$.SSLFullchain.bold.white}"
-    @err '',"#{'Protocol'.padEnd(13).bold.yellow}: #{$$.Protocol.bold.white}"
-    @err '',"#{'Port'.padEnd(13).bold.yellow}: #{$$.Port.bold.white}"
+    @err '',"#{'SSLHostKey'.padEnd(13).bold.yellow}: #{$$.SSLHostKey.bold.white}"     if $$.SSLHostKey?
+    @err '',"#{'SSLFullchain'.padEnd(13).bold.yellow}: #{$$.SSLFullchain.bold.white}" if $$.SSLFullchain?
+    @err '',"#{'Protocol'.padEnd(13).bold.yellow}: #{$$.Protocol.bold.white}"         if $$.Protocol?
+    @err '',"#{'Port'.padEnd(13).bold.yellow}: #{$$.Port.bold.white}"                 if $$.Port?
     @err '---'
     @err r.stdout
     @err r.stderr
@@ -80,7 +84,7 @@ NGINX.config = -> """
     root #{WebDir};
     #{ssl}
     #{NGINX.sslLockdown()}
-    #{NGINX.singleFactor()}
+    #{NGINX.singleFactor() unless NGINX.noAuth}
     #{NGINX.dynamic.map( (i)-> i() ).join '\n  '}
     #{NGINX.apiConfig()}
   }""" else ''
