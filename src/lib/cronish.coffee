@@ -9,15 +9,19 @@ class $$.Cronish
     console.debug 'cron'.yellow.bold, @id.bold, @interval.toString().gray
     @timer = setTimeout @trigger, @delay
   trigger:->
-    return false if @locked
+    if @locked
+      console.debug 'locked'.red.bold, @id.bold.yellow
+      return false
     console.debug 'cron'.blue.bold, @id.bold
     clearTimeout @timer
     @locked = true
+    console.debug 'cron:start'.yellow.bold, @id.bold.yellow
     try r = await @worker()
     catch e
       console.debug 'cron'.red.bold, @id.bold, @interval.toString().gray, @realInterval.toString().red
       console.error e
       @realInterval = @realInterval * 2
+    console.debug 'cron:stop'.green.bold, @id.bold.yellow
     @locked = false
     @timer = setTimeout @trigger, @realInterval
 

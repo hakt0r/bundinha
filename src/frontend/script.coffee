@@ -23,7 +23,11 @@
   { minify } = require 'uglify-es' if @minify
   apilist = []
   scripts = []
-  scripts.push """window.$$ = window; $$.isServer = ! ( $$.isClient = true ); $$.debug = false;"""
+  scripts.push """
+    window.$$ = window;
+    $$.isServer = ! ( $$.isClient = true );
+    $$.debug = false;
+  """
   scripts.push "$$.#{name} = #{JSON.stringify tpl};" for name, tpl of @shared.constant
   scripts.push "$$.BunWebWorker = #{JSON.stringify Object.keys(@webWorkerScope)};"
   await do =>

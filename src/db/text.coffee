@@ -46,12 +46,14 @@ Database.plugin.text =
     await $fs.unlink$ path
     @releaseRecord path
   put:(key,value)->
+    console.debug @name.bold, 'put'.green.bold, key, value
     path = $path.join @path, @escape key
     await @lockRecord path, null
     value = if typeof value is 'string' then value else JSON.stringify value
     await $fs.writeFile$ path + '.$$', value
     await $cp.spawn$$ 'sync'
     await $fs.rename$ path + '.$$', path
+    console.debug @name.bold, 'put'.green.bold, key, value
     @releaseRecord path
   createReadStream:->
     e = new (require 'events').EventEmitter
@@ -62,4 +64,5 @@ Database.plugin.text =
     setTimeout =>
       await Promise.all ( readFile key for key in await $fs.readdir$ @path )
       e.emit 'end'
+      e.emit 'close'
     return e

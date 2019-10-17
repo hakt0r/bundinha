@@ -427,6 +427,13 @@ Bundinha::loadAsset = (path)->
   console.debug 'load'.yellow.bold, file, path
   $fs.readFileSync path, 'utf8'
 
+Bundinha::copyAsset = (path)->
+  path = $path.join.apply $path, path if Array.isArray path
+  console.debug 'copy'.yellow.bold, path
+  $cp.execSync """
+  cp -R '#{path}' '#{RootDir}/build/html/'
+  """
+
 Bundinha::linkAsset = (path)->
   path = $path.join.apply $path, path if Array.isArray path
   return if path?.match? /^href:/

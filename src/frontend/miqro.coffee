@@ -11,6 +11,7 @@ Bundinha::miqro = -> # aka. Vquery, VanillaJ and jFlat
   window.$$$ = document
   window.$$  = window
   window.$   = (query)-> document.querySelector query
+  $.byId = document.getElementById.bind document
   $.all = (query)-> Array.prototype.slice.call document.querySelectorAll query
   $.map = (query,fn)-> Array.prototype.slice.call(document.querySelectorAll query).map(fn)
   $.make = (html)->

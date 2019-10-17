@@ -6,13 +6,14 @@
 # ███████ ███████ ██   ██   ████   ███████ ██   ██
 
 @flag 'UseAuth'
-@require 'bundinha/db/' + @AuthDB = @AuthDB || 'text'
-@db 'user',    plugin:@AuthDB
-@db 'session', plugin:@AuthDB
+@AuthDB = @AuthDB || 'text'
+@require 'bundinha/db/' + @AuthDB
+@db 'user',       plugin: @AuthDB
+@db 'session',    plugin: @AuthDB
 
 @config
-  AdminUser:'admin'
-  AdminPassword:false
+  AdminUser:      'admin'
+  AdminPassword:  false
   SessionTimeout: 3600000
 
 @preCommand ->
@@ -35,7 +36,7 @@
       [ id, date ] = value
       return if isNaN date = parseInt date
       return if Date.now() < date + SessionTimeout
-      console.debug 'session'.yellow.bold, 'reap', id.bold, (( Date.now() - date ) / SessionTimeout ) + 'm old'
+      console.debug 'session'.yellow.bold, 'reap', (id|'NULL').bold, (( Date.now() - date ) / SessionTimeout ) + 'm old'
       APP.session.del key
     .on 'close', resolve
   return

@@ -99,21 +99,28 @@
     toString: (req)-> JSON.stringify await @toJSON req
 
 Database.plugin.generic.verify = (data,req,access,create)->
-  console.debug 'verify', access, Object.keys(data).join(',').gray, create || ''
+  # console.log 'verify', access, Object.keys(data).join(',').gray, create || ''
   verified   = {}
   errors     = {}
   hadError   = false
   specFields = @fields || @constructor.fields
-  hasGroups  = req.USER.group || []
+  hasGroups  = ( req.USER.group || [] ).slice()
   accessType = if access is 'r' then 0 else 1
   for fieldName, value of data
     if ( not opts = specFields[fieldName] ) and ( access is 'w' )
       throw new Error 'InvalidField: ' + fieldName
     continue unless opts
     accessGroups = [opts.rw[accessType]]
+    hasGroups.push 'public' if -1 is hasGroups.indexOf 'public'
     testSpec     = opts.t
     testSpecKeys = Object.keys testSpec
-    # console.log fieldName.bold, value, accessGroups, hasGroups
+    accessGroups.map (spec)->
+      if spec[0] is '$' and func = $$[spec]
+        if func req, data
+          hasGroups.push spec if -1 is hasGroups.indexOf spec
+    # console.log fieldName.bold, value
+    # console.log 'need'.red, accessGroups
+    # console.log 'has'.green, hasGroups
     for testName in testSpecKeys
       try
         value = Database[testName].apply null, testSpec[testName].concat value

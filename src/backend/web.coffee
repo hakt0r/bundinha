@@ -44,6 +44,7 @@ RPC.Web::execute = ->
   await RPC::execute.call @
 
 RPC.Web::respond = (data)->
+  return if @ended
   @dbg 'respond', data
   @setHeader 'Content-Type', 'text/json'
   if @fail
@@ -57,6 +58,7 @@ RPC.Web::respond = (data)->
   @end JSON.stringify data
 
 RPC.Web::redirect = (code,url)->
+  @ended = true
   unless url
     url = code
     code = 302
