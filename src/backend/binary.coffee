@@ -14,7 +14,7 @@
     Object.assign @, opts
     @bin = $path.basename @lib if @lib?
     @version = @version || '1.0.0-git1'
-    @host = @host || 'localhost'
+    # @host = @host || name:'localhost', exec:$cp.run, localhost:true
     return i if i = SystemBinary.byName[@bin]
     SystemBinary.byName[@bin] = @
 
@@ -72,7 +72,8 @@ SystemBinary.depend = (opts)->
   ( new SystemBinary opts ).depend()
 
 @server.preinit = ->
-  await SystemBinary.depend opts for name, opts of SystemBinary.dep
+  for name, opts of SystemBinary.dep when not opts.optional
+    await SystemBinary.depend opts
   return
 
 SystemBinary.mode = {}

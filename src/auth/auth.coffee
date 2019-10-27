@@ -122,7 +122,7 @@ User.aliasSearch = (alias)-> new Promise (resolve)->
   cookie = User.getUID()
   console.debug 'COOKIE'.yellow, req.USER.id, req.USER.group
   header  = "SESSION=#{cookie};"
-  header += " expires=#{new Date(new Date().getTime()+86409000).toUTCString()};"
+  header += " expires=#{new Date(Date.now()+86409000).toUTCString()};"
   header += " path=/;"
   header += " domain=#{$$.CookieDomain};" if $$.CookieDomain?
   req.setHeader 'Set-Cookie', header
